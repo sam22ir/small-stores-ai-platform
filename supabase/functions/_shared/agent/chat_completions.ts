@@ -1,0 +1,205 @@
+import { buildSystemPrompt } from "./prompt.ts";
+import {
+  HANDOFF_HOLDING_REPLY,
+  MAX_REPLY_BYTES,
+  toMessageParams,
+  truncateUtf8,
+} from "./run.ts";
+import { executeTool, toolDefinitions } from "./tools.ts";
+import type {
+  AgentResult,
+  Catalog,
+  ChatMessage,
+  StoreContext,
+  ToolCallLog,
+} from "./types.ts";
+
+// Agent loop for any OpenAI-compatible /chat/completions endpoint (TokenRouter,
+// OpenRouter, NVIDIA NIM, ...). Meant for cheap/free testing of the message flow.
+// The Claude path in run.ts is the production path; behaviour on other models
+// (tool use, languages, prompt-injection resistance) is NOT representative of it.
+
+const MAX_TOOL_ROUNDS = 5;
+// Reasoning models spend completion tokens on thinking before they answer.
+const MAX_TOKENS = 2048;
+const REQUEST_TIMEOUT_MS = 45_000;
+
+export interface ChatCompletionsOptions {
+  baseUrl: string; // e.g. https://api.tokenrouter.com/v1
+  apiKey: string;
+  model: string;
+  catalog: Catalog;
+  store: StoreContext;
+  history: ChatMessage[];
+  fetchImpl?: typeof fetch;
+  retryDelayMs?: number;
+}
+
+interface ToolCall {
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
+}
+
+type Message =
+  | { role: "system" | "user"; content: string }
+  | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
+  | { role: "tool"; tool_call_id: string; content: string };
+
+interface Completion {
+  choices?: {
+    message?: { content?: string | null; tool_calls?: ToolCall[] };
+    finish_reason?: string;
+  }[];
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
+}
+
+const tools = toolDefinitions.map((t) => ({
+  type: "function" as const,
+  function: {
+    name: t.name,
+    description: t.description,
+    parameters: t.input_schema,
+  },
+}));
+
+// Some reasoning models inline their thinking as <think>...</think>.
+export function stripThinking(text: string): string {
+  const cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  // An unclosed tag means the answer was cut off mid-thought: nothing usable.
+  return /<think>/i.test(cleaned) ? "" : cleaned.trim();
+}
+
+export async function runAgentChatCompletions(
+  opts: ChatCompletionsOptions,
+): Promise<AgentResult> {
+  const { catalog, store, model } = opts;
+  const doFetch = opts.fetchImpl ?? fetch;
+  const url = `${opts.baseUrl.replace(/\/+$/, "")}/chat/completions`;
+
+  const history = toMessageParams(opts.history);
+  if (history.length === 0 || history[history.length - 1].role !== "user") {
+    throw new Error("history must end with a customer message");
+  }
+  const messages: Message[] = [
+    { role: "system", content: buildSystemPrompt(store) },
+    ...history.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content as string,
+    })),
+  ];
+
+  const toolCalls: ToolCallLog[] = [];
+  const usage = { input_tokens: 0, output_tokens: 0 };
+  let handoffReason: string | null = null;
+  let reply = "";
+
+  async function complete(): Promise<Completion> {
+    const body = JSON.stringify({
+      model,
+      messages,
+      tools,
+      tool_choice: "auto",
+      max_tokens: MAX_TOKENS,
+      temperature: 0.2,
+    });
+    for (let attempt = 1;; attempt++) {
+      const res = await doFetch(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${opts.apiKey}`,
+        },
+        body,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      if (res.ok) return await res.json() as Completion;
+      // Free tiers rate-limit hard; one patient retry is enough for testing.
+      if ((res.status === 429 || res.status >= 500) && attempt < 2) {
+        await new Promise((r) => setTimeout(r, opts.retryDelayMs ?? 2000));
+        continue;
+      }
+      const detail = (await res.text()).slice(0, 300);
+      throw new Error(`LLM request failed (${res.status}): ${detail}`);
+    }
+  }
+
+  for (let round = 0;; round++) {
+    if (round >= MAX_TOOL_ROUNDS) {
+      handoffReason = handoffReason ?? "Agent used too many tool calls";
+      break;
+    }
+
+    const completion = await complete();
+    usage.input_tokens += completion.usage?.prompt_tokens ?? 0;
+    usage.output_tokens += completion.usage?.completion_tokens ?? 0;
+
+    const choice = completion.choices?.[0];
+    if (!choice?.message) throw new Error("LLM response had no choices");
+    const msg = choice.message;
+
+    // Some models set finish_reason "stop" even when they return tool calls.
+    const calls = msg.tool_calls ?? [];
+    if (calls.length === 0) {
+      if (choice.finish_reason === "length") {
+        handoffReason = handoffReason ?? "Answer was too long";
+        break;
+      }
+      reply = stripThinking(msg.content ?? "");
+      break;
+    }
+
+    messages.push({
+      role: "assistant",
+      content: msg.content ?? null,
+      tool_calls: calls,
+    });
+
+    for (const call of calls) {
+      let result: { content: string; is_error: boolean };
+      let input: unknown = {};
+      try {
+        input = JSON.parse(call.function.arguments || "{}");
+      } catch {
+        result = { content: "Tool arguments were not valid JSON.", is_error: true };
+        toolCalls.push({ name: call.function.name, input, is_error: true });
+        messages.push({ role: "tool", tool_call_id: call.id, content: result.content });
+        continue;
+      }
+      try {
+        const outcome = await executeTool(call.function.name, input, {
+          store,
+          catalog,
+        });
+        if (outcome.handoffReason) handoffReason = outcome.handoffReason;
+        toolCalls.push({
+          name: call.function.name,
+          input,
+          is_error: !!outcome.isError,
+        });
+        messages.push({ role: "tool", tool_call_id: call.id, content: outcome.content });
+      } catch (err) {
+        console.error(`tool ${call.function.name} failed`, err);
+        toolCalls.push({ name: call.function.name, input, is_error: true });
+        messages.push({
+          role: "tool",
+          tool_call_id: call.id,
+          content: "The lookup failed. Offer to check with the owner.",
+        });
+      }
+    }
+  }
+
+  if (!reply) {
+    reply = HANDOFF_HOLDING_REPLY;
+    handoffReason = handoffReason ?? "No reply was produced";
+  }
+
+  return {
+    reply: truncateUtf8(reply, MAX_REPLY_BYTES),
+    handoffReason,
+    toolCalls,
+    usage,
+    model,
+  };
+}

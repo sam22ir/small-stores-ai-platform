@@ -37,6 +37,10 @@ curl -X POST https://<project-ref>.supabase.co/functions/v1/playground-chat \
 Send `{"store_id": "...", "reset": true}` to hand a conversation back to the bot after a handoff.
 Needs the `ANTHROPIC_API_KEY` and `PLAYGROUND_SECRET` Edge Function secrets.
 
+To test with a free OpenAI-compatible model instead (for example on TokenRouter), set the secrets
+`LLM_PROVIDER=openai-compatible`, `LLM_BASE_URL`, `LLM_API_KEY` and `LLM_MODEL`. Remove `LLM_PROVIDER` to go back to Claude.
+Results on other models don't show how the Claude agent behaves, so use fake data and treat it as a flow test only.
+
 Agent unit tests (fake Claude client and catalog, no network): `npm install && npm test`.
 
 ## Setup

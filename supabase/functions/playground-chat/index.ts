@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import Anthropic from "@anthropic-ai/sdk";
 import { DEFAULT_MODEL, runAgent } from "../_shared/agent/run.ts";
+import { runAgentChatCompletions } from "../_shared/agent/chat_completions.ts";
 import type {
   Catalog,
   ChatMessage,
@@ -12,6 +13,10 @@ import type {
 //   curl -X POST $URL -H "x-playground-secret: $PLAYGROUND_SECRET" \
 //     -d '{"store_id":"<uuid>","text":"do you have the black hoodie in M?"}'
 // Disabled until PLAYGROUND_SECRET is set. Replaced by dashboard auth later.
+//
+// Provider (secrets): by default the Claude agent (ANTHROPIC_API_KEY, AGENT_MODEL).
+// LLM_PROVIDER=openai-compatible uses LLM_BASE_URL + LLM_API_KEY + LLM_MODEL instead
+// (e.g. a free model on TokenRouter) for cheap flow testing. Use fake data only there.
 
 const PLAYGROUND_SECRET = Deno.env.get("PLAYGROUND_SECRET") ?? "";
 const HISTORY_LIMIT = 20;
@@ -222,8 +227,20 @@ Deno.serve(async (req) => {
     });
   }
 
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) return json({ error: "ANTHROPIC_API_KEY is not set" }, 500);
+  const useOpenAICompatible = Deno.env.get("LLM_PROVIDER") === "openai-compatible";
+  const llm = {
+    baseUrl: Deno.env.get("LLM_BASE_URL"),
+    apiKey: Deno.env.get("LLM_API_KEY"),
+    model: Deno.env.get("LLM_MODEL"),
+  };
+  const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (useOpenAICompatible) {
+    if (!llm.baseUrl || !llm.apiKey || !llm.model) {
+      return json({ error: "LLM_BASE_URL, LLM_API_KEY and LLM_MODEL must be set" }, 500);
+    }
+  } else if (!anthropicKey) {
+    return json({ error: "ANTHROPIC_API_KEY is not set" }, 500);
+  }
 
   const { data: rows, error: histErr } = await db
     .from("messages")
@@ -239,15 +256,27 @@ Deno.serve(async (req) => {
       text: m.body as string,
     }));
 
-  const model = Deno.env.get("AGENT_MODEL") ?? DEFAULT_MODEL;
+  const model = useOpenAICompatible
+    ? llm.model!
+    : Deno.env.get("AGENT_MODEL") ?? DEFAULT_MODEL;
   try {
-    const result = await runAgent({
-      client: new Anthropic({ apiKey }),
-      catalog: supabaseCatalog(db),
-      store,
-      history,
-      model,
-    });
+    const catalog = supabaseCatalog(db);
+    const result = useOpenAICompatible
+      ? await runAgentChatCompletions({
+        baseUrl: llm.baseUrl!,
+        apiKey: llm.apiKey!,
+        model,
+        catalog,
+        store,
+        history,
+      })
+      : await runAgent({
+        client: new Anthropic({ apiKey: anthropicKey }),
+        catalog,
+        store,
+        history,
+        model,
+      });
 
     await db.from("messages").insert({
       store_id: store.id,
