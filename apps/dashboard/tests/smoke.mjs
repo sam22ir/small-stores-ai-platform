@@ -9,7 +9,7 @@ const OUT = ROOT + ".test-shots/";
 import fs from "node:fs"; fs.mkdirSync(OUT, { recursive: true });
 
 const mock = await start();
-const preview = spawn("npx", ["vite", "preview", "--outDir", ".test-dist", "--port", "4173", "--strictPort"],
+const preview = spawn("npx", ["vite", "preview", "--outDir", ".test-dist", "--host", "127.0.0.1", "--port", "4173", "--strictPort"],
   { cwd: ROOT, stdio: "ignore" });
 // Wait for the preview server instead of guessing how long `npx vite preview` takes to start.
 for (let i = 0; i < 120; i++) {
