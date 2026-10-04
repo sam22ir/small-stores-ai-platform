@@ -43,6 +43,14 @@ Results on other models don't show how the Claude agent behaves, so use fake dat
 
 Agent unit tests (fake Claude client and catalog, no network): `npm install && npm test`.
 
+To score whichever model the function is currently configured with (8 scenarios: catalog use, hidden stock counts,
+handoff, injection, Arabic, store info), run against the seeded demo store:
+
+```sh
+PLAYGROUND_URL=https://<project-ref>.supabase.co/functions/v1/playground-chat \
+PLAYGROUND_SECRET=... STORE_ID=<demo store id> npm run eval
+```
+
 ## Setup
 
 ```sh

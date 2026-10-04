@@ -134,3 +134,23 @@ test("failed tool calls record their error text", async () => {
   const r = await runAgentChatCompletions({ ...base, catalog: failing, fetchImpl });
   assert.equal(r.toolCalls[0].error, "relation exploded");
 });
+
+test("token parameter, reasoning effort and temperature are configurable", async () => {
+  const a = fakeFetch([text("ok")]);
+  await runAgentChatCompletions({
+    ...base, fetchImpl: a.fetchImpl,
+    tokenParam: "max_completion_tokens", reasoningEffort: "none", temperature: 0.3,
+  });
+  assert.equal(a.calls[0].body.max_completion_tokens, 2048);
+  assert.equal(a.calls[0].body.max_tokens, undefined);
+  assert.equal(a.calls[0].body.reasoning_effort, "none");
+  assert.equal(a.calls[0].body.temperature, 0.3);
+
+  // Defaults: legacy token name, and neither reasoning_effort nor temperature is sent.
+  const b = fakeFetch([text("ok")]);
+  await runAgentChatCompletions({ ...base, fetchImpl: b.fetchImpl });
+  assert.equal(b.calls[0].body.max_tokens, 2048);
+  assert.equal(b.calls[0].body.max_completion_tokens, undefined);
+  assert.equal("reasoning_effort" in b.calls[0].body, false);
+  assert.equal("temperature" in b.calls[0].body, false);
+});

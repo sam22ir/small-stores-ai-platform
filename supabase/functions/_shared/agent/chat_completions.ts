@@ -31,6 +31,11 @@ export interface ChatCompletionsOptions {
   catalog: Catalog;
   store: StoreContext;
   history: ChatMessage[];
+  // Newer OpenAI models want `max_completion_tokens`; most other providers take `max_tokens`.
+  tokenParam?: "max_tokens" | "max_completion_tokens";
+  // e.g. "none" | "low": GPT-6 Luna only allows function calling on Chat Completions at "none".
+  reasoningEffort?: string;
+  temperature?: number; // omitted unless set: reasoning models often reject it
   fetchImpl?: typeof fetch;
   retryDelayMs?: number;
 }
@@ -100,8 +105,9 @@ export async function runAgentChatCompletions(
       messages,
       tools,
       tool_choice: "auto",
-      max_tokens: MAX_TOKENS,
-      temperature: 0.2,
+      [opts.tokenParam ?? "max_tokens"]: MAX_TOKENS,
+      ...(opts.reasoningEffort ? { reasoning_effort: opts.reasoningEffort } : {}),
+      ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
     });
     for (let attempt = 1;; attempt++) {
       const res = await doFetch(url, {

@@ -227,6 +227,13 @@ Deno.serve(async (req) => {
     baseUrl: Deno.env.get("LLM_BASE_URL"),
     apiKey: Deno.env.get("LLM_API_KEY"),
     model: Deno.env.get("LLM_MODEL"),
+    tokenParam: Deno.env.get("LLM_TOKEN_PARAM") === "max_completion_tokens"
+      ? "max_completion_tokens" as const
+      : "max_tokens" as const,
+    reasoningEffort: Deno.env.get("LLM_REASONING_EFFORT") || undefined,
+    temperature: Deno.env.get("LLM_TEMPERATURE")
+      ? Number(Deno.env.get("LLM_TEMPERATURE"))
+      : undefined,
   };
   const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (useOpenAICompatible) {
@@ -261,6 +268,9 @@ Deno.serve(async (req) => {
         baseUrl: llm.baseUrl!,
         apiKey: llm.apiKey!,
         model,
+        tokenParam: llm.tokenParam,
+        reasoningEffort: llm.reasoningEffort,
+        temperature: llm.temperature,
         catalog,
         store,
         history,
