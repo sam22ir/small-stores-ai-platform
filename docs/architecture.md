@@ -38,6 +38,7 @@ Implementation notes (`supabase/functions/_shared/agent/`):
 - A refusal, cut-off answer or exhausted loop never reaches the customer: the conversation is handed to the owner with a short holding reply.
 - Stock is reported as `in_stock` / `low_stock` / `out_of_stock`. Exact counts are only exposed at 5 or fewer, so competitors can't read inventory by asking.
 - Default model is `claude-sonnet-5-5` (`AGENT_MODEL` overrides) with low effort and the server-side refusal fallback enabled.
+- Model providers can be chained (`providers.ts`): primary first, optional fallback on any error, with a short per-isolate circuit breaker. Falling back only protects uptime; whichever provider is primary still sees every message.
 - `playground-chat` is a dev-only entry point to the same pipeline; Meta delivery plugs in last.
 
 Every tool is scoped by `store_id` taken from the resolved channel, never from model

@@ -41,6 +41,12 @@ To test with a free OpenAI-compatible model instead (for example on TokenRouter)
 `LLM_PROVIDER=openai-compatible`, `LLM_BASE_URL`, `LLM_API_KEY` and `LLM_MODEL`. Remove `LLM_PROVIDER` to go back to Claude.
 Results on other models don't show how the Claude agent behaves, so use fake data and treat it as a flow test only.
 
+**Primary + fallback.** Set `LLM_FALLBACK_BASE_URL`, `LLM_FALLBACK_API_KEY` and `LLM_FALLBACK_MODEL` (plus optional
+`LLM_FALLBACK_TOKEN_PARAM` / `_REASONING_EFFORT` / `_TEMPERATURE`) and the function tries the primary first, with a 20 s
+timeout and no retry. If it errors, times out or is rate-limited, the same message is answered by the fallback. After 3
+consecutive primary failures the primary is skipped for 60 s, so customers don't wait on a dead endpoint. Each reply
+reports `provider` and `fell_back`, and `agent_runs` records the provider and why the primary was skipped.
+
 Agent unit tests (fake Claude client and catalog, no network): `npm install && npm test`.
 
 To score whichever model the function is currently configured with (8 scenarios: catalog use, hidden stock counts,

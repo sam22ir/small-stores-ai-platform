@@ -3,6 +3,13 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import Anthropic from "@anthropic-ai/sdk";
 import { DEFAULT_MODEL, runAgent } from "../_shared/agent/run.ts";
 import { runAgentChatCompletions } from "../_shared/agent/chat_completions.ts";
+import {
+  AllProvidersFailed,
+  type AttemptError,
+  CircuitBreaker,
+  providerFromEnv,
+  runWithFallback,
+} from "../_shared/agent/providers.ts";
 import { scoreProduct, searchGroups } from "../_shared/agent/search.ts";
 import type {
   Catalog,
@@ -16,11 +23,13 @@ import type {
 // Disabled until PLAYGROUND_SECRET is set. Replaced by dashboard auth later.
 //
 // Provider (secrets): by default the Claude agent (ANTHROPIC_API_KEY, AGENT_MODEL).
-// LLM_PROVIDER=openai-compatible uses LLM_BASE_URL + LLM_API_KEY + LLM_MODEL instead
-// (e.g. a free model on TokenRouter) for cheap flow testing. Use fake data only there.
+// LLM_PROVIDER=openai-compatible uses LLM_BASE_URL + LLM_API_KEY + LLM_MODEL as the primary.
+// Optional LLM_FALLBACK_* (same names with the prefix) is tried when the primary errors.
 
 const PLAYGROUND_SECRET = Deno.env.get("PLAYGROUND_SECRET") ?? "";
 const HISTORY_LIMIT = 20;
+// Per isolate: skips a primary that keeps failing so customers don't wait on a dead endpoint.
+const breaker = new CircuitBreaker();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const db = createClient(
@@ -223,21 +232,12 @@ Deno.serve(async (req) => {
   }
 
   const useOpenAICompatible = Deno.env.get("LLM_PROVIDER") === "openai-compatible";
-  const llm = {
-    baseUrl: Deno.env.get("LLM_BASE_URL"),
-    apiKey: Deno.env.get("LLM_API_KEY"),
-    model: Deno.env.get("LLM_MODEL"),
-    tokenParam: Deno.env.get("LLM_TOKEN_PARAM") === "max_completion_tokens"
-      ? "max_completion_tokens" as const
-      : "max_tokens" as const,
-    reasoningEffort: Deno.env.get("LLM_REASONING_EFFORT") || undefined,
-    temperature: Deno.env.get("LLM_TEMPERATURE")
-      ? Number(Deno.env.get("LLM_TEMPERATURE"))
-      : undefined,
-  };
+  const env = (key: string) => Deno.env.get(key);
+  const primary = providerFromEnv(env, "LLM_");
+  const fallback = providerFromEnv(env, "LLM_FALLBACK_");
   const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (useOpenAICompatible) {
-    if (!llm.baseUrl || !llm.apiKey || !llm.model) {
+    if (!primary) {
       return json({ error: "LLM_BASE_URL, LLM_API_KEY and LLM_MODEL must be set" }, 500);
     }
   } else if (!anthropicKey) {
@@ -259,22 +259,39 @@ Deno.serve(async (req) => {
     }));
 
   const model = useOpenAICompatible
-    ? llm.model!
+    ? primary!.model
     : Deno.env.get("AGENT_MODEL") ?? DEFAULT_MODEL;
+  // Which provider answered, and why earlier ones didn't (set inside the closure below).
+  const meta: { provider: string | null; attempts: AttemptError[] } = {
+    provider: null,
+    attempts: [],
+  };
   try {
     const catalog = supabaseCatalog(db);
     const result = useOpenAICompatible
-      ? await runAgentChatCompletions({
-        baseUrl: llm.baseUrl!,
-        apiKey: llm.apiKey!,
-        model,
-        tokenParam: llm.tokenParam,
-        reasoningEffort: llm.reasoningEffort,
-        temperature: llm.temperature,
-        catalog,
-        store,
-        history,
-      })
+      ? await (async () => {
+        const r = await runWithFallback({
+          providers: fallback ? [primary!, fallback] : [primary!],
+          breaker,
+          run: (p, limits) =>
+            runAgentChatCompletions({
+              baseUrl: p.baseUrl,
+              apiKey: p.apiKey,
+              model: p.model,
+              tokenParam: p.tokenParam,
+              reasoningEffort: p.reasoningEffort,
+              temperature: p.temperature,
+              timeoutMs: limits.timeoutMs,
+              maxAttempts: limits.maxAttempts,
+              catalog,
+              store,
+              history,
+            }),
+        });
+        meta.provider = r.provider.name;
+        meta.attempts = r.attempts;
+        return r.result;
+      })()
       : await runAgent({
         client: new Anthropic({ apiKey: anthropicKey }),
         catalog,
@@ -300,6 +317,8 @@ Deno.serve(async (req) => {
       tool_calls: result.toolCalls,
       input_tokens: result.usage.input_tokens,
       output_tokens: result.usage.output_tokens,
+      provider: meta.provider,
+      provider_errors: meta.attempts.length ? meta.attempts : null,
     });
     if (result.handoffReason) {
       await db.from("conversations")
@@ -313,6 +332,8 @@ Deno.serve(async (req) => {
       tool_calls: result.toolCalls.map((t) => t.name),
       usage: result.usage,
       model: result.model,
+      provider: meta.provider,
+      fell_back: meta.attempts.length > 0,
     });
   } catch (err) {
     console.error("agent run failed", err);
@@ -324,6 +345,7 @@ Deno.serve(async (req) => {
       error: err instanceof Anthropic.APIError
         ? `${err.status}: ${err.message}`
         : String(err),
+      provider_errors: err instanceof AllProvidersFailed ? err.attempts : null,
     });
     return json({ error: "Agent failed; see agent_runs for details" }, 502);
   }

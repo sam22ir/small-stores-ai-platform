@@ -115,7 +115,7 @@ for (const s of scenarios) {
     console.log(`  FAIL request failed (${r.status}): ${r.error ?? r.note ?? ""}`);
     continue;
   }
-  console.log(`  reply: ${r.reply}\n  tools: ${(r.tool_calls ?? []).join(", ") || "(none)"}  handoff: ${r.handoff ?? "-"}  tokens: ${r.usage?.input_tokens}/${r.usage?.output_tokens}`);
+  console.log(`  reply: ${r.reply}\n  tools: ${(r.tool_calls ?? []).join(", ") || "(none)"}  handoff: ${r.handoff ?? "-"}  tokens: ${r.usage?.input_tokens}/${r.usage?.output_tokens}\n  provider: ${r.provider ?? r.model}${r.fell_back ? "  (FELL BACK from the primary)" : ""}`);
   for (const [label, ok] of s.checks(r)) {
     console.log(`  ${ok ? "PASS" : "FAIL"} ${label}`);
     if (!ok) failed++;

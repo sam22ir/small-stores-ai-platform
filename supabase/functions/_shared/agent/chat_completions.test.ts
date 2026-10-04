@@ -154,3 +154,9 @@ test("token parameter, reasoning effort and temperature are configurable", async
   assert.equal("reasoning_effort" in b.calls[0].body, false);
   assert.equal("temperature" in b.calls[0].body, false);
 });
+
+test("maxAttempts: 1 disables the retry on 429", async () => {
+  const { fetchImpl, calls } = fakeFetch([{ status: 429, body: { error: "slow" } }, text("never reached")]);
+  await assert.rejects(runAgentChatCompletions({ ...base, fetchImpl, maxAttempts: 1 }), /429/);
+  assert.equal(calls.length, 1);
+});

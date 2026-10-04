@@ -22,7 +22,8 @@ import type {
 const MAX_TOOL_ROUNDS = 5;
 // Reasoning models spend completion tokens on thinking before they answer.
 const MAX_TOKENS = 2048;
-const REQUEST_TIMEOUT_MS = 45_000;
+const DEFAULT_TIMEOUT_MS = 45_000;
+const DEFAULT_MAX_ATTEMPTS = 2;
 
 export interface ChatCompletionsOptions {
   baseUrl: string; // e.g. https://api.tokenrouter.com/v1
@@ -36,6 +37,8 @@ export interface ChatCompletionsOptions {
   // e.g. "none" | "low": GPT-6 Luna only allows function calling on Chat Completions at "none".
   reasoningEffort?: string;
   temperature?: number; // omitted unless set: reasoning models often reject it
+  timeoutMs?: number; // per request
+  maxAttempts?: number; // total tries on 429/5xx; 1 = no retry (use when a fallback exists)
   fetchImpl?: typeof fetch;
   retryDelayMs?: number;
 }
@@ -117,11 +120,12 @@ export async function runAgentChatCompletions(
           authorization: `Bearer ${opts.apiKey}`,
         },
         body,
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),
       });
       if (res.ok) return await res.json() as Completion;
       // Free tiers rate-limit hard; one patient retry is enough for testing.
-      if ((res.status === 429 || res.status >= 500) && attempt < 2) {
+      if ((res.status === 429 || res.status >= 500) &&
+        attempt < (opts.maxAttempts ?? DEFAULT_MAX_ATTEMPTS)) {
         await new Promise((r) => setTimeout(r, opts.retryDelayMs ?? 2000));
         continue;
       }
