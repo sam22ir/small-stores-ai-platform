@@ -16,6 +16,9 @@ Out of scope for v0: taking payments, creating orders, comment replies, other ch
 
 ## Docs
 
+- [Project plan and decisions](docs/project-plan.md)
+- [Economics](docs/economics.md)
+- [Competitors](docs/competitors.md)
 - [Architecture](docs/architecture.md)
 - [Data model](supabase/migrations/0001_init.sql)
 
