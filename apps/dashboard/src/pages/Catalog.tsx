@@ -1,0 +1,263 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
+import { supabase } from "../lib/supabase";
+import { useI18n } from "../lib/i18n";
+import { useStore } from "../lib/store";
+import { Modal } from "../components/Modal";
+import { LOW_STOCK, centsToInput, formatMoney, parsePrice, parseStock } from "../lib/format";
+
+type Variant = { id: string; label: string; price_cents: number | null; stock_quantity: number; sku: string | null };
+type Product = { id: string; name: string; description: string | null; price_cents: number; active: boolean; product_variants: Variant[] };
+type VDraft = { key: string; id?: string; label: string; stock: string; price: string };
+type Draft = { id?: string; name: string; description: string; price: string; active: boolean; variants: VDraft[] };
+
+let seq = 0;
+const newKey = () => `v${++seq}`;
+
+function toDraft(p?: Product, defaultLabel = "Default"): Draft {
+  if (!p) return { name: "", description: "", price: "", active: true, variants: [{ key: newKey(), label: defaultLabel, stock: "0", price: "" }] };
+  return {
+    id: p.id, name: p.name, description: p.description ?? "", price: centsToInput(p.price_cents), active: p.active,
+    variants: p.product_variants.map((v) => ({ key: newKey(), id: v.id, label: v.label, stock: String(v.stock_quantity), price: centsToInput(v.price_cents) })),
+  };
+}
+
+export function Catalog() {
+  const { t, lang } = useI18n();
+  const { store } = useStore();
+  const currency = store!.currency;
+  const [products, setProducts] = useState<Product[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState<{ product?: Product } | null>(null);
+
+  const load = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("products")
+      .select("id,name,description,price_cents,active,product_variants(id,label,price_cents,stock_quantity,sku)")
+      .order("name", { ascending: true })
+      .order("label", { referencedTable: "product_variants", ascending: true });
+    if (error) { setFailed(true); return; }
+    setFailed(false);
+    setProducts(data as unknown as Product[]);
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (products ?? []).filter((p) => !q || p.name.toLowerCase().includes(q));
+  }, [products, query]);
+
+  async function adjustStock(p: Product, v: Variant, delta: number) {
+    const next = Math.max(0, v.stock_quantity + delta);
+    if (next === v.stock_quantity) return;
+    // Optimistic: show the new number now, roll back if the save fails.
+    setProducts((all) => all && all.map((x) => x.id !== p.id ? x : { ...x, product_variants: x.product_variants.map((y) => y.id === v.id ? { ...y, stock_quantity: next } : y) }));
+    const { error } = await supabase.from("product_variants").update({ stock_quantity: next }).eq("id", v.id);
+    if (error) await load();
+  }
+
+  async function toggleActive(p: Product) {
+    setProducts((all) => all && all.map((x) => x.id === p.id ? { ...x, active: !p.active } : x));
+    const { error } = await supabase.from("products").update({ active: !p.active }).eq("id", p.id);
+    if (error) await load();
+  }
+
+  async function remove(p: Product) {
+    if (!window.confirm(t("catalog.confirmDelete"))) return;
+    const { error } = await supabase.from("products").delete().eq("id", p.id);
+    if (!error) setProducts((all) => all && all.filter((x) => x.id !== p.id)); else await load();
+  }
+
+  const stockBadge = (n: number) =>
+    n <= 0 ? <span className="badge badge-bad">{t("catalog.out")}</span>
+      : n <= LOW_STOCK ? <span className="badge badge-warn">{t("catalog.low", { n })}</span>
+        : <span className="badge badge-ok">{t("catalog.units", { n })}</span>;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-4 mt-1">
+        <h1 className="text-2xl font-extrabold m-0">{t("catalog.title")}</h1>
+        <button className="btn btn-primary" onClick={() => setEditing({})}>+ {t("catalog.add")}</button>
+      </div>
+      <input className="input mb-4" type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+        placeholder={t("catalog.search")} aria-label={t("catalog.search")} />
+
+      {failed && <p className="error">{t("common.error")} <button className="btn btn-small" onClick={() => void load()}>{t("common.retry")}</button></p>}
+      {!products && !failed && <p className="muted">{t("common.loading")}</p>}
+      {products && products.length === 0 && <p className="muted card p-5">{t("catalog.empty")}</p>}
+      {products && products.length > 0 && shown.length === 0 && <p className="muted">{t("catalog.noMatch")}</p>}
+
+      <ul className="list-none p-0 m-0 flex flex-col gap-3">
+        {shown.map((p) => (
+          <li key={p.id} className="card p-4" style={p.active ? undefined : { opacity: 0.65 }}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-bold text-lg">{p.name}</div>
+                <div className="muted">{formatMoney(p.price_cents, currency, lang)}{!p.active && ` · ${t("catalog.hidden")}`}</div>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button className="btn btn-small" onClick={() => setEditing({ product: p })}>{t("common.edit")}</button>
+                <button className="btn btn-small btn-danger" onClick={() => void remove(p)}>{t("common.delete")}</button>
+              </div>
+            </div>
+            <ul className="list-none p-0 mt-3 mb-0 flex flex-col gap-2">
+              {p.product_variants.map((v) => (
+                <li key={v.id} className="flex items-center justify-between gap-2 flex-wrap rounded-xl px-3 py-2" style={{ background: "var(--bg)" }}>
+                  <div className="min-w-0">
+                    <span className="font-semibold">{v.label}</span>
+                    {v.price_cents !== null && <span className="muted"> · {formatMoney(v.price_cents, currency, lang)}</span>}
+                    <div className="mt-1">{stockBadge(v.stock_quantity)}</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button className="btn btn-icon" aria-label={t("catalog.decrease")} onClick={() => void adjustStock(p, v, -1)}>−</button>
+                    <span className="min-w-10 text-center font-bold tabular-nums" aria-live="polite">{v.stock_quantity}</span>
+                    <button className="btn btn-icon" aria-label={t("catalog.increase")} onClick={() => void adjustStock(p, v, 1)}>+</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <label className="flex items-center gap-2 mt-3 text-sm muted">
+              <input type="checkbox" checked={p.active} onChange={() => void toggleActive(p)} /> {t("catalog.active")}
+            </label>
+          </li>
+        ))}
+      </ul>
+
+      {editing && (
+        <ProductEditor
+          product={editing.product}
+          currency={currency}
+          storeId={store!.id}
+          onClose={() => setEditing(null)}
+          onSaved={async () => { setEditing(null); await load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ProductEditor({ product, currency, storeId, onClose, onSaved }: {
+  product?: Product; currency: string; storeId: string; onClose: () => void; onSaved: () => Promise<void>;
+}) {
+  const { t } = useI18n();
+  const [draft, setDraft] = useState<Draft>(() => toDraft(product, t("catalog.defaultOption")));
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const setVariant = (key: string, patch: Partial<VDraft>) =>
+    setDraft((d) => ({ ...d, variants: d.variants.map((v) => v.key === key ? { ...v, ...patch } : v) }));
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const name = draft.name.trim();
+    if (!name) return setError(t("catalog.errName"));
+    const price = parsePrice(draft.price);
+    if (price === null) return setError(t("catalog.errPrice"));
+    const variants: { id?: string; label: string; stock: number; price: number | null }[] = [];
+    for (const v of draft.variants) {
+      const label = v.label.trim();
+      if (!label) return setError(t("catalog.errLabel"));
+      const stock = parseStock(v.stock);
+      if (stock === null) return setError(t("catalog.errStock"));
+      const vp = v.price.trim() === "" ? null : parsePrice(v.price);
+      if (v.price.trim() !== "" && vp === null) return setError(t("catalog.errPrice"));
+      variants.push({ id: v.id, label, stock, price: vp });
+    }
+
+    setBusy(true);
+    try {
+      let productId = product?.id;
+      const fields = { name, description: draft.description.trim() || null, price_cents: price, active: draft.active };
+      if (productId) {
+        const { error: err } = await supabase.from("products").update(fields).eq("id", productId);
+        if (err) throw err;
+      } else {
+        const { data, error: err } = await supabase.from("products").insert({ ...fields, store_id: storeId }).select("id").single();
+        if (err) throw err;
+        productId = data.id;
+      }
+      const keep = new Set(variants.filter((v) => v.id).map((v) => v.id));
+      for (const old of product?.product_variants ?? []) {
+        if (!keep.has(old.id)) {
+          const { error: err } = await supabase.from("product_variants").delete().eq("id", old.id);
+          if (err) throw err;
+        }
+      }
+      for (const v of variants) {
+        const row = { label: v.label, stock_quantity: v.stock, price_cents: v.price };
+        const { error: err } = v.id
+          ? await supabase.from("product_variants").update(row).eq("id", v.id)
+          : await supabase.from("product_variants").insert({ ...row, store_id: storeId, product_id: productId! });
+        if (err) throw err;
+      }
+      await onSaved();
+    } catch {
+      setError(t("common.error"));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title={product ? t("catalog.editTitle") : t("catalog.newTitle")} onClose={onClose}>
+      <form onSubmit={save} className="flex flex-col gap-4">
+        <div>
+          <label className="label" htmlFor="pname">{t("catalog.name")}</label>
+          <input id="pname" className="input" value={draft.name} maxLength={120} autoFocus onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+        </div>
+        <div>
+          <label className="label" htmlFor="pdesc">{t("catalog.description")}</label>
+          <textarea id="pdesc" className="input" style={{ minHeight: 72 }} maxLength={500} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+        </div>
+        <div>
+          <label className="label" htmlFor="pprice">{t("catalog.price")} ({currency})</label>
+          <input id="pprice" className="input" inputMode="decimal" value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value })} dir="ltr" />
+        </div>
+
+        <div>
+          <div className="label">{t("catalog.variants")}</div>
+          <div className="flex flex-col gap-3">
+            {draft.variants.map((v) => (
+              <div key={v.key} className="rounded-xl p-3 grid gap-2 grid-cols-2" style={{ background: "var(--bg)" }}>
+                <div className="col-span-2">
+                  <label className="label" htmlFor={`l-${v.key}`}>{t("catalog.variantLabel")}</label>
+                  <input id={`l-${v.key}`} className="input" value={v.label} maxLength={60} onChange={(e) => setVariant(v.key, { label: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label" htmlFor={`s-${v.key}`}>{t("catalog.stock")}</label>
+                  <input id={`s-${v.key}`} className="input" inputMode="numeric" value={v.stock} onChange={(e) => setVariant(v.key, { stock: e.target.value })} dir="ltr" />
+                </div>
+                <div>
+                  <label className="label" htmlFor={`p-${v.key}`}>{t("catalog.priceOverride")}</label>
+                  <input id={`p-${v.key}`} className="input" inputMode="decimal" value={v.price} onChange={(e) => setVariant(v.key, { price: e.target.value })} dir="ltr" />
+                </div>
+                {draft.variants.length > 1 && (
+                  <button type="button" className="btn btn-small btn-danger col-span-2"
+                    onClick={() => setDraft((d) => ({ ...d, variants: d.variants.filter((x) => x.key !== v.key) }))}>
+                    {t("catalog.removeVariant")}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          <button type="button" className="btn btn-small mt-3"
+            onClick={() => setDraft((d) => ({ ...d, variants: [...d.variants, { key: newKey(), label: "", stock: "0", price: "" }] }))}>
+            + {t("catalog.addVariant")}
+          </button>
+        </div>
+
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> {t("catalog.active")}
+        </label>
+
+        {error && <p className="error m-0" role="alert">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn" onClick={onClose}>{t("common.cancel")}</button>
+          <button className="btn btn-primary" disabled={busy}>{t("common.save")}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}

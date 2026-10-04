@@ -51,11 +51,12 @@ Done:
 - Agent: `search_products`, `check_stock`, `get_store_info`, `handoff_to_owner`; plural-aware search; hidden exact stock above 5; reply length cap; safe handoff on refusals or cut-off answers.
 - Meta webhook function (signature check, idempotent storage), not connected to Meta yet.
 - Provider chain with fallback, repeatable eval script (`npm run eval`), 41 unit tests.
+- **Owner dashboard v1** (`apps/dashboard`): sign-in, store setup, chats inbox with owner replies and hand-back, catalog with one-tap stock edits, settings, Arabic/French/English with RTL, installable app. Static, deploys to Cloudflare Pages. 32 browser checks against a mock backend; not yet run against the live Supabase project or deployed.
 
 Next, in this order (open):
-1. Fix the database security policies (migration `0005`, see below).
+1. ~~Fix the database security policies~~ done with migration `0008`.
 2. Telegram handoff alert.
-3. Dashboard as a static web app on Cloudflare (login, catalog and stock, inbox).
+3. ~~Dashboard as a static web app~~ v1 built; next: deploy it, try it with a real account, add a "test your assistant" chat (needs a JWT-protected function), then push notifications.
 4. Darija / French / Arabic-in-Latin-letters scenarios in the eval script.
 5. Usage counting per store, caps or credits, pricing in DA via Chargily Pay.
 6. Rule-based fast path for simple messages (saves model cost); voice notes and images.
@@ -63,7 +64,11 @@ Next, in this order (open):
 
 ## Known issues
 
-- **Policy migration `0005` is not applied.** Policy statements on `stores` hang through the Supabase MCP (cause unknown; other DDL works). The database still has the older, looser policies, notably a client-writable `channels` table. Harmless with nothing connected, **must be fixed before the Meta step.** The `is_store_owner` function from that migration already exists.
+- **Security is done with privileges (migration `0008`), not policy rewrites.** The old broad "for all" RLS policies remain, but clients can only do what `0008` grants: read their own rows, edit store settings, hand conversations back, add owner replies, manage the catalog. Checked with simulated users (cross-tenant reads, writes, the composite-FK trick, anonymous access). Server-only tables (`channels`, `customers`, `agent_runs`, `channel_credentials`) are not writable by clients.
+- **Tooling gotcha:** the Supabase MCP holds `DROP` and `DELETE` statements for user confirmation. When no one approves, the call just times out after 60 s, which looked like a database hang. Prefer `ALTER`/`GRANT`/`REVOKE`, or approve the prompt.
+- Not tested yet: a member deleting another tenant's rows (a `DELETE` statement is held for confirmation).
+- The dashboard has never talked to the real Supabase project from a browser (this environment can't reach it). First real sign-up, store creation and RLS behavior still need a live check.
+- Dashboard Arabic and French text is a machine-written draft; have a native speaker review it.
 - The Supabase project is on a plan that pauses after inactivity if it is the free plan; use Pro ($25/month) for production.
 - If the model provider fails for both providers the customer gets no reply. Needs an owner alert (planned with the Telegram work).
 - Chargily Pay fees were not found; 3% is a placeholder.

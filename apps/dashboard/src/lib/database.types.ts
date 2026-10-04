@@ -1,0 +1,480 @@
+// Generated from the Supabase schema (generate_typescript_types), helper generics removed.
+// Regenerate after schema changes.
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  __InternalSupabase: {
+    PostgrestVersion: "14.18"
+  }
+  public: {
+    Tables: {
+      agent_runs: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          error: string | null
+          id: string
+          input_tokens: number | null
+          model: string
+          output_tokens: number | null
+          provider: string | null
+          provider_errors: Json | null
+          store_id: string
+          tool_calls: Json
+          trigger_message_id: string | null
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          input_tokens?: number | null
+          model: string
+          output_tokens?: number | null
+          provider?: string | null
+          provider_errors?: Json | null
+          store_id: string
+          tool_calls?: Json
+          trigger_message_id?: string | null
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          input_tokens?: number | null
+          model?: string
+          output_tokens?: number | null
+          provider?: string | null
+          provider_errors?: Json | null
+          store_id?: string
+          tool_calls?: Json
+          trigger_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_conversation_store_fk"
+            columns: ["conversation_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id", "store_id"]
+          },
+          {
+            foreignKeyName: "agent_runs_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_runs_trigger_message_id_fkey"
+            columns: ["trigger_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_credentials: {
+        Row: {
+          access_token_encrypted: string
+          channel_id: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token_encrypted: string
+          channel_id: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token_encrypted?: string
+          channel_id?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_credentials_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: true
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channels: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          external_id: string
+          id: string
+          platform: string
+          status: string
+          store_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          external_id: string
+          id?: string
+          platform: string
+          status?: string
+          store_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          external_id?: string
+          id?: string
+          platform?: string
+          status?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channels_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          channel_id: string
+          created_at: string
+          customer_id: string
+          handoff_reason: string | null
+          id: string
+          last_customer_message_at: string | null
+          status: string
+          store_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          customer_id: string
+          handoff_reason?: string | null
+          id?: string
+          last_customer_message_at?: string | null
+          status?: string
+          store_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          customer_id?: string
+          handoff_reason?: string | null
+          id?: string
+          last_customer_message_at?: string | null
+          status?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_channel_store_fk"
+            columns: ["channel_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id", "store_id"]
+          },
+          {
+            foreignKeyName: "conversations_customer_store_fk"
+            columns: ["customer_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id", "store_id"]
+          },
+          {
+            foreignKeyName: "conversations_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          channel_id: string
+          created_at: string
+          display_name: string | null
+          id: string
+          platform_user_id: string
+          store_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          platform_user_id: string
+          store_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          platform_user_id?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_channel_store_fk"
+            columns: ["channel_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id", "store_id"]
+          },
+          {
+            foreignKeyName: "customers_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          body: string | null
+          channel_id: string
+          conversation_id: string
+          created_at: string
+          delivery_status: string | null
+          direction: string
+          id: string
+          platform_message_id: string | null
+          processed_at: string | null
+          sender: string
+          store_id: string
+        }
+        Insert: {
+          body?: string | null
+          channel_id: string
+          conversation_id: string
+          created_at?: string
+          delivery_status?: string | null
+          direction: string
+          id?: string
+          platform_message_id?: string | null
+          processed_at?: string | null
+          sender: string
+          store_id: string
+        }
+        Update: {
+          body?: string | null
+          channel_id?: string
+          conversation_id?: string
+          created_at?: string
+          delivery_status?: string | null
+          direction?: string
+          id?: string
+          platform_message_id?: string | null
+          processed_at?: string | null
+          sender?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_channel_store_fk"
+            columns: ["channel_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id", "store_id"]
+          },
+          {
+            foreignKeyName: "messages_conversation_store_fk"
+            columns: ["conversation_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id", "store_id"]
+          },
+          {
+            foreignKeyName: "messages_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_variants: {
+        Row: {
+          id: string
+          label: string
+          price_cents: number | null
+          product_id: string
+          sku: string | null
+          stock_quantity: number
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          label?: string
+          price_cents?: number | null
+          product_id: string
+          sku?: string | null
+          stock_quantity?: number
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          label?: string
+          price_cents?: number | null
+          product_id?: string
+          sku?: string | null
+          stock_quantity?: number
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "variants_product_store_fk"
+            columns: ["product_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id", "store_id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          price_cents: number
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          price_cents: number
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          price_cents?: number
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_members: {
+        Row: {
+          created_at: string
+          role: string
+          store_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          role?: string
+          store_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          role?: string
+          store_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_members_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stores: {
+        Row: {
+          agent_enabled: boolean
+          business_info: string | null
+          created_at: string
+          currency: string
+          id: string
+          name: string
+          timezone: string
+        }
+        Insert: {
+          agent_enabled?: boolean
+          business_info?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          name: string
+          timezone?: string
+        }
+        Update: {
+          agent_enabled?: boolean
+          business_info?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          name?: string
+          timezone?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      create_store: {
+        Args: { p_currency?: string; p_name: string }
+        Returns: string
+      }
+      is_store_member: { Args: { p_store_id: string }; Returns: boolean }
+      is_store_owner: { Args: { p_store_id: string }; Returns: boolean }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
