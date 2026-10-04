@@ -23,6 +23,22 @@ Out of scope for v0: taking payments, creating orders, comment replies, other ch
 
 TypeScript · Supabase (Postgres, Auth, RLS) · Meta Graph API webhooks · Claude (tool use)
 
+## Testing the agent (no Meta needed)
+
+The `playground-chat` Edge Function runs the full pipeline (store, conversation, agent, stored reply) without Meta.
+`supabase/seed.sql` creates a demo store with a small catalog.
+
+```sh
+curl -X POST https://<project-ref>.supabase.co/functions/v1/playground-chat \
+  -H "x-playground-secret: $PLAYGROUND_SECRET" \
+  -d '{"store_id":"<demo store id>","text":"Do you have the black hoodie in M?"}'
+```
+
+Send `{"store_id": "...", "reset": true}` to hand a conversation back to the bot after a handoff.
+Needs the `ANTHROPIC_API_KEY` and `PLAYGROUND_SECRET` Edge Function secrets.
+
+Agent unit tests (fake Claude client and catalog, no network): `npm install && npm test`.
+
 ## Setup
 
 ```sh

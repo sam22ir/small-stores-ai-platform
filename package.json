@@ -1,0 +1,15 @@
+{
+  "name": "small-stores-ai-platform",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test supabase/functions/_shared/agent/*.test.ts"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "@supabase/supabase-js": "^2.117.2",
+    "@types/node": "^22",
+    "typescript": "^5"
+  }
+}

@@ -32,6 +32,14 @@ enqueues; the agent runs out of band (queue table + worker, or a background func
 | `get_store_info()` | Hours, shipping, return policy set by the owner |
 | `handoff_to_owner(reason)` | Flags the conversation `human`, notifies the owner, bot stops replying |
 
+Implementation notes (`supabase/functions/_shared/agent/`):
+
+- The agent loop is manual (`run.ts`), capped at 5 tool rounds, replies capped at 950 UTF-8 bytes (Instagram's text limit).
+- A refusal, cut-off answer or exhausted loop never reaches the customer: the conversation is handed to the owner with a short holding reply.
+- Stock is reported as `in_stock` / `low_stock` / `out_of_stock`. Exact counts are only exposed at 5 or fewer, so competitors can't read inventory by asking.
+- Default model is `claude-opus-5-5` (`AGENT_MODEL` overrides) with low effort and the server-side refusal fallback enabled.
+- `playground-chat` is a dev-only entry point to the same pipeline; Meta delivery plugs in last.
+
 Every tool is scoped by `store_id` taken from the resolved channel, never from model
 output, so one tenant can never read another's data.
 
