@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { fastPathReply } from "./agent/fastpath.ts";
+import { detectLang, limitReply } from "./agent/language.ts";
 import { runAgentChatCompletions } from "./agent/chat_completions.ts";
 import {
   AllProvidersFailed,
@@ -34,8 +35,6 @@ const breaker = new CircuitBreaker();
 
 export type RunSource = "customer" | "test" | "dev";
 
-export const LIMIT_HOLDING_REPLY =
-  "Thanks for your message! The owner will reply to you personally as soon as possible.";
 
 // --- Catalog -----------------------------------------------------------------
 
@@ -288,7 +287,8 @@ export async function handleInbound(input: HandleInboundInput): Promise<HandleIn
     const usage = await getUsage(db, store.id, store.monthly_reply_limit, input.now);
     if (usage.exceeded) {
       const reason = "Monthly AI reply limit reached";
-      await record({ reply: LIMIT_HOLDING_REPLY, model: "limit", provider: "none" }, {
+      const reply = limitReply(detectLang(input.text));
+      await record({ reply, model: "limit", provider: "none" }, {
         fast_path: true,
         error: null,
       });
@@ -298,7 +298,7 @@ export async function handleInbound(input: HandleInboundInput): Promise<HandleIn
       return {
         ok: true,
         ...base,
-        reply: LIMIT_HOLDING_REPLY,
+        reply,
         status: "human",
         handoff: reason,
         limited: true,

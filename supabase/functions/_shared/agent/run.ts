@@ -1,4 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { detectLang, holdingReply, lastCustomerText } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import { errorText, executeTool, toolsForStore } from "./tools.ts";
 import type {
@@ -19,8 +20,8 @@ const MAX_TOKENS = 1024;
 // Instagram caps a text message at 1000 bytes (UTF-8), so non-Latin scripts fit less.
 export const MAX_REPLY_BYTES = 950;
 
-export const HANDOFF_HOLDING_REPLY =
-  "Thanks for your message! I've passed this to the owner, who will reply to you personally.";
+// English default; the loops below answer in the customer's language (see language.ts).
+export const HANDOFF_HOLDING_REPLY = holdingReply("en");
 
 export interface RunAgentOptions {
   client: Anthropic;
@@ -182,7 +183,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
 
   if (!reply) {
     // Nothing safe to say: either a handoff was requested or the loop gave up.
-    reply = HANDOFF_HOLDING_REPLY;
+    reply = holdingReply(detectLang(lastCustomerText(opts.history)));
     handoffReason = handoffReason ?? "No reply was produced";
   }
 

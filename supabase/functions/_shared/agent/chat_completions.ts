@@ -1,6 +1,6 @@
+import { detectLang, holdingReply, lastCustomerText } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import {
-  HANDOFF_HOLDING_REPLY,
   MAX_REPLY_BYTES,
   toMessageParams,
   truncateUtf8,
@@ -222,7 +222,7 @@ export async function runAgentChatCompletions(
   }
 
   if (!reply) {
-    reply = HANDOFF_HOLDING_REPLY;
+    reply = holdingReply(detectLang(lastCustomerText(opts.history)));
     handoffReason = handoffReason ?? "No reply was produced";
   }
 

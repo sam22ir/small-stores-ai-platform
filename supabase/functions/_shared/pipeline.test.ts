@@ -209,6 +209,17 @@ test("over the monthly limit: no model call, holding reply, conversation goes to
   assert.match(String(tables.conversations[0].handoff_reason), /limit/i);
 });
 
+test("the limit notice is written in the customer's language", async () => {
+  const now = new Date().toISOString();
+  const runs = [0, 1].map((i) => ({ store_id: "s1", source: "customer", fast_path: false, error: null, created_at: now, _seq: i }));
+  const { input } = setup({ runs });
+  stubLlm("nope", { n: 0 });
+  const ar = await handleInbound(input("هل عندكم هودي أسود؟"));
+  assert.ok(ar.ok && /[\u0600-\u06ff]/.test(ar.reply ?? ""));
+  const fr = await handleInbound(input("Bonjour, vous livrez à Oran ?"));
+  assert.ok(fr.ok && /Merci pour votre message/.test(fr.reply ?? ""));
+});
+
 test("failed runs, test runs and fast-path runs don't use up the allowance", async () => {
   const now = new Date().toISOString();
   const runs = [
