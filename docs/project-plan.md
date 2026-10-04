@@ -56,7 +56,7 @@ Done:
 - **Orders backend (migrations 0010-0011):** `orders`, `order_items`, `delivery_fees`; `place_order` runs in one transaction (price from the catalog, stock checked and decremented with row locks, idempotent, dry-run mode for test chats) and is callable only by the server; `set_order_status` lets owners move an order along and returns stock on cancel. Phone numbers are validated as Algerian mobiles.
 - **Zero-cost fast path:** greetings and thanks (Arabic, French, English, Darija in Latin letters) are answered without a model call. "ok"/"yes" are never fast-pathed because they can confirm an order.
 - **One pipeline** (`_shared/pipeline.ts`) used by `assistant-chat` now and the Meta webhook later: fast path, monthly limit, history, provider chain, run logging, handoff.
-- Security/performance advisors cleaned up (migration 0009).
+- Security/performance advisors cleaned up (migrations 0009, 0012). What remains is intentional: `channel_credentials` has RLS and no policy on purpose (server only); `create_store`, `set_order_status` and the two `is_store_*` helpers are SECURITY DEFINER functions that signed-in users are meant to call (the helpers are needed by RLS); the "unused index" notices are just because there is no traffic yet.
 
 Next, in this order (open). Items marked **needs you** require your accounts or approval:
 1. ~~Fix the database security policies~~ done with migration `0008`.
