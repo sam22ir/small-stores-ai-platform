@@ -1,0 +1,67 @@
+# Architecture
+
+## Flow
+
+```
+Customer DM (IG / FB Page)
+        │
+        ▼
+Meta webhook ──► POST /api/webhooks/meta
+                  1. verify X-Hub-Signature-256 (app secret)
+                  2. dedupe on platform message id
+                  3. resolve tenant: channels.external_id -> store
+                  4. persist inbound message, ack 200 fast
+                        │
+                        ▼
+                  Agent worker (async)
+                  - load conversation history + store settings
+                  - Claude with tools (below)
+                  - guardrails, then send via Graph API Send endpoint
+                  - persist outbound message + agent_run (tool calls)
+```
+
+Meta expects a 200 within a few seconds, so the webhook only verifies, dedupes and
+enqueues; the agent runs out of band (queue table + worker, or a background function).
+
+## Agent tools (v0)
+
+| Tool | Purpose |
+|------|---------|
+| `search_products(query)` | Fuzzy lookup in the store's catalog |
+| `check_stock(product_id \| sku)` | Per-variant quantity and availability |
+| `get_store_info()` | Hours, shipping, return policy set by the owner |
+| `handoff_to_owner(reason)` | Flags the conversation `human`, notifies the owner, bot stops replying |
+
+Every tool is scoped by `store_id` taken from the resolved channel, never from model
+output, so one tenant can never read another's data.
+
+## Multi-tenancy
+
+- One `store` per tenant; `store_members` links Supabase Auth users to stores.
+- RLS on every table via `is_store_member(store_id)`.
+- The webhook worker uses the service role and always filters by `store_id` explicitly.
+- Meta page tokens live in `channel_credentials`, which has no client-facing policies.
+
+## Meta platform constraints to design around
+
+- **24-hour window:** a business may reply freely only within 24h of the customer's last
+  message (`conversations.last_customer_message_at`); the worker must check this before sending.
+- **App Review:** `pages_messaging` and `instagram_manage_messages` need Meta App Review
+  and a Business-verified app before real stores can connect.
+- **Instagram** requires a professional account linked to a Facebook Page.
+- **Idempotency:** Meta retries webhooks; `messages.platform_message_id` is unique per channel.
+
+## Agent guardrails
+
+- Answer only from tool results; if stock/price is unknown, say so and offer handoff.
+- Never promise delivery dates, discounts or reservations in v0.
+- Rate-limit replies per conversation; stop replying once `status = 'human'`.
+- Log every run (`agent_runs`) with tool calls for owner review and debugging.
+
+## Roadmap
+
+1. Schema + webhook receiver + signature verification
+2. Agent loop with `search_products` / `check_stock`
+3. Owner dashboard: connect Page/IG, catalog + stock CRUD (CSV import), conversation inbox
+4. Handoff + notifications
+5. Billing, onboarding, Meta App Review submission
