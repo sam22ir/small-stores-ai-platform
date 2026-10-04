@@ -11,7 +11,11 @@ import fs from "node:fs"; fs.mkdirSync(OUT, { recursive: true });
 const mock = await start();
 const preview = spawn("npx", ["vite", "preview", "--outDir", ".test-dist", "--port", "4173", "--strictPort"],
   { cwd: ROOT, stdio: "ignore" });
-await new Promise((r) => setTimeout(r, 3500));
+// Wait for the preview server instead of guessing how long `npx vite preview` takes to start.
+for (let i = 0; i < 120; i++) {
+  try { if ((await fetch("http://127.0.0.1:4173/")).ok) break; } catch { /* not up yet */ }
+  await new Promise((r) => setTimeout(r, 250));
+}
 
 // Set CHROMIUM_PATH to use an existing Chrome/Chromium; otherwise Playwright's own browser is used.
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
