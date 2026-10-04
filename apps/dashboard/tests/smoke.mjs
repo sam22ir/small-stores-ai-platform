@@ -29,7 +29,8 @@ async function newPage(opts = {}) {
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
-  page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text()); });
+  // The rate-limit test deliberately triggers a 429 from the function.
+  page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("status of 429")) errors.push("console: " + m.text()); });
   return { page, ctx, errors };
 }
 
@@ -46,10 +47,11 @@ try {
   await page.waitForURL(/\/inbox/);
   await page.waitForSelector("text=Customer chats");
   ok("sign-in lands on the inbox", true);
-  ok("'Needs you' tab shows the handed-off chat", await page.isVisible("text=Playground t4"));
+  ok("'Needs you' tab shows the handed-off chat", await page.isVisible("text=Amine"));
   ok("handoff reason is visible on the card", await page.isVisible("text=Customer wants to order 2 hoodies"));
   ok("inbox card previews the latest message", await page.isVisible("text=The owner will reply to you personally."));
   ok("tab counts rendered", await page.isVisible("text=Needs you (1)"));
+  ok("test chats are hidden from the customer inbox", !(await page.isVisible("text=test handoff")));
   await page.screenshot({ path: OUT + "02-inbox.png" });
 
   await page.click("[role=tab]:has-text('Assistant')");
@@ -57,7 +59,7 @@ try {
 
   // 2. thread + reply
   await page.click("[role=tab]:has-text('Needs you')");
-  await page.click("text=Playground t4");
+  await page.click("text=Amine");
   await page.waitForSelector("text=I want to order 2 hoodies");
   ok("thread shows customer and assistant messages", await page.isVisible("text=The owner will reply to you personally."));
   await page.fill("textarea", "Hi! Yes we can arrange 2 hoodies.");
@@ -102,13 +104,67 @@ try {
   await page.click("a:has-text('Settings')");
   await page.waitForSelector("text=Store settings");
   await page.fill("#sinfo", "Open daily. Delivery 3-5 days.");
+  await page.check("label:has-text('Take orders in chats') input");
   await page.click("button:has-text('Save')");
   await page.waitForSelector("text=Saved");
   ok("settings save sends only allowed columns", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes("business_info") && !l.includes('"id"')));
-  await page.click("a:has-text('Channels')");
-  await page.waitForSelector("text=Facebook Page");
-  ok("channels page lists the connect options as coming soon", (await page.locator("button:has-text('Coming soon')").count()) === 2);
-  await page.screenshot({ path: OUT + "06-channels.png" });
+  ok("orders toggle is saved", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes('"orders_enabled":true')));
+
+  // 5b. delivery fees
+  await page.waitForSelector("text=Delivery fees");
+  ok("existing delivery fee is listed", await page.isVisible("li:has-text('Alger')"));
+  await page.fill("#fw", "Oran");
+  await page.click("form:has(#fw) button.btn-primary");
+  ok("adding a fee without an amount is rejected", await page.isVisible("text=Enter a valid fee."));
+  await page.fill("#ff", "600");
+  await page.click("form:has(#fw) button.btn-primary");
+  ok("fee is inserted in cents", await logged((l) => l.startsWith("POST /rest/v1/delivery_fees") && l.includes('"wilaya":"Oran"') && l.includes('"fee_cents":60000')));
+  await page.click("button:has-text('Add all 58 wilayas')");
+  ok("bulk add skips wilayas that already exist", await logged((l) => l.startsWith("POST /rest/v1/delivery_fees") && l.includes('"wilaya":"Adrar"') && !l.includes('"wilaya":"Oran"')));
+  await page.screenshot({ path: OUT + "06-settings-fees.png", fullPage: true });
+
+  // 5c. orders
+  await page.click("a:has-text('Orders')");
+  await page.waitForSelector("text=Karim B");
+  ok("new orders tab shows the order with phone, address and total", await page.isVisible("text=0555123456") && await page.isVisible("text=12 rue des Frères, Es Senia") && /9[\s,. ]?600/.test(await page.textContent("body")));
+  ok("order tab counts", await page.isVisible("text=New (1)") && await page.isVisible("text=Shipped (1)"));
+  await page.screenshot({ path: OUT + "06b-orders.png" });
+  await page.click("button:has-text('Confirm order')");
+  ok("confirm calls set_order_status", await logged((l) => l.includes("/rest/v1/rpc/set_order_status") && l.includes('"p_status":"confirmed"')));
+  await page.click("[role=tab]:has-text('Confirmed')");
+  await page.waitForSelector("text=Karim B");
+  page.once("dialog", (d) => void d.accept());
+  await page.click("button:has-text('Cancel order')");
+  ok("cancel asks first, then calls set_order_status", await logged((l) => l.includes("/rest/v1/rpc/set_order_status") && l.includes('"p_status":"cancelled"')));
+
+  // 5d. assistant: usage, test chat, channels
+  await page.click("a:has-text('Assistant')");
+  await page.waitForSelector("text=Try your assistant");
+  ok("usage meter shows replies used of the limit", await page.isVisible("text=7 of 1000"));
+  ok("channels are listed as coming soon", (await page.locator("button:has-text('Coming soon')").count()) === 2);
+  await page.fill("input[aria-label='Write as a customer…']", "do you have the hoodie in M?");
+  await page.click("button:has-text('Send')");
+  await page.waitForSelector("text=Black Hoodie in M is available");
+  ok("test chat sends store id and session to assistant-chat", await logged((l) => l.startsWith("POST /functions/v1/assistant-chat") && l.includes('"store_id":"s1"') && l.includes('"session_id"')));
+  await page.fill("input[aria-label='Write as a customer…']", "hello");
+  await page.click("button:has-text('Send')");
+  await page.waitForSelector("text=Instant reply, no credit used.");
+  ok("fast-path replies are labelled free", await page.isVisible("text=Hi, welcome to Demo Boutique!"));
+  await page.fill("input[aria-label='Write as a customer…']", "I want to order the hoodie");
+  await page.click("button:has-text('Send')");
+  await page.waitForSelector("text=Test mode: no real order was created.");
+  ok("test orders are labelled as not real", await page.isVisible("text=Your order is received."));
+  await page.fill("input[aria-label='Write as a customer…']", "spam");
+  await page.click("button:has-text('Send')");
+  await page.waitForSelector("text=Too many test messages. Try again in a while.");
+  ok("rate limit (429) shows a friendly message", await page.isVisible("[role=alert]:has-text('Too many test messages')"));
+  await page.fill("input[aria-label='Write as a customer…']", "let me talk to a human");
+  await page.click("button:has-text('Send')");
+  await page.waitForSelector("text=Start a new test chat to continue.");
+  ok("handoff disables the input until a new test chat", await page.isDisabled("input[aria-label='Write as a customer…']"));
+  await page.screenshot({ path: OUT + "06c-assistant.png", fullPage: true });
+  await page.click("button:has-text('New test chat')");
+  ok("new test chat clears the conversation", !(await page.isDisabled("input[aria-label='Write as a customer…']")) && !(await page.isVisible("text=Black Hoodie in M is available")));
 
   // 6. Arabic / RTL
   await page.selectOption("aside select", "ar");
@@ -140,6 +196,12 @@ try {
   await page.waitForSelector("text=Black Hoodie");
   ok("no horizontal scroll on the catalog either", !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
   await page.screenshot({ path: OUT + "10-mobile-catalog-fr.png" });
+  for (const [label, wait] of [["Commandes", "h1:has-text('Commandes')"], ["Assistant", "text=Essayez votre assistant"]]) {
+    await page.click(`nav a:has-text('${label}')`);
+    await page.waitForSelector(wait);
+    ok(`no horizontal scroll on ${label}`, !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
+  }
+  await page.screenshot({ path: OUT + "10b-mobile-assistant-fr.png" });
   ok("no runtime errors on mobile", errors.length === 0);
   await ctx.close();
 

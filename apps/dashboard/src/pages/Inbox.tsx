@@ -40,7 +40,8 @@ export function Inbox() {
       .order("last_customer_message_at", { ascending: false, nullsFirst: false })
       .limit(200);
     if (error) { setFailed(true); return; }
-    const rows = data as unknown as Conv[];
+    // Test chats from the Assistant page live in the same tables; they aren't customers.
+    const rows = (data as unknown as Conv[]).filter((c) => c.channels?.platform !== "playground");
     setConvs(rows); setFailed(false);
 
     if (rows.length === 0) return;

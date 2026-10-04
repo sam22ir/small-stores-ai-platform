@@ -5,11 +5,12 @@ import {
   toMessageParams,
   truncateUtf8,
 } from "./run.ts";
-import { errorText, executeTool, toolDefinitions } from "./tools.ts";
+import { errorText, executeTool, toolsForStore } from "./tools.ts";
 import type {
   AgentResult,
   Catalog,
   ChatMessage,
+  OrderPort,
   StoreContext,
   ToolCallLog,
 } from "./types.ts";
@@ -41,6 +42,9 @@ export interface ChatCompletionsOptions {
   maxAttempts?: number; // total tries on 429/5xx; 1 = no retry (use when a fallback exists)
   fetchImpl?: typeof fetch;
   retryDelayMs?: number;
+  orders?: OrderPort;
+  conversationId?: string;
+  customerId?: string;
 }
 
 interface ToolCall {
@@ -62,14 +66,16 @@ interface Completion {
   usage?: { prompt_tokens?: number; completion_tokens?: number };
 }
 
-const tools = toolDefinitions.map((t) => ({
-  type: "function" as const,
-  function: {
-    name: t.name,
-    description: t.description,
-    parameters: t.input_schema,
-  },
-}));
+function openAITools(store: StoreContext) {
+  return toolsForStore(store).map((t) => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.input_schema,
+    },
+  }));
+}
 
 // Some reasoning models inline their thinking as <think>...</think>.
 export function stripThinking(text: string): string {
@@ -97,6 +103,7 @@ export async function runAgentChatCompletions(
     })),
   ];
 
+  const tools = openAITools(store);
   const toolCalls: ToolCallLog[] = [];
   const usage = { input_tokens: 0, output_tokens: 0 };
   let handoffReason: string | null = null;
@@ -185,6 +192,9 @@ export async function runAgentChatCompletions(
         const outcome = await executeTool(call.function.name, input, {
           store,
           catalog,
+          orders: opts.orders,
+          conversationId: opts.conversationId,
+          customerId: opts.customerId,
         });
         if (outcome.handoffReason) handoffReason = outcome.handoffReason;
         toolCalls.push({

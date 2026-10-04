@@ -131,7 +131,7 @@ export function Thread() {
       <div className="flex flex-col gap-2 py-2" aria-live="polite">
         {msgs.length === 0 && <p className="muted">{t("inbox.noMessages")}</p>}
         {msgs.map((m) => (
-          <div key={m.id} className={`flex flex-col gap-0.5 ${m.direction === "inbound" ? "self-start items-start" : "self-end items-end"} max-w-full`}>
+          <div key={m.id} className={`flex flex-col gap-0.5 w-full ${m.direction === "inbound" ? "items-start" : "items-end"}`}>
             <div className={`bubble ${m.direction === "inbound" ? "bubble-in" : m.sender === "owner" ? "bubble-owner" : "bubble-out"}`}>{m.body}</div>
             <div className="muted text-xs">
               {who(m)} · {formatTime(m.created_at, lang)}

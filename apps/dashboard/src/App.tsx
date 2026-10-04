@@ -10,7 +10,8 @@ import { Inbox } from "./pages/Inbox";
 import { Thread } from "./pages/Thread";
 import { Catalog } from "./pages/Catalog";
 import { Settings } from "./pages/Settings";
-import { Channels } from "./pages/Channels";
+import { Orders } from "./pages/Orders";
+import { Assistant } from "./pages/Assistant";
 
 function Centered({ children }: { children: React.ReactNode }) {
   return <div className="min-h-screen grid place-items-center p-6 text-center">{children}</div>;
@@ -61,7 +62,9 @@ export function App() {
                 <Route path="/inbox" element={<Inbox />} />
                 <Route path="/inbox/:id" element={<Thread />} />
                 <Route path="/catalog" element={<Catalog />} />
-                <Route path="/channels" element={<Channels />} />
+                <Route path="/orders" element={<Orders />} />
+                <Route path="/assistant" element={<Assistant />} />
+                <Route path="/channels" element={<Navigate to="/assistant" replace />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
             </Route>

@@ -8,10 +8,11 @@ const session = { access_token: jwt, token_type: "bearer", expires_in: 3600, exp
 
 export const state = {
   hasStore: true,
-  store: { id: "s1", name: "Demo Boutique", currency: "DZD", timezone: "Africa/Algiers", business_info: "Open daily 10:00-18:00.", agent_enabled: true, created_at: "2026-10-01T00:00:00Z" },
+  store: { id: "s1", name: "Demo Boutique", currency: "DZD", timezone: "Africa/Algiers", business_info: "Open daily 10:00-18:00.", agent_enabled: true, monthly_reply_limit: 1000, orders_enabled: false, created_at: "2026-10-01T00:00:00Z" },
   conversations: [
-    { id: "c1", store_id: "s1", channel_id: "ch1", status: "human", handoff_reason: "Customer wants to order 2 hoodies", last_customer_message_at: "2026-10-04T20:30:00Z", created_at: "2026-10-04T20:00:00Z", customers: { display_name: "Playground t4", platform_user_id: "t4" }, channels: { platform: "playground" } },
+    { id: "c1", store_id: "s1", channel_id: "ch1", status: "human", handoff_reason: "Customer wants to order 2 hoodies", last_customer_message_at: "2026-10-04T20:30:00Z", created_at: "2026-10-04T20:00:00Z", customers: { display_name: "Amine", platform_user_id: "ig-0" }, channels: { platform: "instagram" } },
     { id: "c2", store_id: "s1", channel_id: "ch1", status: "bot", handoff_reason: null, last_customer_message_at: "2026-10-04T20:20:00Z", created_at: "2026-10-04T20:00:00Z", customers: { display_name: "Sara", platform_user_id: "ig-1" }, channels: { platform: "instagram" } },
+    { id: "c4", store_id: "s1", channel_id: "ch1", status: "human", handoff_reason: "test handoff", last_customer_message_at: "2026-10-04T21:00:00Z", created_at: "2026-10-04T21:00:00Z", customers: { display_name: "Test chat", platform_user_id: "test-user-1-main" }, channels: { platform: "playground" } },
     { id: "c3", store_id: "s1", channel_id: "ch1", status: "closed", handoff_reason: null, last_customer_message_at: "2026-10-03T10:00:00Z", created_at: "2026-10-03T10:00:00Z", customers: { display_name: null, platform_user_id: "fb-9" }, channels: { platform: "facebook" } },
   ],
   messages: [
@@ -26,7 +27,14 @@ export const state = {
       { id: "v3", label: "L", price_cents: null, stock_quantity: 24, sku: null } ] },
     { id: "p2", name: "Leather Wallet", description: null, price_cents: 320000, active: false, product_variants: [ { id: "v9", label: "Brown", price_cents: 350000, stock_quantity: 0, sku: null } ] },
   ],
-  channels: [ { id: "ch1", platform: "playground", display_name: "Playground", status: "active" } ],
+  channels: [ { id: "ch1", platform: "playground", display_name: "Test chat", status: "active" } ],
+  orders: [
+    { id: "o1", customer_name: "Karim B", phone: "0555123456", wilaya: "Oran", address: "12 rue des Frères, Es Senia", subtotal_cents: 900000, delivery_fee_cents: 60000, total_cents: 960000, status: "pending", created_at: "2026-10-04T19:00:00Z",
+      order_items: [ { id: "i1", name: "Black Hoodie", variant_label: "M", quantity: 2, unit_price_cents: 450000 } ] },
+    { id: "o2", customer_name: "Lina S", phone: "0661000000", wilaya: "Alger", address: "Hydra", subtotal_cents: 320000, delivery_fee_cents: 40000, total_cents: 360000, status: "shipped", created_at: "2026-10-03T19:00:00Z",
+      order_items: [ { id: "i2", name: "Leather Wallet", variant_label: "Brown", quantity: 1, unit_price_cents: 320000 } ] },
+  ],
+  fees: [ { id: "f1", wilaya: "Alger", fee_cents: 40000 } ],
   log: [],
 };
 
@@ -50,10 +58,28 @@ export function start(port = 54321) {
       if (url.pathname === "/auth/v1/logout") return send(204);
 
       if (url.pathname.startsWith("/rest/v1/rpc/create_store")) { state.hasStore = true; return send(200, "s1"); }
+      if (url.pathname.startsWith("/rest/v1/rpc/set_order_status")) {
+        const { p_order_id, p_status } = JSON.parse(body);
+        const o = state.orders.find((x) => x.id === p_order_id);
+        if (o) o.status = p_status;
+        return send(200, p_status);
+      }
+      if (url.pathname === "/functions/v1/assistant-chat") {
+        if (req.method !== "POST") return send(204);
+        const { text = "" } = JSON.parse(body || "{}");
+        if (/human/i.test(text)) return send(200, { ok: true, reply: "Thanks! I've passed this to the owner.", status: "human", handoff: "asked for a human", tool_calls: ["handoff_to_owner"], fast_path: false });
+        if (/hello/i.test(text)) return send(200, { ok: true, reply: "Hi, welcome to Demo Boutique! How can I help you?", status: "bot", tool_calls: [], fast_path: true });
+        if (/order/i.test(text)) return send(200, { ok: true, reply: "Your order is received. Total 9 600 DA on delivery.", status: "bot", tool_calls: ["create_order"], fast_path: false });
+        if (/spam/i.test(text)) return send(429, { error: "Too many test messages. Try again later." });
+        return send(200, { ok: true, reply: "Yes, the Black Hoodie in M is available (3 left).", status: "bot", tool_calls: ["search_products"], fast_path: false });
+      }
       if (!url.pathname.startsWith("/rest/v1/")) return send(404, { message: "not found" });
 
       const pick = (rows) => single ? (rows[0] ? send(200, rows[0]) : send(406, { code: "PGRST116", message: "no rows", details: "", hint: "" })) : send(200, rows);
+      if (req.method === "HEAD" && table === "agent_runs") return send(200, undefined, { "content-range": "*/7" });
       if (req.method === "GET") {
+        if (table === "orders") return pick(state.orders);
+        if (table === "delivery_fees") return pick(state.fees);
         if (table === "store_members") return pick(state.hasStore ? [{ store_id: "s1" }] : []);
         if (table === "stores") return pick([state.store]);
         if (table === "conversations") {
@@ -78,6 +104,11 @@ export function start(port = 54321) {
         return send(201);
       }
       if (req.method === "POST" && table === "products") return send(201, [{ id: "p-new" }]);
+      if (req.method === "POST" && table === "delivery_fees") {
+        const rows = [].concat(JSON.parse(body));
+        for (const r of rows) state.fees.push({ id: "f" + (state.fees.length + 1), wilaya: r.wilaya, fee_cents: r.fee_cents });
+        return send(201);
+      }
       if (req.method === "PATCH" || req.method === "POST" || req.method === "DELETE") return send(204);
       return send(404, { message: "unhandled " + req.method + " " + table });
     });

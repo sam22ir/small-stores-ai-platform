@@ -1,10 +1,11 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { buildSystemPrompt } from "./prompt.ts";
-import { errorText, executeTool, toolDefinitions } from "./tools.ts";
+import { errorText, executeTool, toolsForStore } from "./tools.ts";
 import type {
   AgentResult,
   Catalog,
   ChatMessage,
+  OrderPort,
   StoreContext,
   ToolCallLog,
 } from "./types.ts";
@@ -27,6 +28,9 @@ export interface RunAgentOptions {
   store: StoreContext;
   history: ChatMessage[]; // oldest first; the last entry is the customer's new message
   model?: string;
+  orders?: OrderPort;
+  conversationId?: string;
+  customerId?: string;
 }
 
 // Models that accept `output_config.effort` and the server-side refusal fallback.
@@ -79,6 +83,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
 
   const frontier = isFrontierModel(model);
   const system = buildSystemPrompt(store);
+  const tools = toolsForStore(store);
 
   for (let round = 0; ; round++) {
     if (round >= MAX_TOOL_ROUNDS) {
@@ -90,7 +95,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
       model,
       max_tokens: MAX_TOKENS,
       system,
-      tools: toolDefinitions,
+      tools,
       messages,
       ...(frontier
         ? {
@@ -138,6 +143,9 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
           const outcome = await executeTool(use.name, use.input, {
             store,
             catalog,
+            orders: opts.orders,
+            conversationId: opts.conversationId,
+            customerId: opts.customerId,
           });
           if (outcome.handoffReason) handoffReason = outcome.handoffReason;
           toolCalls.push({

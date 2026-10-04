@@ -20,12 +20,14 @@ export type Database = {
           conversation_id: string
           created_at: string
           error: string | null
+          fast_path: boolean
           id: string
           input_tokens: number | null
           model: string
           output_tokens: number | null
           provider: string | null
           provider_errors: Json | null
+          source: string
           store_id: string
           tool_calls: Json
           trigger_message_id: string | null
@@ -34,12 +36,14 @@ export type Database = {
           conversation_id: string
           created_at?: string
           error?: string | null
+          fast_path?: boolean
           id?: string
           input_tokens?: number | null
           model: string
           output_tokens?: number | null
           provider?: string | null
           provider_errors?: Json | null
+          source?: string
           store_id: string
           tool_calls?: Json
           trigger_message_id?: string | null
@@ -48,12 +52,14 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           error?: string | null
+          fast_path?: boolean
           id?: string
           input_tokens?: number | null
           model?: string
           output_tokens?: number | null
           provider?: string | null
           provider_errors?: Json | null
+          source?: string
           store_id?: string
           tool_calls?: Json
           trigger_message_id?: string | null
@@ -246,6 +252,38 @@ export type Database = {
           },
         ]
       }
+      delivery_fees: {
+        Row: {
+          created_at: string
+          fee_cents: number
+          id: string
+          store_id: string
+          wilaya: string
+        }
+        Insert: {
+          created_at?: string
+          fee_cents: number
+          id?: string
+          store_id: string
+          wilaya: string
+        }
+        Update: {
+          created_at?: string
+          fee_cents?: number
+          id?: string
+          store_id?: string
+          wilaya?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_fees_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           body: string | null
@@ -303,6 +341,133 @@ export type Database = {
           },
           {
             foreignKeyName: "messages_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_items: {
+        Row: {
+          id: string
+          name: string
+          order_id: string
+          product_id: string | null
+          quantity: number
+          store_id: string
+          unit_price_cents: number
+          variant_id: string | null
+          variant_label: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          order_id: string
+          product_id?: string | null
+          quantity: number
+          store_id: string
+          unit_price_cents: number
+          variant_id?: string | null
+          variant_label?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          order_id?: string
+          product_id?: string | null
+          quantity?: number
+          store_id?: string
+          unit_price_cents?: number
+          variant_id?: string | null
+          variant_label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_store_id_fkey"
+            columns: ["order_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id", "store_id"]
+          },
+          {
+            foreignKeyName: "order_items_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          address: string
+          conversation_id: string | null
+          created_at: string
+          customer_id: string | null
+          customer_name: string
+          delivery_fee_cents: number
+          id: string
+          idempotency_key: string | null
+          phone: string
+          status: string
+          store_id: string
+          subtotal_cents: number
+          total_cents: number
+          updated_at: string
+          wilaya: string
+        }
+        Insert: {
+          address: string
+          conversation_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name: string
+          delivery_fee_cents?: number
+          id?: string
+          idempotency_key?: string | null
+          phone: string
+          status?: string
+          store_id: string
+          subtotal_cents: number
+          total_cents: number
+          updated_at?: string
+          wilaya: string
+        }
+        Update: {
+          address?: string
+          conversation_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string
+          delivery_fee_cents?: number
+          id?: string
+          idempotency_key?: string | null
+          phone?: string
+          status?: string
+          store_id?: string
+          subtotal_cents?: number
+          total_cents?: number
+          updated_at?: string
+          wilaya?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_conversation_id_store_id_fkey"
+            columns: ["conversation_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id", "store_id"]
+          },
+          {
+            foreignKeyName: "orders_customer_id_store_id_fkey"
+            columns: ["customer_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id", "store_id"]
+          },
+          {
+            foreignKeyName: "orders_store_id_fkey"
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
@@ -435,7 +600,9 @@ export type Database = {
           created_at: string
           currency: string
           id: string
+          monthly_reply_limit: number
           name: string
+          orders_enabled: boolean
           timezone: string
         }
         Insert: {
@@ -444,7 +611,9 @@ export type Database = {
           created_at?: string
           currency?: string
           id?: string
+          monthly_reply_limit?: number
           name: string
+          orders_enabled?: boolean
           timezone?: string
         }
         Update: {
@@ -453,7 +622,9 @@ export type Database = {
           created_at?: string
           currency?: string
           id?: string
+          monthly_reply_limit?: number
           name?: string
+          orders_enabled?: boolean
           timezone?: string
         }
         Relationships: []
@@ -469,6 +640,10 @@ export type Database = {
       }
       is_store_member: { Args: { p_store_id: string }; Returns: boolean }
       is_store_owner: { Args: { p_store_id: string }; Returns: boolean }
+      set_order_status: {
+        Args: { p_order_id: string; p_status: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

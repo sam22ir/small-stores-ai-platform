@@ -29,6 +29,52 @@ export interface StoreContext {
   name: string;
   currency: string;
   business_info: string | null;
+  orders_enabled?: boolean; // the owner switched on order taking
+}
+
+export interface OrderLineInput {
+  variant_id: string;
+  quantity: number;
+}
+
+export interface PlaceOrderInput {
+  storeId: string;
+  conversationId: string;
+  customerId: string;
+  customerName: string;
+  phone: string; // normalized 0XXXXXXXXX
+  wilaya: string;
+  address: string;
+  items: OrderLineInput[];
+  key: string; // idempotency key: a retried tool call must not create a second order
+}
+
+export type PlaceOrderResult =
+  | {
+    ok: true;
+    order_id: string;
+    subtotal_cents: number;
+    delivery_fee_cents: number;
+    total_cents: number;
+    duplicate: boolean;
+  }
+  | { ok: false; code: "wilaya_not_served" | "unknown_variant" | "insufficient_stock" | "invalid"; detail?: string };
+
+export interface DeliveryQuote {
+  // false when the store has a fee table and this wilaya isn't in it.
+  served: boolean;
+  // null when the owner hasn't set any delivery fees.
+  fee_cents: number | null;
+  // The wilaya spelled as the owner stored it; create_order must use this spelling.
+  canonical?: string;
+  // When not served: what the store does deliver to, so the model can map "Algiers" to "Alger".
+  options?: string[];
+}
+
+// Orders are written by the server only; prices and stock are re-checked in the database.
+export interface OrderPort {
+  quoteDelivery(storeId: string, wilaya: string): Promise<DeliveryQuote>;
+  placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult>;
 }
 
 export interface ChatMessage {

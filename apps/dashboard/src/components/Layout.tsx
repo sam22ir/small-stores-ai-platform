@@ -4,13 +4,14 @@ import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { useStore } from "../lib/store";
 import { LangSwitch } from "./LangSwitch";
-import { BoxIcon, ChatIcon, GearIcon, LogoutIcon, PlugIcon } from "./icons";
+import { BoxIcon, ChatIcon, GearIcon, LogoutIcon, OrdersIcon, SparkIcon } from "./icons";
 import type { ReactNode } from "react";
 
 const NAV: { to: string; key: TKey; icon: ReactNode }[] = [
   { to: "/inbox", key: "nav.inbox", icon: <ChatIcon /> },
+  { to: "/orders", key: "nav.orders", icon: <OrdersIcon /> },
   { to: "/catalog", key: "nav.catalog", icon: <BoxIcon /> },
-  { to: "/channels", key: "nav.channels", icon: <PlugIcon /> },
+  { to: "/assistant", key: "nav.assistant", icon: <SparkIcon /> },
   { to: "/settings", key: "nav.settings", icon: <GearIcon /> },
 ];
 
@@ -53,12 +54,12 @@ export function Layout() {
         <main className="mx-auto max-w-4xl p-4 pb-28 md:pb-8"><Outlet /></main>
       </div>
 
-      <nav className="md:hidden fixed bottom-0 inset-x-0 grid grid-cols-4 border-t divider safe-bottom" style={{ background: "var(--surface)" }}>
+      <nav className="md:hidden fixed bottom-0 inset-x-0 grid grid-cols-5 border-t divider safe-bottom" style={{ background: "var(--surface)" }}>
         {NAV.map((n) => (
           <NavLink key={n.to} to={n.to}
-            className="flex flex-col items-center gap-0.5 py-2 text-xs font-semibold"
+            className="flex flex-col items-center gap-0.5 py-2 px-0.5 min-w-0 text-[10.5px] leading-tight font-semibold"
             style={({ isActive }) => ({ color: isActive ? "var(--brand)" : "var(--muted)" })}>
-            {n.icon}{t(n.key)}
+            {n.icon}<span className="max-w-full truncate">{t(n.key)}</span>
           </NavLink>
         ))}
       </nav>
