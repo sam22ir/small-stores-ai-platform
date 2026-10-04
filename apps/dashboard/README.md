@@ -43,7 +43,7 @@ The first account you create gets the "Set up your store" screen, which calls th
 ## Known limits
 
 - Owner replies are **saved, not delivered**, until Instagram/Facebook are connected. They show "Saved. Not sent yet".
-- The "Assistant is on" switch applies to live channels. The dev `playground-chat` function does not check it.
+- The "Assistant is on" switch applies to live channels. The test chat on the Assistant page ignores it, so you can always try the assistant.
 - No push notifications yet (planned: Telegram alert, then web push).
 - No realtime updates: the inbox refreshes every 15 s and an open chat every 8 s.
 

@@ -31,6 +31,8 @@ enqueues; the agent runs out of band (queue table + worker, or a background func
 | `check_stock(product_id \| sku)` | Per-variant quantity and availability |
 | `get_store_info()` | Hours, shipping, return policy set by the owner |
 | `handoff_to_owner(reason)` | Flags the conversation `human`, notifies the owner, bot stops replying |
+| `quote_delivery(wilaya)` | Delivery fee for a wilaya (only when the owner turned on order taking) |
+| `create_order(...)` | Places a cash-on-delivery order through the `place_order` database function (order taking only) |
 
 Implementation notes (`supabase/functions/_shared/agent/`):
 
@@ -39,7 +41,11 @@ Implementation notes (`supabase/functions/_shared/agent/`):
 - Stock is reported as `in_stock` / `low_stock` / `out_of_stock`. Exact counts are only exposed at 5 or fewer, so competitors can't read inventory by asking.
 - Default model is `claude-sonnet-5-5` (`AGENT_MODEL` overrides) with low effort and the server-side refusal fallback enabled.
 - Model providers can be chained (`providers.ts`): primary first, optional fallback on any error, with a short per-isolate circuit breaker. Falling back only protects uptime; whichever provider is primary still sees every message.
-- `playground-chat` is a dev-only entry point to the same pipeline; Meta delivery plugs in last.
+- `assistant-chat` (dashboard test chat with the owner's JWT, plus a dev-secret mode) and, later, `meta-webhook` are entry points to the same pipeline in `_shared/pipeline.ts`; Meta delivery plugs in last.
+
+Orders: the model never supplies prices or the store id. `place_order` recomputes prices from the catalog, checks and
+decrements stock under row locks, ignores duplicates (idempotency key) and runs as one transaction; test chats call it in
+dry-run mode. A greeting/thanks fast path (`fastpath.ts`) answers without a model call.
 
 Every tool is scoped by `store_id` taken from the resolved channel, never from model
 output, so one tenant can never read another's data.

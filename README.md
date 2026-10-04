@@ -28,17 +28,21 @@ TypeScript · Supabase (Postgres, Auth, RLS) · Meta Graph API webhooks · Claud
 
 ## Testing the agent (no Meta needed)
 
-The `playground-chat` Edge Function runs the full pipeline (store, conversation, agent, stored reply) without Meta.
-`supabase/seed.sql` creates a demo store with a small catalog.
+The `assistant-chat` Edge Function runs the full pipeline (store, conversation, greeting fast path, agent, stored reply)
+without Meta. Owners use it from the dashboard's **Assistant** page ("Try your assistant", signed in with their account);
+scripts use it with the dev secret. `supabase/seed.sql` creates a demo store with a small catalog.
 
 ```sh
-curl -X POST https://<project-ref>.supabase.co/functions/v1/playground-chat \
+curl -X POST https://<project-ref>.supabase.co/functions/v1/assistant-chat \
   -H "x-playground-secret: $PLAYGROUND_SECRET" \
   -d '{"store_id":"<demo store id>","text":"Do you have the black hoodie in M?"}'
 ```
 
-Send `{"store_id": "...", "reset": true}` to hand a conversation back to the bot after a handoff.
-Needs the `ANTHROPIC_API_KEY` and `PLAYGROUND_SECRET` Edge Function secrets.
+Other actions: `{"store_id": "...", "action": "reset"}` hands the test conversation back to the bot after a handoff;
+`{"store_id": "...", "action": "usage"}` returns this month's reply count and limit.
+Test and dev runs never create real orders or touch stock, don't count towards the monthly limit and are capped at 60
+per hour per store. (`playground-chat` is now a stub that answers 410.)
+Needs the `PLAYGROUND_SECRET` secret plus a model provider (below).
 
 To test with a free OpenAI-compatible model instead (for example on TokenRouter), set the secrets
 `LLM_PROVIDER=openai-compatible`, `LLM_BASE_URL`, `LLM_API_KEY` and `LLM_MODEL`. Remove `LLM_PROVIDER` to go back to Claude.
@@ -50,13 +54,14 @@ timeout and no retry. If it errors, times out or is rate-limited, the same messa
 consecutive primary failures the primary is skipped for 60 s, so customers don't wait on a dead endpoint. Each reply
 reports `provider` and `fell_back`, and `agent_runs` records the provider and why the primary was skipped.
 
-Agent unit tests (fake Claude client and catalog, no network): `npm install && npm test`.
+Unit tests (fake model client, catalog and database, no network): `npm install && npm test`.
 
-To score whichever model the function is currently configured with (8 scenarios: catalog use, hidden stock counts,
-handoff, injection, Arabic, store info), run against the seeded demo store:
+To score whichever model the function is currently configured with (12 scenarios: catalog use, hidden stock counts,
+handoff, injection, Arabic, Darija in Latin letters, French, free greeting/thanks replies, store info), run against the
+seeded demo store. `EVAL_ORDERS=1` adds the multi-turn order flow (turn on "Take orders" for that store first):
 
 ```sh
-PLAYGROUND_URL=https://<project-ref>.supabase.co/functions/v1/playground-chat \
+PLAYGROUND_URL=https://<project-ref>.supabase.co/functions/v1/assistant-chat \
 PLAYGROUND_SECRET=... STORE_ID=<demo store id> npm run eval
 ```
 
