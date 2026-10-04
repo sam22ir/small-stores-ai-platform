@@ -234,5 +234,6 @@ test("a failing tool's error text is recorded for debugging", async () => {
 test("prompt forbids offering to hold or reserve items", () => {
   const p = buildSystemPrompt(STORE);
   assert.match(p, /Never offer to hold, reserve or set aside/);
+  assert.match(p, /must first call handoff_to_owner/);
   assert.match(p, /Test Shop/);
 });
