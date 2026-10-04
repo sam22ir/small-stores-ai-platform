@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import Anthropic from "@anthropic-ai/sdk";
 import { DEFAULT_MODEL, runAgent } from "../_shared/agent/run.ts";
 import { runAgentChatCompletions } from "../_shared/agent/chat_completions.ts";
+import { scoreProduct, searchGroups } from "../_shared/agent/search.ts";
 import type {
   Catalog,
   ChatMessage,
@@ -65,34 +66,28 @@ function toProduct(row: any): ProductRecord {
 function supabaseCatalog(client: SupabaseClient): Catalog {
   return {
     async searchProducts(storeId, query, limit) {
-      // Words are letters/digits only, so they're safe inside the filter string.
-      const words = [
-        ...new Set(query.toLowerCase().match(/[\p{L}\p{N}]{2,}/gu) ?? []),
-      ].slice(0, 5);
+      // Variants are letters/digits only, so they're safe inside the filter string.
+      const groups = searchGroups(query);
 
       let q = client
         .from("products")
         .select(PRODUCT_SELECT)
         .eq("store_id", storeId)
         .eq("active", true);
-      if (words.length) {
+      if (groups.length) {
         q = q.or(
-          words.flatMap((w) => [`name.ilike.*${w}*`, `description.ilike.*${w}*`])
+          groups.flat().flatMap((v) => [`name.ilike.*${v}*`, `description.ilike.*${v}*`])
             .join(","),
         );
       }
       const { data, error } = await q.order("name").limit(50);
       if (error) throw error;
 
-      const score = (p: ProductRecord) =>
-        words.reduce(
-          (s, w) =>
-            s + (p.name.toLowerCase().includes(w) ? 2 : 0) +
-            (p.description?.toLowerCase().includes(w) ? 1 : 0),
-          0,
-        );
       return (data ?? []).map(toProduct)
-        .sort((a, b) => score(b) - score(a))
+        .sort((a, b) =>
+          scoreProduct(b.name, b.description, groups) -
+          scoreProduct(a.name, a.description, groups)
+        )
         .slice(0, limit);
     },
 

@@ -1,0 +1,35 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { scoreProduct, searchGroups } from "./search.ts";
+
+const matches = (name: string, query: string) =>
+  searchGroups(query).some((g) => g.some((v) => name.toLowerCase().includes(v)));
+
+test("plurals match singular product names", () => {
+  assert.ok(matches("Black Hoodie", "hoodies"));
+  assert.ok(matches("Linen Shirt", "shirts"));
+  assert.ok(matches("Silver Hoop Earrings", "earring"));
+  assert.ok(matches("Summer Dress", "dresses"));
+  assert.ok(matches("Canvas Tote Bag", "do you have tote bags?"));
+});
+
+test("filler words and short tokens are dropped", () => {
+  assert.deepEqual(searchGroups("do you have the in a"), []);
+  assert.deepEqual(searchGroups(""), []);
+  assert.ok(searchGroups("do you have hoodies in M?").length === 1);
+});
+
+test("works for non-Latin scripts", () => {
+  assert.deepEqual(searchGroups("هل عندكم قميص"), [["عندكم"], ["قميص"]]);
+});
+
+test("caps at five words and dedupes", () => {
+  assert.equal(searchGroups("red blue green pink gold teal navy").length, 5);
+  assert.equal(searchGroups("hoodie hoodie hoodie").length, 1);
+});
+
+test("name matches outrank description matches", () => {
+  const groups = searchGroups("wallet");
+  assert.ok(scoreProduct("Leather Wallet", null, groups) > scoreProduct("Gift box", "fits a wallet", groups));
+  assert.equal(scoreProduct("Tote", null, groups), 0);
+});
