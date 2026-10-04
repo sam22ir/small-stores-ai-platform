@@ -124,3 +124,13 @@ test("gives up after too many tool rounds", async () => {
   assert.equal(calls.length, 5);
   assert.equal(r.reply, HANDOFF_HOLDING_REPLY);
 });
+
+test("failed tool calls record their error text", async () => {
+  const failing: Catalog = {
+    async searchProducts() { throw { message: "relation exploded" }; },
+    async getProduct() { return null; },
+  };
+  const { fetchImpl } = fakeFetch([toolCall("search_products", '{"query":"x"}'), text("Let me ask the owner.")]);
+  const r = await runAgentChatCompletions({ ...base, catalog: failing, fetchImpl });
+  assert.equal(r.toolCalls[0].error, "relation exploded");
+});

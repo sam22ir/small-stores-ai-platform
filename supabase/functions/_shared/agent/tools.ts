@@ -77,6 +77,14 @@ export const toolDefinitions: AgentTool[] = [
   },
 ];
 
+// PostgREST errors are plain objects with a `message`, not Error instances.
+export function errorText(err: unknown): string {
+  const msg = err && typeof err === "object" && "message" in err
+    ? String((err as { message: unknown }).message)
+    : String(err);
+  return msg.slice(0, 300);
+}
+
 export interface ToolContext {
   store: StoreContext;
   catalog: Catalog;

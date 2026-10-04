@@ -40,6 +40,7 @@ export interface ToolCallLog {
   name: string;
   input: unknown;
   is_error: boolean;
+  error?: string; // why it failed, so agent_runs is enough to debug
 }
 
 export interface AgentResult {

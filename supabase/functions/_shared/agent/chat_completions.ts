@@ -5,7 +5,7 @@ import {
   toMessageParams,
   truncateUtf8,
 } from "./run.ts";
-import { executeTool, toolDefinitions } from "./tools.ts";
+import { errorText, executeTool, toolDefinitions } from "./tools.ts";
 import type {
   AgentResult,
   Catalog,
@@ -162,7 +162,12 @@ export async function runAgentChatCompletions(
         input = JSON.parse(call.function.arguments || "{}");
       } catch {
         result = { content: "Tool arguments were not valid JSON.", is_error: true };
-        toolCalls.push({ name: call.function.name, input, is_error: true });
+        toolCalls.push({
+          name: call.function.name,
+          input,
+          is_error: true,
+          error: result.content,
+        });
         messages.push({ role: "tool", tool_call_id: call.id, content: result.content });
         continue;
       }
@@ -176,11 +181,17 @@ export async function runAgentChatCompletions(
           name: call.function.name,
           input,
           is_error: !!outcome.isError,
+          ...(outcome.isError ? { error: outcome.content.slice(0, 300) } : {}),
         });
         messages.push({ role: "tool", tool_call_id: call.id, content: outcome.content });
       } catch (err) {
         console.error(`tool ${call.function.name} failed`, err);
-        toolCalls.push({ name: call.function.name, input, is_error: true });
+        toolCalls.push({
+          name: call.function.name,
+          input,
+          is_error: true,
+          error: errorText(err),
+        });
         messages.push({
           role: "tool",
           tool_call_id: call.id,

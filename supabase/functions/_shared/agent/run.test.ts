@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type Anthropic from "@anthropic-ai/sdk";
 import { runAgent, toMessageParams, truncateUtf8, HANDOFF_HOLDING_REPLY } from "./run.ts";
-import { availability } from "./tools.ts";
+import { availability, errorText } from "./tools.ts";
+import { buildSystemPrompt } from "./prompt.ts";
 import type { Catalog, ProductRecord, StoreContext } from "./types.ts";
 
 const STORE: StoreContext = {
@@ -211,4 +212,27 @@ test("history must end with a customer message", async () => {
   await assert.rejects(
     runAgent({ client, catalog, store: STORE, history: [{ role: "assistant", text: "hi" }] }),
   );
+});
+
+test("a failing tool's error text is recorded for debugging", async () => {
+  // PostgREST errors are plain objects, not Error instances.
+  const catalog: Catalog = {
+    async searchProducts() { throw { code: "PGRST201", message: "Could not embed" }; },
+    async getProduct() { return null; },
+  };
+  const { client } = fakeClient([
+    { content: [toolUse("t1", "search_products", { query: "x" })], stop_reason: "tool_use" },
+    { content: [text("I'll ask the owner.")], stop_reason: "end_turn" },
+  ]);
+  const r = await runAgent({ client, catalog, store: STORE, history: ask("x?") });
+  assert.equal(r.toolCalls[0].is_error, true);
+  assert.equal(r.toolCalls[0].error, "Could not embed");
+  assert.equal(errorText(new Error("boom")), "boom");
+  assert.equal(errorText("plain"), "plain");
+});
+
+test("prompt forbids offering to hold or reserve items", () => {
+  const p = buildSystemPrompt(STORE);
+  assert.match(p, /Never offer to hold, reserve or set aside/);
+  assert.match(p, /Test Shop/);
 });

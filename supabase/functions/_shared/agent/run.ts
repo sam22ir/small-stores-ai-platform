@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { buildSystemPrompt } from "./prompt.ts";
-import { executeTool, toolDefinitions } from "./tools.ts";
+import { errorText, executeTool, toolDefinitions } from "./tools.ts";
 import type {
   AgentResult,
   Catalog,
@@ -144,6 +144,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
             name: use.name,
             input: use.input,
             is_error: !!outcome.isError,
+            ...(outcome.isError ? { error: outcome.content.slice(0, 300) } : {}),
           });
           return {
             type: "tool_result",
@@ -152,7 +153,12 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
             ...(outcome.isError ? { is_error: true } : {}),
           };
         } catch (err) {
-          toolCalls.push({ name: use.name, input: use.input, is_error: true });
+          toolCalls.push({
+            name: use.name,
+            input: use.input,
+            is_error: true,
+            error: errorText(err),
+          });
           console.error(`tool ${use.name} failed`, err);
           return {
             type: "tool_result",
