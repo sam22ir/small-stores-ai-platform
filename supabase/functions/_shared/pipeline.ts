@@ -28,7 +28,7 @@ import { monthStartUtc, usageStatus, type UsageStatus } from "./agent/usage.ts";
 
 // Everything that happens between "a customer message is stored" and "the reply is stored":
 // fast path, monthly limit, history, the model call (with provider fallback), run logging
-// and handoff. Shared by the dashboard test chat today and the Meta webhook later.
+// and handoff. Shared by the dashboard test chat and the Meta webhook.
 
 const HISTORY_LIMIT = 20;
 // Per isolate: skips a primary that keeps failing so customers don't wait on a dead endpoint.
@@ -280,7 +280,7 @@ async function processLocked(input: HandleInboundInput): Promise<HandleInboundRe
       direction: "outbound",
       sender: "agent",
       body: result.reply,
-      // Customer replies are delivered to Meta by a sender that is not built yet.
+      // Customer replies are sent to the channel by deliverPending (_shared/meta/deliver.ts).
       delivery_status: source === "customer" ? "pending" : "sent",
     });
     if (msgErr) throw msgErr;
