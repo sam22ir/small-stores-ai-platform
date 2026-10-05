@@ -2,6 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { normalizeDzPhone, orderIdempotencyKey } from "./orders.ts";
 import type {
   Catalog,
+  FaqPort,
   OrderLineInput,
   OrderPort,
   ProductRecord,
@@ -56,7 +57,7 @@ export const toolDefinitions: AgentTool[] = [
   {
     name: "get_store_info",
     description:
-      "Get the owner's information about the store: hours, shipping, returns, payment and anything else they wrote down.",
+      "Get the owner's information about the store: hours, shipping, returns, payment, answers to questions they have already answered, and anything else they wrote down.",
     strict: true,
     input_schema: {
       type: "object",
@@ -150,6 +151,7 @@ export interface ToolContext {
   store: StoreContext;
   catalog: Catalog;
   orders?: OrderPort;
+  faq?: FaqPort;
   conversationId?: string;
   customerId?: string;
   now?: Date;
@@ -178,9 +180,15 @@ function truncate(text: string | null, max: number): string | undefined {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
-function productView(p: ProductRecord, currency: string, withIds = false) {
+function isSoldOut(p: ProductRecord, now: Date): boolean {
+  return !!p.sold_out_until && new Date(p.sold_out_until) > now;
+}
+
+function productView(p: ProductRecord, currency: string, now: Date, withIds = false) {
+  // "Sold out today" overrides the stock count without erasing it.
+  const soldOut = isSoldOut(p, now);
   const variants = p.variants.map((v) => {
-    const a = availability(v.stock_quantity);
+    const a = soldOut ? "out_of_stock" as const : availability(v.stock_quantity);
     return {
       ...(withIds ? { variant_id: v.id } : {}),
       option: v.label,
@@ -191,7 +199,7 @@ function productView(p: ProductRecord, currency: string, withIds = false) {
       units_left: a === "low_stock" ? v.stock_quantity : undefined,
     };
   });
-  const anyInStock = p.variants.some((v) => v.stock_quantity > 0);
+  const anyInStock = !soldOut && p.variants.some((v) => v.stock_quantity > 0);
   return {
     product_id: p.id,
     name: p.name,
@@ -200,6 +208,21 @@ function productView(p: ProductRecord, currency: string, withIds = false) {
     availability: anyInStock ? "available" : "out_of_stock",
     variants,
   };
+}
+
+// Answers the owner saved, newest first, capped so one chatty store can't bloat every call.
+const FAQ_MAX_ENTRIES = 40;
+const FAQ_MAX_CHARS = 6000;
+export function formatFaq(entries: { question: string; answer: string }[]) {
+  const out: { question: string; answer: string }[] = [];
+  let chars = 0;
+  for (const e of entries.slice(0, FAQ_MAX_ENTRIES)) {
+    const item = { question: e.question.slice(0, 200), answer: e.answer.slice(0, 600) };
+    chars += item.question.length + item.answer.length;
+    if (chars > FAQ_MAX_CHARS) break;
+    out.push(item);
+  }
+  return out;
 }
 
 function asRecord(input: unknown): Record<string, unknown> {
@@ -215,6 +238,7 @@ export async function executeTool(
 ): Promise<ToolOutcome> {
   const args = asRecord(input);
   const { store, catalog } = ctx;
+  const now = ctx.now ?? new Date();
 
   switch (name) {
     case "search_products": {
@@ -236,7 +260,7 @@ export async function executeTool(
       }
       return {
         content: JSON.stringify({
-          results: products.map((p) => productView(p, store.currency, !!store.orders_enabled)),
+          results: products.map((p) => productView(p, store.currency, now, !!store.orders_enabled)),
         }),
       };
     }
@@ -256,19 +280,22 @@ export async function executeTool(
         };
       }
       return {
-        content: JSON.stringify(productView(product, store.currency, !!store.orders_enabled)),
+        content: JSON.stringify(productView(product, store.currency, now, !!store.orders_enabled)),
       };
     }
 
-    case "get_store_info":
+    case "get_store_info": {
+      const faq = ctx.faq ? await ctx.faq.list(store.id) : [];
       return {
         content: JSON.stringify({
           store_name: store.name,
           currency: store.currency,
           owner_notes: store.business_info ??
             "The owner hasn't written any extra store information.",
+          ...(faq.length ? { owner_faq: formatFaq(faq) } : {}),
         }),
       };
+    }
 
     case "handoff_to_owner": {
       const reason = typeof args.reason === "string" && args.reason.trim()

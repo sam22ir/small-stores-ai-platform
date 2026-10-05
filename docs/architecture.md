@@ -47,6 +47,8 @@ Orders: the model never supplies prices or the store id. `place_order` recompute
 decrements stock under row locks, ignores duplicates (idempotency key) and runs as one transaction; test chats call it in
 dry-run mode. A greeting/thanks fast path (`fastpath.ts`) answers without a model call.
 
+Per-message reliability (`handleInbound`): debounce a burst, skip already-answered messages, hold a per-conversation lock (`claim_conversation` / `release_conversation`, expiring after 90 s), re-check state under the lock, and on a model outage send a localized holding reply and hand the chat to the owner. The owner's saved FAQ answers (`faq_entries`) are returned by `get_store_info`; product `aliases` and `sold_out_until` feed search and availability.
+
 Every tool is scoped by `store_id` taken from the resolved channel, never from model
 output, so one tenant can never read another's data.
 

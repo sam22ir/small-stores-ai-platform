@@ -163,6 +163,7 @@ export type Database = {
           handoff_reason: string | null
           id: string
           last_customer_message_at: string | null
+          processing_until: string | null
           status: string
           store_id: string
         }
@@ -173,6 +174,7 @@ export type Database = {
           handoff_reason?: string | null
           id?: string
           last_customer_message_at?: string | null
+          processing_until?: string | null
           status?: string
           store_id: string
         }
@@ -183,6 +185,7 @@ export type Database = {
           handoff_reason?: string | null
           id?: string
           last_customer_message_at?: string | null
+          processing_until?: string | null
           status?: string
           store_id?: string
         }
@@ -277,6 +280,51 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "delivery_fees_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      faq_entries: {
+        Row: {
+          answer: string
+          conversation_id: string | null
+          created_at: string
+          id: string
+          question: string
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          question: string
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          question?: string
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faq_entries_conversation_id_store_id_fkey"
+            columns: ["conversation_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id", "store_id"]
+          },
+          {
+            foreignKeyName: "faq_entries_store_id_fkey"
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
@@ -526,31 +574,40 @@ export type Database = {
       products: {
         Row: {
           active: boolean
+          aliases: string | null
           created_at: string
           description: string | null
           id: string
           name: string
           price_cents: number
+          sold_out_until: string | null
+          stock_checked_at: string
           store_id: string
           updated_at: string
         }
         Insert: {
           active?: boolean
+          aliases?: string | null
           created_at?: string
           description?: string | null
           id?: string
           name: string
           price_cents: number
+          sold_out_until?: string | null
+          stock_checked_at?: string
           store_id: string
           updated_at?: string
         }
         Update: {
           active?: boolean
+          aliases?: string | null
           created_at?: string
           description?: string | null
           id?: string
           name?: string
           price_cents?: number
+          sold_out_until?: string | null
+          stock_checked_at?: string
           store_id?: string
           updated_at?: string
         }

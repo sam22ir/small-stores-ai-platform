@@ -10,6 +10,7 @@ import type {
   AgentResult,
   Catalog,
   ChatMessage,
+  FaqPort,
   OrderPort,
   StoreContext,
   ToolCallLog,
@@ -43,6 +44,7 @@ export interface ChatCompletionsOptions {
   fetchImpl?: typeof fetch;
   retryDelayMs?: number;
   orders?: OrderPort;
+  faq?: FaqPort;
   conversationId?: string;
   customerId?: string;
 }
@@ -193,6 +195,7 @@ export async function runAgentChatCompletions(
           store,
           catalog,
           orders: opts.orders,
+          faq: opts.faq,
           conversationId: opts.conversationId,
           customerId: opts.customerId,
         });

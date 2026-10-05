@@ -32,6 +32,7 @@ export function Inbox() {
   const [convs, setConvs] = useState<Conv[] | null>(null);
   const [previews, setPreviews] = useState<Record<string, Preview>>({});
   const [failed, setFailed] = useState(false);
+  const [aiProblems, setAiProblems] = useState(0);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -40,6 +41,11 @@ export function Inbox() {
       .order("last_customer_message_at", { ascending: false, nullsFirst: false })
       .limit(200);
     if (error) { setFailed(true); return; }
+    // Messages the assistant could not answer (model outage) in the last day.
+    const since = new Date(Date.now() - 86_400_000).toISOString();
+    const { count } = await supabase.from("agent_runs").select("id", { count: "exact", head: true })
+      .eq("source", "customer").not("error", "is", null).gte("created_at", since);
+    setAiProblems(count ?? 0);
     // Test chats from the Assistant page live in the same tables; they aren't customers.
     const rows = (data as unknown as Conv[]).filter((c) => c.channels?.platform !== "playground");
     setConvs(rows); setFailed(false);
@@ -75,6 +81,11 @@ export function Inbox() {
         ))}
       </div>
 
+      {aiProblems > 0 && (
+        <div className="rounded-xl px-4 py-3 mb-4 text-sm" style={{ background: "var(--warn-bg)", color: "var(--warn-text)" }} role="status">
+          {t("inbox.aiProblem", { n: aiProblems })}
+        </div>
+      )}
       {failed && <p className="error">{t("common.error")} <button className="btn btn-small" onClick={() => void load()}>{t("common.retry")}</button></p>}
       {!convs && !failed && <p className="muted">{t("common.loading")}</p>}
       {convs && visible.length === 0 && <p className="muted card p-5">{t(current.empty)}</p>}

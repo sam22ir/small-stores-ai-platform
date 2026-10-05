@@ -173,3 +173,39 @@ test("quote_delivery handles fee, unset fee and unserved wilaya", async () => {
   const off = await executeTool("quote_delivery", { wilaya: "Oran" }, ctx(false));
   assert.equal(off.isError, true);
 });
+
+test("get_store_info includes the owner's saved FAQ answers, newest first and size-capped", async () => {
+  const faq = {
+    list: () =>
+      Promise.resolve([
+        { question: "Do you gift wrap?", answer: "Yes, free of charge." },
+        { question: "Q".repeat(500), answer: "A".repeat(2000) },
+      ]),
+  };
+  const r = await executeTool("get_store_info", {}, { ...ctx(false), faq });
+  const body = JSON.parse(r.content);
+  assert.equal(body.owner_faq[0].answer, "Yes, free of charge.");
+  assert.equal(body.owner_faq[1].question.length, 200);
+  assert.equal(body.owner_faq[1].answer.length, 600);
+  const none = JSON.parse((await executeTool("get_store_info", {}, ctx(false))).content);
+  assert.equal(none.owner_faq, undefined);
+});
+
+test("a product marked sold out until later is reported out of stock, then back in stock", async () => {
+  const soldOut: Catalog = {
+    ...catalog,
+    searchProducts: async (...args) => {
+      const [first] = await catalog.searchProducts(...args);
+      return [{ ...first, sold_out_until: "2026-10-04T23:00:00Z" }];
+    },
+  };
+  const during = { ...ctx(false), catalog: soldOut, now: new Date("2026-10-04T10:00:00Z") };
+  const view = JSON.parse((await executeTool("search_products", { query: "hoodie" }, during)).content);
+  assert.equal(view.results[0].availability, "out_of_stock");
+  assert.equal(view.results[0].variants[0].availability, "out_of_stock");
+  assert.equal(view.results[0].variants[0].units_left, undefined);
+
+  const after = { ...during, now: new Date("2026-10-05T10:00:00Z") };
+  const back = JSON.parse((await executeTool("search_products", { query: "hoodie" }, after)).content);
+  assert.equal(back.results[0].availability, "available");
+});

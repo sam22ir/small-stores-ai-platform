@@ -5,6 +5,7 @@ import { useI18n } from "../lib/i18n";
 import { useStore } from "../lib/store";
 import { centsToInput, formatMoney, parsePrice } from "../lib/format";
 import { WILAYAS } from "../lib/wilayas";
+import { FaqEditor } from "../components/FaqEditor";
 import { CURRENCIES } from "./Onboarding";
 
 const ZONES = ["Africa/Algiers", "Africa/Casablanca", "Africa/Tunis", "Europe/Paris", "UTC"];
@@ -84,6 +85,7 @@ export function Settings() {
           {saved && <span className="badge badge-ok" role="status">{t("common.saved")}</span>}
         </div>
       </form>
+      <FaqEditor storeId={s.id} />
       <DeliveryFees storeId={s.id} currency={s.currency} />
     </div>
   );

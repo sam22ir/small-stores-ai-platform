@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import { formatTime } from "../lib/format";
 import { platformKey } from "./Inbox";
+import { FaqModal } from "../components/FaqModal";
 
 type Conv = {
   id: string;
@@ -33,6 +34,9 @@ export function Thread() {
   const [reply, setReply] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [faqFor, setFaqFor] = useState<{ question: string; answer: string } | null>(null);
+  const [faqSaved, setFaqSaved] = useState<Set<string>>(new Set());
+  const [faqMsgId, setFaqMsgId] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const lastCount = useRef(0);
 
@@ -104,6 +108,13 @@ export function Thread() {
   if (failed) return <p className="error">{t("common.error")} <button className="btn btn-small" onClick={() => void load()}>{t("common.retry")}</button></p>;
   if (!conv) return <p className="muted">{t("common.loading")}</p>;
 
+  // The question an owner reply answers: the customer message right before it.
+  const questionFor = (m: Msg) => {
+    const i = msgs.indexOf(m);
+    for (let j = i - 1; j >= 0; j--) if (msgs[j].sender === "customer" && msgs[j].body) return msgs[j].body!;
+    return "";
+  };
+
   const who = (m: Msg) => m.sender === "customer" ? t("thread.customerName") : m.sender === "owner" ? t("thread.you") : t("thread.assistantName");
 
   return (
@@ -137,6 +148,9 @@ export function Thread() {
               {who(m)} · {formatTime(m.created_at, lang)}
               {m.delivery_status === "pending" && <span> · {t("thread.pending")}</span>}
             </div>
+            {m.sender === "owner" && m.body && (faqSaved.has(m.id)
+              ? <span className="badge badge-ok">{t("thread.faqSaved")}</span>
+              : <button className="btn btn-small" onClick={() => { setFaqMsgId(m.id); setFaqFor({ question: questionFor(m), answer: m.body! }); }}>{t("thread.saveFaq")}</button>)}
           </div>
         ))}
         <div ref={endRef} />
@@ -151,6 +165,11 @@ export function Thread() {
           <button className="btn btn-primary shrink-0" disabled={busy || !reply.trim()}>{t("thread.send")}</button>
         </div>
       </form>
+      {faqFor && (
+        <FaqModal storeId={conv.store_id} conversationId={conv.id} initialQuestion={faqFor.question} initialAnswer={faqFor.answer}
+          onClose={() => setFaqFor(null)}
+          onSaved={() => { if (faqMsgId) setFaqSaved((p) => new Set(p).add(faqMsgId)); setFaqFor(null); }} />
+      )}
     </div>
   );
 }

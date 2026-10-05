@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { fastPathReply } from "./agent/fastpath.ts";
-import { detectLang, limitReply } from "./agent/language.ts";
+import { detectLang, holdingReply, limitReply } from "./agent/language.ts";
 import { runAgentChatCompletions } from "./agent/chat_completions.ts";
 import {
   AllProvidersFailed,
@@ -17,6 +17,7 @@ import type {
   Catalog,
   ChatMessage,
   DeliveryQuote,
+  FaqPort,
   OrderPort,
   PlaceOrderInput,
   PlaceOrderResult,
@@ -39,7 +40,7 @@ export type RunSource = "customer" | "test" | "dev";
 // --- Catalog -----------------------------------------------------------------
 
 const PRODUCT_SELECT =
-  "id,name,description,price_cents,product_variants(id,label,price_cents,stock_quantity)";
+  "id,name,description,price_cents,aliases,sold_out_until,product_variants(id,label,price_cents,stock_quantity)";
 
 // deno-lint-ignore no-explicit-any
 function toProduct(row: any): ProductRecord {
@@ -48,6 +49,8 @@ function toProduct(row: any): ProductRecord {
     name: row.name,
     description: row.description,
     price_cents: row.price_cents,
+    aliases: row.aliases ?? null,
+    sold_out_until: row.sold_out_until ?? null,
     variants: row.product_variants ?? [],
   };
 }
@@ -65,7 +68,11 @@ export function supabaseCatalog(client: SupabaseClient): Catalog {
         .eq("active", true);
       if (groups.length) {
         q = q.or(
-          groups.flat().flatMap((v) => [`name.ilike.*${v}*`, `description.ilike.*${v}*`])
+          groups.flat().flatMap((v) => [
+            `name.ilike.*${v}*`,
+            `description.ilike.*${v}*`,
+            `aliases.ilike.*${v}*`,
+          ])
             .join(","),
         );
       }
@@ -74,8 +81,8 @@ export function supabaseCatalog(client: SupabaseClient): Catalog {
 
       return (data ?? []).map(toProduct)
         .sort((a, b) =>
-          scoreProduct(b.name, b.description, groups) -
-          scoreProduct(a.name, a.description, groups)
+          scoreProduct(b.name, b.description, groups, b.aliases) -
+          scoreProduct(a.name, a.description, groups, a.aliases)
         )
         .slice(0, limit);
     },
@@ -90,6 +97,24 @@ export function supabaseCatalog(client: SupabaseClient): Catalog {
         .maybeSingle();
       if (error) throw error;
       return data ? toProduct(data) : null;
+    },
+  };
+}
+
+// --- FAQ ---------------------------------------------------------------------
+
+// The owner's saved answers, newest first (the tool trims them to a size budget).
+export function supabaseFaq(client: SupabaseClient): FaqPort {
+  return {
+    async list(storeId) {
+      const { data, error } = await client
+        .from("faq_entries")
+        .select("question,answer")
+        .eq("store_id", storeId)
+        .order("created_at", { ascending: false })
+        .limit(60);
+      if (error) throw error;
+      return data ?? [];
     },
   };
 }
@@ -191,6 +216,11 @@ export interface HandleInboundInput {
   text: string;
   source: RunSource;
   now?: Date;
+  // Customers often send several short messages in a row. With debounceMs > 0 the run waits
+  // that long and answers only the newest message, once. Dashboard test chats use 0.
+  debounceMs?: number;
+  lockWaitMs?: number; // how long to wait for another reply in the same chat to finish
+  sleep?: (ms: number) => Promise<void>; // injectable for tests
 }
 
 export type HandleInboundResult =
@@ -207,10 +237,11 @@ export type HandleInboundResult =
     fell_back: boolean;
     fast_path: boolean;
     limited: boolean;
+    degraded?: boolean; // the model was unavailable; the customer got a holding reply
   }
   | { ok: false; error: string };
 
-export async function handleInbound(input: HandleInboundInput): Promise<HandleInboundResult> {
+async function processLocked(input: HandleInboundInput): Promise<HandleInboundResult> {
   const { db, store, conversation, source } = input;
   const base = {
     handoff: null,
@@ -347,6 +378,7 @@ export async function handleInbound(input: HandleInboundInput): Promise<HandleIn
       store,
       history,
       orders,
+      faq: supabaseFaq(db),
       conversationId: conversation.id,
       customerId: input.customerId,
     };
@@ -418,6 +450,126 @@ export async function handleInbound(input: HandleInboundInput): Promise<HandleIn
       error: err instanceof Anthropic.APIError ? `${err.status}: ${err.message}` : String(err),
       provider_errors: err instanceof AllProvidersFailed ? err.attempts : null,
     });
+    // A real customer must never be left hanging: say the owner will reply and put the chat in
+    // the owner's "Needs you" list. Test chats show the failure instead, so outages are visible.
+    if (source === "customer") {
+      const reply = holdingReply(detectLang(input.text));
+      const reason = "The assistant couldn't answer (AI service unavailable). Please reply yourself.";
+      await db.from("messages").insert({
+        store_id: store.id,
+        conversation_id: conversation.id,
+        channel_id: input.channelId,
+        direction: "outbound",
+        sender: "agent",
+        body: reply,
+        delivery_status: "pending",
+      });
+      await db.from("conversations")
+        .update({ status: "human", handoff_reason: reason })
+        .eq("id", conversation.id);
+      return {
+        ok: true,
+        ...base,
+        reply,
+        status: "human",
+        handoff: reason,
+        degraded: true,
+      };
+    }
     return { ok: false, error: "Agent failed; see agent_runs for details" };
+  }
+}
+
+// --- Reliability wrapper -----------------------------------------------------
+
+const EMPTY_RESULT = {
+  handoff: null,
+  tool_calls: [] as string[],
+  usage: { input_tokens: 0, output_tokens: 0 },
+  model: null,
+  provider: null,
+  fell_back: false,
+  fast_path: false,
+  limited: false,
+};
+
+async function hasNewerInbound(input: HandleInboundInput): Promise<boolean> {
+  const { data, error } = await input.db
+    .from("messages")
+    .select("id")
+    .eq("conversation_id", input.conversation.id)
+    .eq("direction", "inbound")
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  return !!data?.length && data[0].id !== input.inboundMessageId;
+}
+
+async function alreadyAnswered(input: HandleInboundInput): Promise<boolean> {
+  const { data, error } = await input.db
+    .from("agent_runs")
+    .select("id")
+    .eq("trigger_message_id", input.inboundMessageId)
+    .limit(1);
+  if (error) throw error;
+  return !!data?.length;
+}
+
+// What runs for every customer message. It makes sure that, however many webhooks, retries or
+// rapid-fire messages arrive, a chat gets one reply at a time and every message is answered:
+//   1. wait briefly and let only the newest of a burst of messages through (debounce),
+//   2. skip a message that already has a reply (webhook redelivery),
+//   3. take a per-conversation lock so two replies can't be written at once,
+//   4. re-check once the lock is held, because the world may have moved on while waiting.
+export async function handleInbound(input: HandleInboundInput): Promise<HandleInboundResult> {
+  const { db, store, conversation, source } = input;
+  const sleep = input.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const silent = (note: string, status = "bot"): HandleInboundResult => ({
+    ok: true,
+    ...EMPTY_RESULT,
+    reply: null,
+    status,
+    note,
+  });
+
+  if (conversation.status !== "bot") {
+    return silent("Conversation is with the owner.", conversation.status);
+  }
+  if (source === "customer" && !store.agent_enabled) return silent("Assistant is turned off.");
+
+  if ((input.debounceMs ?? 0) > 0) {
+    await sleep(input.debounceMs!);
+    if (await hasNewerInbound(input)) return silent("A newer message will be answered instead.");
+  }
+  if (await alreadyAnswered(input)) return silent("This message was already answered.");
+
+  const polls = Math.max(1, Math.ceil((input.lockWaitMs ?? 30_000) / 1000));
+  let claimed = false;
+  for (let i = 0; i < polls && !claimed; i++) {
+    const { data, error } = await db.rpc("claim_conversation", {
+      p_conversation_id: conversation.id,
+      p_seconds: 90,
+    });
+    if (error) throw error;
+    claimed = data === true;
+    if (!claimed) await sleep(1000);
+  }
+  if (!claimed) return silent("Another reply is still in progress.");
+
+  try {
+    // The owner may have taken over, or more messages may have arrived, while we waited.
+    const { data: fresh, error: freshErr } = await db
+      .from("conversations")
+      .select("status")
+      .eq("id", conversation.id)
+      .maybeSingle();
+    if (freshErr) throw freshErr;
+    if (fresh && fresh.status !== "bot") return silent("Conversation is with the owner.", fresh.status);
+    if (await hasNewerInbound(input)) return silent("A newer message will be answered instead.");
+    if (await alreadyAnswered(input)) return silent("This message was already answered.");
+    return await processLocked(input);
+  } finally {
+    const { error } = await db.rpc("release_conversation", { p_conversation_id: conversation.id });
+    if (error) console.error("release_conversation failed", error);
   }
 }

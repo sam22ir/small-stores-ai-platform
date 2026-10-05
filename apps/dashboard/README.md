@@ -5,9 +5,11 @@ so it can be hosted for free on Cloudflare Pages. It is also an installable app 
 
 **What owners can do**
 
-- **Chats** (inbox): conversations the assistant handed over ("Needs you"), ones it is handling, and closed ones. Open a chat to read it, write a reply, hand it back to the assistant, or close it.
-- **Catalog**: add and edit products and options (size, color), set prices, and change stock with one tap. Hide a product from the assistant without deleting it.
-- **Settings**: store name, currency, time zone, "what the assistant should know" (hours, delivery, payment, returns) and an on/off switch.
+- **Chats** (inbox): conversations the assistant handed over ("Needs you"), ones it is handling, and closed ones. Open a chat to read it, write a reply, hand it back to the assistant, or close it. Under your own reply, **save it as an answer** the assistant will use next time. A banner appears if the assistant couldn't answer some messages because the AI service was down.
+- **Orders**: cash-on-delivery orders the assistant took (confirm, ship, deliver, cancel; cancelling returns the stock).
+- **Catalog**: add and edit products and options, set prices, change stock with one tap, give products **other names** customers use, mark a product **sold out today**, and **import a stock list** pasted from a spreadsheet. Products whose numbers are 14+ days old are flagged.
+- **Assistant**: this month's reply usage, a **test chat** (nothing real is created), and channels.
+- **Settings**: store name, currency, time zone, "what the assistant should know", the assistant on/off switch, the order-taking switch, **answers the assistant knows** (FAQ), and delivery fees per wilaya.
 - **Channels**: Facebook and Instagram connection is "coming soon" until the Meta step.
 - Languages: Arabic (right-to-left), French and English. The Arabic and French text is a first draft and needs a native speaker's review.
 

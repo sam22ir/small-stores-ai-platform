@@ -28,8 +28,10 @@ export function scoreProduct(
   name: string,
   description: string | null,
   groups: string[][],
+  aliases?: string | null,
 ): number {
-  const n = name.toLowerCase();
+  // Aliases are other names for the product, so they count like the name.
+  const n = `${name} ${aliases ?? ""}`.toLowerCase();
   const d = (description ?? "").toLowerCase();
   return groups.reduce(
     (score, g) =>

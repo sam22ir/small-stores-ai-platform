@@ -52,3 +52,14 @@ export function formatTime(iso: string | null, lang: Lang): string {
 }
 
 export const LOW_STOCK = 5;
+
+// "3 days ago" / "today" in the user's language.
+export function formatAgo(iso: string, lang: Lang, now = new Date()): string {
+  const days = Math.floor((now.getTime() - new Date(iso).getTime()) / 86_400_000);
+  const rtf = new Intl.RelativeTimeFormat(LOCALES[lang], { numeric: "auto" });
+  if (days < 7) return rtf.format(-Math.max(0, days), "day");
+  if (days < 60) return rtf.format(-Math.floor(days / 7), "week");
+  return rtf.format(-Math.floor(days / 30), "month");
+}
+
+export const STALE_DAYS = 14;

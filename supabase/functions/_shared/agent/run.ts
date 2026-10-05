@@ -6,6 +6,7 @@ import type {
   AgentResult,
   Catalog,
   ChatMessage,
+  FaqPort,
   OrderPort,
   StoreContext,
   ToolCallLog,
@@ -30,6 +31,7 @@ export interface RunAgentOptions {
   history: ChatMessage[]; // oldest first; the last entry is the customer's new message
   model?: string;
   orders?: OrderPort;
+  faq?: FaqPort;
   conversationId?: string;
   customerId?: string;
 }
@@ -145,6 +147,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
             store,
             catalog,
             orders: opts.orders,
+            faq: opts.faq,
             conversationId: opts.conversationId,
             customerId: opts.customerId,
           });

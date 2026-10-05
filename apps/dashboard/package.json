@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test:unit": "node --test src/lib/*.test.ts",
     "test:ui": "node tests/run.mjs"
   },
   "dependencies": {

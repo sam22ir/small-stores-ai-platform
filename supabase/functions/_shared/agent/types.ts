@@ -11,6 +11,8 @@ export interface ProductRecord {
   description: string | null;
   price_cents: number;
   variants: VariantRecord[];
+  aliases?: string | null; // other names customers use, comma separated
+  sold_out_until?: string | null; // ISO time; the product counts as out of stock until then
 }
 
 // Every method takes the store id explicitly. It always comes from the resolved
@@ -75,6 +77,16 @@ export interface DeliveryQuote {
 export interface OrderPort {
   quoteDelivery(storeId: string, wilaya: string): Promise<DeliveryQuote>;
   placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult>;
+}
+
+export interface FaqEntry {
+  question: string;
+  answer: string;
+}
+
+// Answers the owner saved for questions the assistant couldn't handle on its own.
+export interface FaqPort {
+  list(storeId: string): Promise<FaqEntry[]>;
 }
 
 export interface ChatMessage {

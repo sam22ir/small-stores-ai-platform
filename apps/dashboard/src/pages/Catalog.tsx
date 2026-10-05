@@ -4,20 +4,32 @@ import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import { useStore } from "../lib/store";
 import { Modal } from "../components/Modal";
-import { LOW_STOCK, centsToInput, formatMoney, parsePrice, parseStock } from "../lib/format";
+import { ImportModal } from "../components/ImportModal";
+import { LOW_STOCK, STALE_DAYS, centsToInput, formatAgo, formatMoney, parsePrice, parseStock } from "../lib/format";
 
-type Variant = { id: string; label: string; price_cents: number | null; stock_quantity: number; sku: string | null };
-type Product = { id: string; name: string; description: string | null; price_cents: number; active: boolean; product_variants: Variant[] };
+type Variant = { id: string; label: string; price_cents: number | null; stock_quantity: number; sku: string | null; updated_at: string };
+type Product = {
+  id: string; name: string; description: string | null; price_cents: number; active: boolean;
+  aliases: string | null; stock_checked_at: string; sold_out_until: string | null; product_variants: Variant[];
+};
 type VDraft = { key: string; id?: string; label: string; stock: string; price: string };
-type Draft = { id?: string; name: string; description: string; price: string; active: boolean; variants: VDraft[] };
+type Draft = { id?: string; name: string; description: string; aliases: string; price: string; active: boolean; variants: VDraft[] };
+
+const DAY = 86_400_000;
+// The owner last confirmed or changed this product's numbers at...
+const lastTouched = (p: Product) =>
+  Math.max(new Date(p.stock_checked_at).getTime(), ...p.product_variants.map((v) => new Date(v.updated_at).getTime()));
+const isStale = (p: Product) => p.active && Date.now() - lastTouched(p) > STALE_DAYS * DAY;
+const isSoldOut = (p: Product) => !!p.sold_out_until && new Date(p.sold_out_until) > new Date();
+const endOfToday = () => { const d = new Date(); d.setHours(23, 59, 59, 999); return d.toISOString(); };
 
 let seq = 0;
 const newKey = () => `v${++seq}`;
 
 function toDraft(p?: Product, defaultLabel = "Default"): Draft {
-  if (!p) return { name: "", description: "", price: "", active: true, variants: [{ key: newKey(), label: defaultLabel, stock: "0", price: "" }] };
+  if (!p) return { name: "", description: "", aliases: "", price: "", active: true, variants: [{ key: newKey(), label: defaultLabel, stock: "0", price: "" }] };
   return {
-    id: p.id, name: p.name, description: p.description ?? "", price: centsToInput(p.price_cents), active: p.active,
+    id: p.id, name: p.name, description: p.description ?? "", aliases: p.aliases ?? "", price: centsToInput(p.price_cents), active: p.active,
     variants: p.product_variants.map((v) => ({ key: newKey(), id: v.id, label: v.label, stock: String(v.stock_quantity), price: centsToInput(v.price_cents) })),
   };
 }
@@ -30,11 +42,12 @@ export function Catalog() {
   const [failed, setFailed] = useState(false);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<{ product?: Product } | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("products")
-      .select("id,name,description,price_cents,active,product_variants(id,label,price_cents,stock_quantity,sku)")
+      .select("id,name,description,price_cents,active,aliases,stock_checked_at,sold_out_until,product_variants(id,label,price_cents,stock_quantity,sku,updated_at)")
       .order("name", { ascending: true })
       .order("label", { referencedTable: "product_variants", ascending: true });
     if (error) { setFailed(true); return; }
@@ -53,7 +66,7 @@ export function Catalog() {
     const next = Math.max(0, v.stock_quantity + delta);
     if (next === v.stock_quantity) return;
     // Optimistic: show the new number now, roll back if the save fails.
-    setProducts((all) => all && all.map((x) => x.id !== p.id ? x : { ...x, product_variants: x.product_variants.map((y) => y.id === v.id ? { ...y, stock_quantity: next } : y) }));
+    setProducts((all) => all && all.map((x) => x.id !== p.id ? x : { ...x, product_variants: x.product_variants.map((y) => y.id === v.id ? { ...y, stock_quantity: next, updated_at: new Date().toISOString() } : y) }));
     const { error } = await supabase.from("product_variants").update({ stock_quantity: next }).eq("id", v.id);
     if (error) await load();
   }
@@ -64,11 +77,28 @@ export function Catalog() {
     if (error) await load();
   }
 
+  async function markChecked(ids: string[]) {
+    const now = new Date().toISOString();
+    setProducts((all) => all && all.map((x) => ids.includes(x.id) ? { ...x, stock_checked_at: now } : x));
+    const { error } = await supabase.from("products").update({ stock_checked_at: now }).in("id", ids);
+    if (error) await load();
+  }
+
+  // "Sold out today" hides a product from customers until tonight without losing the stock count.
+  async function toggleSoldOut(p: Product) {
+    const until = isSoldOut(p) ? null : endOfToday();
+    setProducts((all) => all && all.map((x) => x.id === p.id ? { ...x, sold_out_until: until } : x));
+    const { error } = await supabase.from("products").update({ sold_out_until: until }).eq("id", p.id);
+    if (error) await load();
+  }
+
   async function remove(p: Product) {
     if (!window.confirm(t("catalog.confirmDelete"))) return;
     const { error } = await supabase.from("products").delete().eq("id", p.id);
     if (!error) setProducts((all) => all && all.filter((x) => x.id !== p.id)); else await load();
   }
+
+  const staleIds = (products ?? []).filter(isStale).map((p) => p.id);
 
   const stockBadge = (n: number) =>
     n <= 0 ? <span className="badge badge-bad">{t("catalog.out")}</span>
@@ -79,8 +109,17 @@ export function Catalog() {
     <div>
       <div className="flex items-center justify-between gap-3 mb-4 mt-1">
         <h1 className="text-2xl font-extrabold m-0">{t("catalog.title")}</h1>
-        <button className="btn btn-primary" onClick={() => setEditing({})}>+ {t("catalog.add")}</button>
+        <div className="flex gap-2">
+          <button className="btn" onClick={() => setImporting(true)}>{t("catalog.import")}</button>
+          <button className="btn btn-primary" onClick={() => setEditing({})}>+ {t("catalog.add")}</button>
+        </div>
       </div>
+      {staleIds.length > 0 && (
+        <div className="rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3 flex-wrap" style={{ background: "var(--warn-bg)", color: "var(--warn-text)" }} role="status">
+          <span className="text-sm">{t("catalog.staleBanner", { n: staleIds.length })}</span>
+          <button className="btn btn-small" onClick={() => void markChecked(staleIds)}>{t("catalog.markAllChecked")}</button>
+        </div>
+      )}
       <input className="input mb-4" type="search" value={query} onChange={(e) => setQuery(e.target.value)}
         placeholder={t("catalog.search")} aria-label={t("catalog.search")} />
 
@@ -96,6 +135,11 @@ export function Catalog() {
               <div className="min-w-0">
                 <div className="font-bold text-lg">{p.name}</div>
                 <div className="muted">{formatMoney(p.price_cents, currency, lang)}{!p.active && ` · ${t("catalog.hidden")}`}</div>
+                <div className="text-xs muted mt-1 flex items-center gap-2 flex-wrap">
+                  <span>{t("catalog.updated", { when: formatAgo(new Date(lastTouched(p)).toISOString(), lang) })}</span>
+                  {isStale(p) && <span className="badge badge-warn">{t("catalog.stale")}</span>}
+                  {isSoldOut(p) && <span className="badge badge-bad">{t("catalog.soldOutBadge")}</span>}
+                </div>
               </div>
               <div className="flex gap-2 shrink-0">
                 <button className="btn btn-small" onClick={() => setEditing({ product: p })}>{t("common.edit")}</button>
@@ -118,13 +162,24 @@ export function Catalog() {
                 </li>
               ))}
             </ul>
-            <label className="flex items-center gap-2 mt-3 text-sm muted">
-              <input type="checkbox" checked={p.active} onChange={() => void toggleActive(p)} /> {t("catalog.active")}
-            </label>
+            <div className="flex items-center justify-between gap-2 flex-wrap mt-3">
+              <label className="flex items-center gap-2 text-sm muted">
+                <input type="checkbox" checked={p.active} onChange={() => void toggleActive(p)} /> {t("catalog.active")}
+              </label>
+              <div className="flex gap-2 flex-wrap">
+                {isStale(p) && <button className="btn btn-small" onClick={() => void markChecked([p.id])}>{t("catalog.markChecked")}</button>}
+                <button className="btn btn-small" onClick={() => void toggleSoldOut(p)}>
+                  {isSoldOut(p) ? t("catalog.backInStock") : t("catalog.soldOutToday")}
+                </button>
+              </div>
+            </div>
           </li>
         ))}
       </ul>
 
+      {importing && (
+        <ImportModal storeId={store!.id} existing={products ?? []} onClose={() => setImporting(false)} onDone={load} />
+      )}
       {editing && (
         <ProductEditor
           product={editing.product}
@@ -170,7 +225,7 @@ function ProductEditor({ product, currency, storeId, onClose, onSaved }: {
     setBusy(true);
     try {
       let productId = product?.id;
-      const fields = { name, description: draft.description.trim() || null, price_cents: price, active: draft.active };
+      const fields = { name, description: draft.description.trim() || null, aliases: draft.aliases.trim() || null, price_cents: price, active: draft.active };
       if (productId) {
         const { error: err } = await supabase.from("products").update(fields).eq("id", productId);
         if (err) throw err;
@@ -210,6 +265,11 @@ function ProductEditor({ product, currency, storeId, onClose, onSaved }: {
         <div>
           <label className="label" htmlFor="pdesc">{t("catalog.description")}</label>
           <textarea id="pdesc" className="input" style={{ minHeight: 72 }} maxLength={500} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+        </div>
+        <div>
+          <label className="label" htmlFor="palias">{t("catalog.aliases")}</label>
+          <input id="palias" className="input" maxLength={300} value={draft.aliases} onChange={(e) => setDraft({ ...draft, aliases: e.target.value })} />
+          <p className="muted text-sm mt-1 mb-0">{t("catalog.aliasesHelp")}</p>
         </div>
         <div>
           <label className="label" htmlFor="pprice">{t("catalog.price")} ({currency})</label>

@@ -14,6 +14,7 @@ class Query {
   private wantCount = false;
   private descending = false;
   private max = Infinity;
+  private single = false;
   private tables: Record<string, Row[]>;
   private table: string;
 
@@ -57,6 +58,10 @@ class Query {
     this.max = n;
     return this;
   }
+  maybeSingle() {
+    this.single = true;
+    return this;
+  }
   then(resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) {
     try {
       return Promise.resolve(this.run()).then(resolve, reject);
@@ -70,7 +75,13 @@ class Query {
       const defaults: Row = this.table === "agent_runs"
         ? { fast_path: false, error: null, source: "customer" }
         : {};
-      rows.push({ ...defaults, ...this.payload, created_at: new Date().toISOString(), _seq: rows.length });
+      rows.push({
+        ...defaults,
+        id: `${this.table}-${rows.length + 1}`,
+        ...this.payload,
+        created_at: new Date().toISOString(),
+        _seq: rows.length,
+      });
       return { data: null, error: null };
     }
     const matching = rows.filter((r) => this.filters.every((f) => f(r)));
@@ -80,6 +91,7 @@ class Query {
     }
     if (this.head) return { data: null, count: matching.length, error: null };
     const sorted = [...matching].sort((a, b) => (Number(a._seq) - Number(b._seq)) * (this.descending ? -1 : 1));
+    if (this.single) return { data: sorted[0] ?? null, error: null };
     return {
       data: sorted.slice(0, this.max),
       count: this.wantCount ? matching.length : undefined,
@@ -88,8 +100,25 @@ class Query {
   }
 }
 
+// Conversation locks, shared with the tests so they can hold or free them.
+const locks = new Set<string>();
+const rpcCalls: string[] = [];
+
 function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
-  return { from: (t: string) => new Query(tables, t) } as unknown as SupabaseClient;
+  return {
+    from: (t: string) => new Query(tables, t),
+    rpc: (name: string, args: { p_conversation_id: string }) => {
+      rpcCalls.push(name);
+      const id = args.p_conversation_id;
+      if (name === "claim_conversation") {
+        if (locks.has(id)) return Promise.resolve({ data: false, error: null });
+        locks.add(id);
+        return Promise.resolve({ data: true, error: null });
+      }
+      locks.delete(id);
+      return Promise.resolve({ data: null, error: null });
+    },
+  } as unknown as SupabaseClient;
 }
 
 const store: StoreSettings = {
@@ -112,7 +141,7 @@ const env = (k: string) =>
 function setup(opts: { status?: string; messages?: Row[]; runs?: Row[] } = {}) {
   const tables: Record<string, Row[]> = {
     messages: opts.messages ?? [
-      { conversation_id: "c1", direction: "inbound", body: "do you ship to Oran?", _seq: 0 },
+      { id: "m1", conversation_id: "c1", direction: "inbound", body: "do you ship to Oran?", _seq: 0 },
     ],
     agent_runs: opts.runs ?? [],
     conversations: [{ id: "c1", status: opts.status ?? "bot", handoff_reason: null }],
@@ -136,6 +165,8 @@ function setup(opts: { status?: string; messages?: Row[]; runs?: Row[] } = {}) {
 const realFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = realFetch;
+  locks.clear();
+  rpcCalls.length = 0;
 });
 
 function stubLlm(reply: string, calls: { n: number }) {
@@ -212,11 +243,10 @@ test("over the monthly limit: no model call, holding reply, conversation goes to
 test("the limit notice is written in the customer's language", async () => {
   const now = new Date().toISOString();
   const runs = [0, 1].map((i) => ({ store_id: "s1", source: "customer", fast_path: false, error: null, created_at: now, _seq: i }));
-  const { input } = setup({ runs });
   stubLlm("nope", { n: 0 });
-  const ar = await handleInbound(input("هل عندكم هودي أسود؟"));
+  const ar = await handleInbound(setup({ runs: runs.map((r) => ({ ...r })) }).input("هل عندكم هودي أسود؟"));
   assert.ok(ar.ok && /[\u0600-\u06ff]/.test(ar.reply ?? ""));
-  const fr = await handleInbound(input("Bonjour, vous livrez à Oran ?"));
+  const fr = await handleInbound(setup({ runs: runs.map((r) => ({ ...r })) }).input("Bonjour, vous livrez à Oran ?"));
   assert.ok(fr.ok && /Merci pour votre message/.test(fr.reply ?? ""));
 });
 
@@ -268,12 +298,112 @@ test("a handoff from the model flips the conversation to the owner", async () =>
   assert.deepEqual(r.ok ? r.tool_calls : [], ["handoff_to_owner"]);
 });
 
-test("when every provider fails the error is logged and nothing is sent to the customer", async () => {
+test("when every provider fails a customer gets a holding reply and the chat goes to the owner", async () => {
   const { tables, input } = setup();
   globalThis.fetch = (() => Promise.resolve(new Response("down", { status: 500 }))) as typeof fetch;
   const r = await handleInbound(input("do you ship to Oran?"));
-  assert.equal(r.ok, false);
+  assert.ok(r.ok && r.degraded && r.status === "human");
+  assert.match(r.ok ? r.reply ?? "" : "", /owner/);
+  assert.match(String(tables.conversations[0].handoff_reason), /unavailable/i);
   const run = tables.agent_runs[0];
   assert.match(String(run.error), /All model providers failed/);
+  const sent = tables.messages.filter((m) => m.sender === "agent");
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].delivery_status, "pending");
+});
+
+test("the failure holding reply follows the customer's language", async () => {
+  const { input } = setup();
+  globalThis.fetch = (() => Promise.resolve(new Response("down", { status: 500 }))) as typeof fetch;
+  const r = await handleInbound(input("هل عندكم هودي أسود؟"));
+  assert.ok(r.ok && /[\u0600-\u06ff]/.test(r.reply ?? ""));
+});
+
+test("a test chat shows the outage instead of hiding it", async () => {
+  const { tables, input } = setup();
+  globalThis.fetch = (() => Promise.resolve(new Response("down", { status: 500 }))) as typeof fetch;
+  const r = await handleInbound(input("do you ship to Oran?", "test"));
+  assert.equal(r.ok, false);
   assert.equal(tables.messages.filter((m) => m.sender === "agent").length, 0);
+  assert.equal(tables.conversations[0].status, "bot");
+});
+
+test("rapid-fire messages: only the newest of a burst is answered, once", async () => {
+  const { tables, input } = setup();
+  tables.messages.push({ id: "m2", conversation_id: "c1", direction: "inbound", body: "and the price?", _seq: 1 });
+  const calls = { n: 0 };
+  stubLlm("x", calls);
+  const slept: number[] = [];
+  const base = { debounceMs: 3000, sleep: (ms: number) => { slept.push(ms); return Promise.resolve(); } };
+  // m1 is no longer the newest message, so it steps aside...
+  const older = await handleInbound({ ...input("do you ship to Oran?"), ...base });
+  assert.ok(older.ok && older.reply === null);
+  assert.equal(calls.n, 0);
+  // ...and m2 answers with the whole burst in its history.
+  const newest = await handleInbound({ ...input("and the price?"), inboundMessageId: "m2", ...base });
+  assert.ok(newest.ok && newest.reply === "x");
+  assert.equal(calls.n, 1);
+  assert.deepEqual(slept, [3000, 3000]);
+});
+
+test("a message that already has a reply is not answered twice (webhook redelivery)", async () => {
+  const { input } = setup({
+    runs: [{ store_id: "s1", trigger_message_id: "m1", source: "customer", fast_path: false, error: null, _seq: 0 }],
+  });
+  const calls = { n: 0 };
+  stubLlm("x", calls);
+  const r = await handleInbound(input("do you ship to Oran?"));
+  assert.ok(r.ok && r.reply === null && /already/i.test(r.note ?? ""));
+  assert.equal(calls.n, 0);
+});
+
+test("a second message waits for the first reply to finish, then is answered", async () => {
+  const { tables, input } = setup();
+  tables.messages.push({ id: "m2", conversation_id: "c1", direction: "inbound", body: "and the price?", _seq: 1 });
+  locks.add("c1"); // another run is mid-reply
+  const calls = { n: 0 };
+  stubLlm("It's 4500 DA.", calls);
+  let polls = 0;
+  const sleep = () => {
+    if (++polls === 2) locks.delete("c1"); // the other run finishes
+    return Promise.resolve();
+  };
+  const r = await handleInbound({ ...input("and the price?"), inboundMessageId: "m2", sleep });
+  assert.ok(r.ok && r.reply === "It's 4500 DA.");
+  assert.equal(polls, 2);
+  assert.equal(locks.size, 0, "the lock is released afterwards");
+});
+
+test("if the chat stays busy the message is left for the run that holds it", async () => {
+  const { input } = setup();
+  locks.add("c1");
+  const calls = { n: 0 };
+  stubLlm("x", calls);
+  const r = await handleInbound({ ...input("do you ship to Oran?"), lockWaitMs: 3000, sleep: () => Promise.resolve() });
+  assert.ok(r.ok && r.reply === null && /in progress/i.test(r.note ?? ""));
+  assert.equal(calls.n, 0);
+  assert.ok(locks.has("c1"), "the other run's lock is untouched");
+});
+
+test("the lock is released even when the model fails", async () => {
+  const { input } = setup();
+  globalThis.fetch = (() => Promise.resolve(new Response("down", { status: 500 }))) as typeof fetch;
+  await handleInbound(input("do you ship to Oran?"));
+  assert.equal(locks.size, 0);
+  assert.deepEqual(rpcCalls, ["claim_conversation", "release_conversation"]);
+});
+
+test("if the owner takes over while we wait, the assistant stays silent", async () => {
+  const { tables, input } = setup();
+  locks.add("c1");
+  const calls = { n: 0 };
+  stubLlm("x", calls);
+  const sleep = () => {
+    tables.conversations[0].status = "human"; // owner replies meanwhile
+    locks.delete("c1");
+    return Promise.resolve();
+  };
+  const r = await handleInbound({ ...input("do you ship to Oran?"), sleep });
+  assert.ok(r.ok && r.reply === null && r.status === "human");
+  assert.equal(calls.n, 0);
 });

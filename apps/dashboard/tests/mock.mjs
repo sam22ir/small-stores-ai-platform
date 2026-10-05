@@ -6,6 +6,8 @@ const jwt = `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: "user-1", role: "
 const user = { id: "user-1", aud: "authenticated", role: "authenticated", email: "owner@example.com", app_metadata: {}, user_metadata: {}, created_at: "2026-10-01T00:00:00Z" };
 const session = { access_token: jwt, token_type: "bearer", expires_in: 3600, expires_at: 4102444800, refresh_token: "r", user };
 
+const ago = (days) => new Date(Date.now() - days * 86400000).toISOString();
+
 export const state = {
   hasStore: true,
   store: { id: "s1", name: "Demo Boutique", currency: "DZD", timezone: "Africa/Algiers", business_info: "Open daily 10:00-18:00.", agent_enabled: true, monthly_reply_limit: 1000, orders_enabled: false, created_at: "2026-10-01T00:00:00Z" },
@@ -21,11 +23,12 @@ export const state = {
     { id: "m3", conversation_id: "c2", direction: "inbound", sender: "customer", body: "هل عندكم هودي أسود؟", created_at: "2026-10-04T20:20:00Z", delivery_status: null },
   ],
   products: [
-    { id: "p1", name: "Black Hoodie", description: "Heavy cotton", price_cents: 450000, active: true, product_variants: [
-      { id: "v1", label: "S", price_cents: null, stock_quantity: 0, sku: null },
-      { id: "v2", label: "M", price_cents: null, stock_quantity: 3, sku: null },
-      { id: "v3", label: "L", price_cents: null, stock_quantity: 24, sku: null } ] },
-    { id: "p2", name: "Leather Wallet", description: null, price_cents: 320000, active: false, product_variants: [ { id: "v9", label: "Brown", price_cents: 350000, stock_quantity: 0, sku: null } ] },
+    { id: "p1", name: "Black Hoodie", description: "Heavy cotton", price_cents: 450000, active: true, aliases: null, stock_checked_at: ago(1), sold_out_until: null, product_variants: [
+      { id: "v1", label: "S", price_cents: null, stock_quantity: 0, sku: null, updated_at: ago(1) },
+      { id: "v2", label: "M", price_cents: null, stock_quantity: 3, sku: null, updated_at: ago(1) },
+      { id: "v3", label: "L", price_cents: null, stock_quantity: 24, sku: null, updated_at: ago(1) } ] },
+    { id: "p2", name: "Leather Wallet", description: null, price_cents: 320000, active: false, aliases: null, stock_checked_at: ago(60), sold_out_until: null, product_variants: [ { id: "v9", label: "Brown", price_cents: 350000, stock_quantity: 0, sku: null, updated_at: ago(60) } ] },
+    { id: "p3", name: "Canvas Tote", description: null, price_cents: 120000, active: true, aliases: "sac, cabas", stock_checked_at: ago(30), sold_out_until: null, product_variants: [ { id: "v10", label: "Default", price_cents: null, stock_quantity: 12, sku: null, updated_at: ago(30) } ] },
   ],
   channels: [ { id: "ch1", platform: "playground", display_name: "Test chat", status: "active" } ],
   orders: [
@@ -35,6 +38,7 @@ export const state = {
       order_items: [ { id: "i2", name: "Leather Wallet", variant_label: "Brown", quantity: 1, unit_price_cents: 320000 } ] },
   ],
   fees: [ { id: "f1", wilaya: "Alger", fee_cents: 40000 } ],
+  faq: [ { id: "q1", question: "Do you gift wrap?", answer: "Yes, free of charge.", created_at: "2026-10-03T10:00:00Z" } ],
   log: [],
 };
 
@@ -76,9 +80,10 @@ export function start(port = 54321) {
       if (!url.pathname.startsWith("/rest/v1/")) return send(404, { message: "not found" });
 
       const pick = (rows) => single ? (rows[0] ? send(200, rows[0]) : send(406, { code: "PGRST116", message: "no rows", details: "", hint: "" })) : send(200, rows);
-      if (req.method === "HEAD" && table === "agent_runs") return send(200, undefined, { "content-range": "*/7" });
+      if (req.method === "HEAD" && table === "agent_runs") return send(200, undefined, { "content-range": `*/${url.search.includes("not.is.null") ? 2 : 7}` });
       if (req.method === "GET") {
         if (table === "orders") return pick(state.orders);
+        if (table === "faq_entries") return pick(state.faq);
         if (table === "delivery_fees") return pick(state.fees);
         if (table === "store_members") return pick(state.hasStore ? [{ store_id: "s1" }] : []);
         if (table === "stores") return pick([state.store]);
@@ -104,6 +109,16 @@ export function start(port = 54321) {
         return send(201);
       }
       if (req.method === "POST" && table === "products") return send(201, [{ id: "p-new" }]);
+      if (req.method === "POST" && table === "faq_entries") {
+        const row = JSON.parse(body);
+        state.faq.unshift({ id: "q" + (state.faq.length + 1), created_at: new Date().toISOString(), ...row });
+        return send(201);
+      }
+      if (req.method === "DELETE" && table === "faq_entries") {
+        const id = (url.searchParams.get("id") || "").replace("eq.", "");
+        state.faq = state.faq.filter((f) => f.id !== id);
+        return send(204);
+      }
       if (req.method === "POST" && table === "delivery_fees") {
         const rows = [].concat(JSON.parse(body));
         for (const r of rows) state.fees.push({ id: "f" + (state.fees.length + 1), wilaya: r.wilaya, fee_cents: r.fee_cents });

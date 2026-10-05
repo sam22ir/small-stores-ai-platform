@@ -56,6 +56,7 @@ try {
   ok("inbox card previews the latest message", await page.isVisible("text=The owner will reply to you personally."));
   ok("tab counts rendered", await page.isVisible("text=Needs you (1)"));
   ok("test chats are hidden from the customer inbox", !(await page.isVisible("text=test handoff")));
+  ok("outage banner counts messages the assistant couldn't answer", await page.isVisible("text=couldn't answer 2 message(s)"));
   await page.screenshot({ path: OUT + "02-inbox.png" });
 
   await page.click("[role=tab]:has-text('Assistant')");
@@ -72,6 +73,15 @@ try {
   await page.waitForSelector("text=Not sent yet");
   ok("owner reply appears with the 'not sent yet' note", true);
   ok("reply was POSTed as sender=owner, delivery pending", await logged((l) => l.startsWith("POST /rest/v1/messages") && l.includes('"sender":"owner"') && l.includes('"delivery_status":"pending"')));
+  await page.click("button:has-text('Save as an answer the assistant can use')");
+  await page.waitForSelector("[role=dialog]");
+  ok("save-to-FAQ prefills the customer question and the owner's reply",
+    (await page.inputValue("#faq-q")) === "I want to order 2 hoodies" && (await page.inputValue("#faq-a")) === "Hi! Yes we can arrange 2 hoodies.");
+  await page.fill("#faq-a", "Yes, we can arrange 2 hoodies. Delivery is 3-5 days.");
+  await page.screenshot({ path: OUT + "03b-save-faq.png" });
+  await page.click("[role=dialog] button.btn-primary");
+  await page.waitForSelector("text=Saved to your answers");
+  ok("FAQ entry is stored with the question, the edited answer and the chat id", await logged((l) => l.startsWith("POST /rest/v1/faq_entries") && l.includes('"question":"I want to order 2 hoodies"') && l.includes("3-5 days") && l.includes('"conversation_id":"c1"')));
   await page.screenshot({ path: OUT + "03-thread.png" });
   await page.click("button:has-text('Hand back to the assistant')");
   ok("hand-back sends status=bot and clears the reason", await logged((l) => l.startsWith("PATCH /rest/v1/conversations") && l.includes('"status":"bot"') && l.includes('"handoff_reason":null')));
@@ -89,6 +99,31 @@ try {
   ok("search filters products", !(await page.isVisible("text=Black Hoodie")) && await page.isVisible("text=Leather Wallet"));
   await page.fill("input[type=search]", "");
 
+  // 3b. stock accuracy
+  ok("stale banner counts active products with old numbers", await page.isVisible("text=1 product(s) have had no stock update for 14+ days"));
+  ok("stale product is flagged", await page.isVisible("li:has-text('Canvas Tote') >> text=Check stock"));
+  await page.click("button:has-text('Mark all as checked')");
+  ok("'mark all as checked' stamps stock_checked_at on those products", await logged((l) => l.startsWith("PATCH /rest/v1/products") && l.includes("in.%28p3%29") && l.includes("stock_checked_at")));
+  ok("banner disappears once checked", !(await page.isVisible("text=have had no stock update")));
+  await page.click("li:has-text('Black Hoodie') >> button:has-text('Sold out today')");
+  ok("'sold out today' sets sold_out_until without touching stock", await logged((l) => l.startsWith("PATCH /rest/v1/products") && /"sold_out_until":"20\d\d-/.test(l) && !l.includes("stock_quantity")));
+  ok("product shows the sold-out badge", await page.isVisible("li:has-text('Black Hoodie') >> .badge:has-text('Sold out today')"));
+  await page.screenshot({ path: OUT + "04b-sold-out.png" });
+  await page.click("li:has-text('Black Hoodie') >> button:has-text('Back in stock')");
+  ok("'back in stock' clears sold_out_until", await logged((l) => l.startsWith("PATCH /rest/v1/products") && l.includes('"sold_out_until":null')));
+
+  // 3c. bulk import
+  await page.click("button:has-text('Import stock list')");
+  await page.waitForSelector("[role=dialog]");
+  await page.fill("[role=dialog] textarea", "name, price, stock, option\nBlack Hoodie, 4500, 5, M\nBlack Hoodie, 4500, 30, L\nSilk Scarf, 1500, 8, \n, 100, 1, x");
+  ok("import preview counts products and options and flags unreadable lines", await page.isVisible("text=2 product(s), 3 option(s) found") && await page.isVisible("text=1 line(s) can't be read"));
+  await page.screenshot({ path: OUT + "04c-import.png" });
+  await page.click("[role=dialog] button.btn-primary:has-text('Import')");
+  await page.waitForSelector("text=Done: 1 added, 1 updated.");
+  ok("import updates existing stock by product and option", await logged((l) => l.startsWith("PATCH /rest/v1/product_variants") && l.includes('"stock_quantity":5')) && await logged((l) => l.startsWith("PATCH /rest/v1/product_variants") && l.includes('"stock_quantity":30')));
+  ok("import creates new products with their price in cents", await logged((l) => l.startsWith("POST /rest/v1/products") && l.includes('"name":"Silk Scarf"') && l.includes('"price_cents":150000')));
+  await page.click("[role=dialog] button:has-text('Cancel')");
+
   // 4. product editor validation + save
   await page.click("button:has-text('Add product')");
   await page.waitForSelector("[role=dialog]");
@@ -98,11 +133,12 @@ try {
   await page.fill("#pprice", "abc");
   await page.click("[role=dialog] button.btn-primary");
   ok("bad price is rejected", await page.isVisible("text=Enter a valid price."));
+  await page.fill("#palias", "linen, kittan");
   await page.fill("#pprice", "3 800");
   await page.screenshot({ path: OUT + "05-editor.png" });
   await page.click("[role=dialog] button.btn-primary");
   await page.waitForSelector("[role=dialog]", { state: "detached" });
-  ok("valid product is inserted (price 380000 cents) with its variant", await logged((l) => l.startsWith("POST /rest/v1/products") && l.includes('"price_cents":380000')) && state.log.some((l) => l.startsWith("POST /rest/v1/product_variants")));
+  ok("valid product is inserted (price 380000 cents) with its variant", await logged((l) => l.startsWith("POST /rest/v1/products") && l.includes('"price_cents":380000') && l.includes('"aliases":"linen, kittan"')) && state.log.some((l) => l.startsWith("POST /rest/v1/product_variants")));
 
   // 5. settings + channels
   await page.click("a:has-text('Settings')");
@@ -113,6 +149,21 @@ try {
   await page.waitForSelector("text=Saved");
   ok("settings save sends only allowed columns", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes("business_info") && !l.includes('"id"')));
   ok("orders toggle is saved", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes('"orders_enabled":true')));
+
+  // 5a. FAQ the assistant knows
+  await page.waitForSelector("text=Answers the assistant knows");
+  ok("existing and just-saved answers are listed", await page.isVisible("li:has-text('Do you gift wrap?')") && await page.isVisible("li:has-text('3-5 days')"));
+  await page.click("button:has-text('Add an answer')");
+  await page.click("[role=dialog] button.btn-primary");
+  ok("empty question is rejected", await page.isVisible("text=Write the question."));
+  await page.fill("#faq-q", "Can I pay by card?");
+  await page.fill("#faq-a", "Cash on delivery only.");
+  await page.click("[role=dialog] button.btn-primary");
+  await page.waitForSelector("li:has-text('Can I pay by card?')");
+  ok("manually added answer is stored", await logged((l) => l.startsWith("POST /rest/v1/faq_entries") && l.includes("Cash on delivery only.") && l.includes('"conversation_id":null')));
+  page.once("dialog", (d) => void d.accept());
+  await page.click("li:has-text('Do you gift wrap?') >> button:has-text('Delete')");
+  ok("deleting an answer asks first and then calls DELETE", await logged((l) => l.startsWith("DELETE /rest/v1/faq_entries")));
 
   // 5b. delivery fees
   await page.waitForSelector("text=Delivery fees");

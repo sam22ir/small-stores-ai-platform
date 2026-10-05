@@ -33,3 +33,9 @@ test("name matches outrank description matches", () => {
   assert.ok(scoreProduct("Leather Wallet", null, groups) > scoreProduct("Gift box", "fits a wallet", groups));
   assert.equal(scoreProduct("Tote", null, groups), 0);
 });
+
+test("aliases count like the product name", () => {
+  const groups = searchGroups("do you have kapuchon");
+  assert.ok(scoreProduct("Black Hoodie", null, groups, "kapuchon, sweat") >= 2);
+  assert.equal(scoreProduct("Black Hoodie", null, groups, null), 0);
+});
