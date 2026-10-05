@@ -18,7 +18,8 @@ export type ConnectFailure =
   | "invalid_state" // forged, expired or missing state
   | "not_owner" // no longer an owner of that store
   | "already_connected" // this Instagram account belongs to another store
-  | "instagram_error"; // Instagram refused the code or the token
+  | "instagram_error" // Instagram refused the code or the token
+  | "server_error"; // our side is misconfigured (for example an unusable encryption key)
 
 export type ConnectResult =
   | { ok: true; channelId: string; username: string | null; warning?: "subscribe_failed" }
@@ -80,6 +81,16 @@ export async function completeInstagramConnect(
   // One Instagram account serves one store. Moving it would also orphan the old store's chats.
   if (existing && existing.store_id !== state.store_id) return { ok: false, reason: "already_connected" };
 
+  // Encrypt before saving anything, so a bad CREDENTIALS_ENCRYPTION_KEY can't leave an
+  // account half connected (a channel without a token).
+  let encryptedToken: string;
+  try {
+    encryptedToken = await encryptSecret(token, deps.encryptionKey);
+  } catch (err) {
+    console.error("token encryption failed (check CREDENTIALS_ENCRYPTION_KEY)", err instanceof Error ? err.message : err);
+    return { ok: false, reason: "server_error" };
+  }
+
   const { data: channel, error: chErr } = await db
     .from("channels")
     .upsert(
@@ -99,7 +110,7 @@ export async function completeInstagramConnect(
   const { error: credErr } = await db.from("channel_credentials").upsert(
     {
       channel_id: channel.id,
-      access_token_encrypted: await encryptSecret(token, deps.encryptionKey),
+      access_token_encrypted: encryptedToken,
       token_expires_at: expiresAt.toISOString(),
       updated_at: now.toISOString(),
     },

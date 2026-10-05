@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
 import { completeInstagramConnect, disconnectChannel } from "../_shared/meta/connect.ts";
 import { buildAuthorizeUrl, type InstagramConfig } from "../_shared/meta/instagram.ts";
+import { encryptSecret } from "../_shared/meta/crypto.ts";
 import { signState } from "../_shared/meta/state.ts";
 
 // Connects a store's Instagram professional account ("Connect Instagram" in the dashboard).
@@ -109,6 +110,14 @@ Deno.serve(async (req) => {
 
     if (body.action === "start") {
       if (!cfg) return json({ error: "not_configured" }, 503);
+      // Don't send the owner through Instagram's login only to fail afterwards: make sure the
+      // encryption key can actually be used.
+      try {
+        await encryptSecret("probe", env("CREDENTIALS_ENCRYPTION_KEY"));
+      } catch (err) {
+        console.error("CREDENTIALS_ENCRYPTION_KEY is not usable (needs 32 random bytes, base64)", err instanceof Error ? err.message : err);
+        return json({ error: "not_configured" }, 503);
+      }
       const state = await signState({ store_id: storeId, user_id: owner.userId }, cfg.appSecret);
       return json({ url: buildAuthorizeUrl(cfg, state) });
     }

@@ -148,3 +148,14 @@ test("a trailing '#_' on the code is stripped before it is exchanged", async () 
   assert.ok(r.ok);
   assert.deepEqual(bodies, ["AQBxyz"]);
 });
+
+test("an unusable encryption key saves nothing: no half-connected account", async () => {
+  stubInstagram();
+  const { tables, deps } = setup();
+  for (const encryptionKey of ["openssl rand -base64 32", "not base64!!", Buffer.alloc(16).toString("base64"), undefined]) {
+    const r = await completeInstagramConnect({ ...deps, encryptionKey }, { code: "a", state: await stateFor("owner-1") });
+    assert.deepEqual(r, { ok: false, reason: "server_error" });
+  }
+  assert.equal(tables.channels.length, 0);
+  assert.equal(tables.channel_credentials.length, 0);
+});
