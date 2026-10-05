@@ -27,6 +27,11 @@ const GREETINGS: [Lang, string[]][] = [
     "اهلا وسهلا",
     "أهلا وسهلا",
     "هلا",
+    "هلا والله",
+    "اهلين",
+    "أهلين",
+    "مرحبا بك",
+    "السلام",
     "صباح الخير",
     "مساء الخير",
   ]],
@@ -51,6 +56,23 @@ const GREETINGS: [Lang, string[]][] = [
     "ahla",
     "marhba",
     "marhaba",
+    "salam 3alaykom",
+    "salam 3alaykoum",
+    "salam 3alaykum",
+    "salam 3alikom",
+    "salam 3alikoum",
+    "salam 3likom",
+    "salam 3likoum",
+    "salam alikoum",
+    "assalam alikom",
+    "assalam alikoum",
+    "assalamu alaykoum",
+    "salam aleikom",
+    "salam aleikum",
+    "salam wa rahmatu allah",
+    "slt",
+    "bjr",
+    "bsr",
     "sbah el khir",
     "sba7 lkhir",
     "msa el khir",
@@ -68,10 +90,20 @@ const THANKS: [Lang, string[]][] = [
     "بارك الله فيك",
     "الله يبارك فيك",
     "بصحتك",
+    "يعطيك الصحة",
+    "الله يعطيك الصحة",
+    "تسلم",
+    "يسلمو",
+    "جزاك الله",
   ]],
   ["fr", [
     "merci beaucoup",
+    "merci bcp",
     "merci",
+    "mrc",
+    "jazak allah khair",
+    "jazakallah khair",
+    "jazak allahu khayran",
     "choukran",
     "chokran",
     "shukran",
@@ -82,7 +114,7 @@ const THANKS: [Lang, string[]][] = [
     "baraka allahou fik",
     "yaatik essaha",
   ]],
-  ["en", ["thank you very much", "thank you", "thanks a lot", "thanks", "thx"]],
+  ["en", ["thank you very much", "thank you", "thanks a lot", "thanks", "thank u", "thx"]],
 ];
 
 const REPLIES: Record<Kind, Record<Lang, (store: string) => string>> = {
@@ -108,7 +140,9 @@ export function normalize(text: string): string {
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/(.)\1+/gu, "$1")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    // "peace be upon you": عليكم / عليكن / عليك / عليكي / عليكما all count as the same greeting.
+    .replace(/عليك(?:ن|ي|ما|م)?(?=\s|$)/gu, "عليكم");
 }
 
 const phrases: Phrase[] = [

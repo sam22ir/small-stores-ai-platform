@@ -51,3 +51,25 @@ test("confirmations are never fast-pathed (they confirm an order)", () => {
     assert.equal(fastPathReply(t, S), null, t);
   }
 });
+
+test("common spelling variants of the greeting are free too", () => {
+  // "salam alaykum" to a woman or a group, to one person, and with the Darija digit 3 for ع.
+  for (const t of ["سلام عليكن", "السلام عليكن", "السلام عليك", "السلام عليكي", "السلام", "اهلين", "هلا والله"]) {
+    assert.match(fastPathReply(t, S) ?? "", /أهلاً وسهلاً بك في Demo Boutique/, t);
+  }
+  for (const t of ["salam 3alaykoum", "Salam 3alikom", "slt", "bjr", "BSR!", "salam alikoum"]) {
+    assert.match(fastPathReply(t, S) ?? "", /Bonjour et bienvenue/, t);
+  }
+});
+
+test("more ways to say thanks", () => {
+  for (const t of ["يعطيك الصحة", "الله يعطيك الصحة", "تسلم", "جزاك الله"]) assert.match(fastPathReply(t, S) ?? "", /العفو/, t);
+  for (const t of ["mrc", "merci bcp", "jazak allah khair"]) assert.match(fastPathReply(t, S) ?? "", /Avec plaisir/, t);
+  assert.match(fastPathReply("thank u", S) ?? "", /You're welcome/);
+});
+
+test("a greeting with a question still goes to the assistant, in every variant", () => {
+  for (const t of ["سلام عليكن كم سعر الهودي", "السلام عليك هل عندكم كبوسة", "slt wach kayen hoodie", "bjr le prix du sac svp"]) {
+    assert.equal(fastPathReply(t, S), null, t);
+  }
+});
