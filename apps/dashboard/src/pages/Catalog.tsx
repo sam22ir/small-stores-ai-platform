@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import type { FormEvent } from "react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import { useStore } from "../lib/store";
 import { Modal } from "../components/Modal";
 import { ImportModal } from "../components/ImportModal";
+import { useSetupData } from "../lib/setup";
 import { LOW_STOCK, STALE_DAYS, centsToInput, formatAgo, formatMoney, parsePrice, parseStock } from "../lib/format";
 
 type Variant = { id: string; label: string; price_cents: number | null; stock_quantity: number; sku: string | null; updated_at: string };
@@ -42,7 +44,9 @@ export function Catalog() {
   const [failed, setFailed] = useState(false);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<{ product?: Product } | null>(null);
-  const [importing, setImporting] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const [importing, setImporting] = useState(params.get("import") === "1");
+  const { data: setup } = useSetupData();
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -114,6 +118,12 @@ export function Catalog() {
           <button className="btn btn-primary" onClick={() => setEditing({})}>+ {t("catalog.add")}</button>
         </div>
       </div>
+      {products && products.length > 0 && setup && !setup.tested && (
+        <div className="rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3 flex-wrap" style={{ background: "var(--brand-soft)" }} role="status">
+          <span className="text-sm font-semibold">{t("catalog.tryNudge")}</span>
+          <Link to="/assistant" className="btn btn-small btn-primary no-underline">{t("catalog.tryNow")}</Link>
+        </div>
+      )}
       {staleIds.length > 0 && (
         <div className="rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3 flex-wrap" style={{ background: "var(--warn-bg)", color: "var(--warn-text)" }} role="status">
           <span className="text-sm">{t("catalog.staleBanner", { n: staleIds.length })}</span>
@@ -178,7 +188,7 @@ export function Catalog() {
       </ul>
 
       {importing && (
-        <ImportModal storeId={store!.id} existing={products ?? []} onClose={() => setImporting(false)} onDone={load} />
+        <ImportModal storeId={store!.id} existing={products ?? []} onClose={() => { setImporting(false); if (params.has("import")) setParams({}, { replace: true }); }} onDone={load} />
       )}
       {editing && (
         <ProductEditor

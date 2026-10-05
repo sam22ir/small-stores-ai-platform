@@ -46,6 +46,13 @@ try {
   ok("redirects anonymous user to /login", true);
   await page.screenshot({ path: OUT + "01-login.png" });
   await page.fill("#email", "owner@example.com");
+  await page.click("button:has-text('Sign in with an email link instead')");
+  ok("link mode hides the password field", (await page.locator("#password").count()) === 0);
+  await page.click("button.btn-primary");
+  await page.waitForSelector("text=we sent you a sign-in link");
+  ok("email-link sign-in calls the OTP endpoint with the address", await logged((l) => l.startsWith("POST /auth/v1/otp") && l.includes("owner@example.com")));
+  await page.screenshot({ path: OUT + "01b-login-link.png" });
+  await page.click("button:has-text('Use a password instead')");
   await page.fill("#password", "password123");
   await page.click("button.btn-primary");
   await page.waitForURL(/\/inbox/);
@@ -57,10 +64,21 @@ try {
   ok("tab counts rendered", await page.isVisible("text=Needs you (1)"));
   ok("test chats are hidden from the customer inbox", !(await page.isVisible("text=test handoff")));
   ok("outage banner counts messages the assistant couldn't answer", await page.isVisible("text=couldn't answer 2 message(s)"));
+  ok("setup checklist shows progress for a new store", await page.isVisible("text=Get your assistant ready") && await page.isVisible("text=0 of 3 done") && await page.isVisible("text=2 added"));
+  ok("the first unfinished step is marked Next", await page.isVisible("li:has-text('Add your products') >> text=Next"));
+  ok("optional and coming-soon steps are listed", await page.isVisible("text=Take orders in chats (optional)") && await page.isVisible("li:has-text('Connect Instagram or Facebook') >> text=Coming soon"));
   await page.screenshot({ path: OUT + "02-inbox.png" });
 
   await page.click("[role=tab]:has-text('Assistant')");
   ok("assistant tab shows Sara on Instagram", await page.isVisible("text=Sara") && await page.isVisible("text=Instagram"));
+
+  await page.click("a:has-text('Import a list')");
+  await page.waitForSelector("[role=dialog]:has-text('Import stock list')");
+  ok("'Import a list' opens the import dialog on the catalog", /\/catalog/.test(page.url()));
+  await page.click("[role=dialog] button:has-text('Cancel')");
+  ok("closing it clears the ?import flag", !/import=1/.test(page.url()));
+  await page.click("a:has-text('Chats')");
+  await page.waitForSelector("text=Customer chats");
 
   // 2. thread + reply
   await page.click("[role=tab]:has-text('Needs you')");
@@ -100,6 +118,7 @@ try {
   await page.fill("input[type=search]", "");
 
   // 3b. stock accuracy
+  ok("catalog nudges the owner to try the assistant", await page.isVisible("text=Your assistant can now answer questions about these products."));
   ok("stale banner counts active products with old numbers", await page.isVisible("text=1 product(s) have had no stock update for 14+ days"));
   ok("stale product is flagged", await page.isVisible("li:has-text('Canvas Tote') >> text=Check stock"));
   await page.click("button:has-text('Mark all as checked')");
@@ -143,11 +162,15 @@ try {
   // 5. settings + channels
   await page.click("a:has-text('Settings')");
   await page.waitForSelector("text=Store settings");
-  await page.fill("#sinfo", "Open daily. Delivery 3-5 days.");
+  ok("settings shows the structured store-info fields", await page.isVisible("label:has-text('Opening hours')") && await page.isVisible("label:has-text('Returns and exchanges')"));
+  await page.fill("#info-hours", "Every day 10:00-18:00");
+  await page.fill("#info-delivery", "3-5 days");
+  await page.fill("#info-other", "Gift wrapping available.");
   await page.check("label:has-text('Take orders in chats') input");
   await page.click("button:has-text('Save')");
   await page.waitForSelector("text=Saved");
   ok("settings save sends only allowed columns", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes("business_info") && !l.includes('"id"')));
+  ok("the fields are composed into the text the assistant reads, and kept as JSON", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes("Opening hours: Every day 10:00-18:00") && l.includes("Delivery: 3-5 days") && l.includes("Gift wrapping available.") && l.includes('"business_info_fields"')));
   ok("orders toggle is saved", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes('"orders_enabled":true')));
 
   // 5a. FAQ the assistant knows
@@ -220,6 +243,18 @@ try {
   await page.screenshot({ path: OUT + "06c-assistant.png", fullPage: true });
   await page.click("button:has-text('New test chat')");
   ok("new test chat clears the conversation", !(await page.isDisabled("input[aria-label='Write as a customer…']")) && !(await page.isVisible("text=Black Hoodie in M is available")));
+  await page.click("a:has-text('Chats')");
+  await page.waitForSelector("text=Customer chats");
+  ok("checklist progress follows what the owner did (info + tried the assistant)", await page.isVisible("text=2 of 3 done"));
+  state.products.push({ id: "p4", name: "Silk Scarf", description: null, price_cents: 150000, active: true, aliases: null, stock_checked_at: new Date().toISOString(), sold_out_until: null, product_variants: [] });
+  await page.reload();
+  await page.waitForSelector("text=Your assistant is ready.");
+  ok("with 3 products, info and a test chat the checklist shows 'ready'", await page.isVisible("text=Your assistant is ready."));
+  await page.click("button:has-text('Hide')");
+  ok("hiding the checklist removes it", !(await page.isVisible("text=Your assistant is ready.")));
+  await page.reload();
+  await page.waitForSelector("text=Customer chats");
+  ok("and it stays hidden after a reload", !(await page.isVisible("text=Your assistant is ready.")) && !(await page.isVisible("text=Get your assistant ready")));
 
   // 6. Arabic / RTL
   await page.selectOption("aside select", "ar");

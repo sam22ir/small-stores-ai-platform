@@ -10,7 +10,7 @@ const ago = (days) => new Date(Date.now() - days * 86400000).toISOString();
 
 export const state = {
   hasStore: true,
-  store: { id: "s1", name: "Demo Boutique", currency: "DZD", timezone: "Africa/Algiers", business_info: "Open daily 10:00-18:00.", agent_enabled: true, monthly_reply_limit: 1000, orders_enabled: false, created_at: "2026-10-01T00:00:00Z" },
+  store: { id: "s1", name: "Demo Boutique", currency: "DZD", timezone: "Africa/Algiers", business_info: null, business_info_fields: null, agent_enabled: true, monthly_reply_limit: 1000, orders_enabled: false, created_at: "2026-10-01T00:00:00Z" },
   conversations: [
     { id: "c1", store_id: "s1", channel_id: "ch1", status: "human", handoff_reason: "Customer wants to order 2 hoodies", last_customer_message_at: "2026-10-04T20:30:00Z", created_at: "2026-10-04T20:00:00Z", customers: { display_name: "Amine", platform_user_id: "ig-0" }, channels: { platform: "instagram" } },
     { id: "c2", store_id: "s1", channel_id: "ch1", status: "bot", handoff_reason: null, last_customer_message_at: "2026-10-04T20:20:00Z", created_at: "2026-10-04T20:00:00Z", customers: { display_name: "Sara", platform_user_id: "ig-1" }, channels: { platform: "instagram" } },
@@ -39,6 +39,7 @@ export const state = {
   ],
   fees: [ { id: "f1", wilaya: "Alger", fee_cents: 40000 } ],
   faq: [ { id: "q1", question: "Do you gift wrap?", answer: "Yes, free of charge.", created_at: "2026-10-03T10:00:00Z" } ],
+  testRuns: 0,
   log: [],
 };
 
@@ -58,6 +59,7 @@ export function start(port = 54321) {
 
       if (url.pathname === "/auth/v1/token") return send(200, session);
       if (url.pathname === "/auth/v1/user") return send(200, user);
+      if (url.pathname === "/auth/v1/otp") return send(200, {});
       if (url.pathname === "/auth/v1/signup") return send(200, { ...user, identities: [] });
       if (url.pathname === "/auth/v1/logout") return send(204);
 
@@ -71,6 +73,7 @@ export function start(port = 54321) {
       if (url.pathname === "/functions/v1/assistant-chat") {
         if (req.method !== "POST") return send(204);
         const { text = "" } = JSON.parse(body || "{}");
+        state.testRuns++;
         if (/human/i.test(text)) return send(200, { ok: true, reply: "Thanks! I've passed this to the owner.", status: "human", handoff: "asked for a human", tool_calls: ["handoff_to_owner"], fast_path: false });
         if (/hello/i.test(text)) return send(200, { ok: true, reply: "Hi, welcome to Demo Boutique! How can I help you?", status: "bot", tool_calls: [], fast_path: true });
         if (/order/i.test(text)) return send(200, { ok: true, reply: "Your order is received. Total 9 600 DA on delivery.", status: "bot", tool_calls: ["create_order"], fast_path: false });
@@ -80,7 +83,11 @@ export function start(port = 54321) {
       if (!url.pathname.startsWith("/rest/v1/")) return send(404, { message: "not found" });
 
       const pick = (rows) => single ? (rows[0] ? send(200, rows[0]) : send(406, { code: "PGRST116", message: "no rows", details: "", hint: "" })) : send(200, rows);
-      if (req.method === "HEAD" && table === "agent_runs") return send(200, undefined, { "content-range": `*/${url.search.includes("not.is.null") ? 2 : 7}` });
+      if (req.method === "HEAD" && table === "products") return send(200, undefined, { "content-range": `*/${state.products.filter((p) => p.active).length}` });
+      if (req.method === "HEAD" && table === "agent_runs") {
+        const n = url.search.includes("source=eq.test") ? state.testRuns : url.search.includes("not.is.null") ? 2 : 7;
+        return send(200, undefined, { "content-range": `*/${n}` });
+      }
       if (req.method === "GET") {
         if (table === "orders") return pick(state.orders);
         if (table === "faq_entries") return pick(state.faq);
@@ -124,6 +131,7 @@ export function start(port = 54321) {
         for (const r of rows) state.fees.push({ id: "f" + (state.fees.length + 1), wilaya: r.wilaya, fee_cents: r.fee_cents });
         return send(201);
       }
+      if (req.method === "PATCH" && table === "stores") { Object.assign(state.store, JSON.parse(body)); return send(204); }
       if (req.method === "PATCH" || req.method === "POST" || req.method === "DELETE") return send(204);
       return send(404, { message: "unhandled " + req.method + " " + table });
     });

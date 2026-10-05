@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { formatTime } from "../lib/format";
+import { SetupChecklist } from "../components/SetupChecklist";
 
 type Status = "human" | "bot" | "closed";
 type Conv = {
@@ -73,6 +74,7 @@ export function Inbox() {
   return (
     <div>
       <h1 className="text-2xl font-extrabold mt-1 mb-4">{t("inbox.title")}</h1>
+      <SetupChecklist />
       <div role="tablist" className="flex flex-wrap gap-2 mb-4">
         {TABS.map((x) => (
           <button key={x.status} role="tab" className="tab" aria-selected={tab === x.status} onClick={() => setTab(x.status)}>

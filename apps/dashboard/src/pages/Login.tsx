@@ -9,7 +9,7 @@ import { LangSwitch } from "../components/LangSwitch";
 export function Login() {
   const { t } = useI18n();
   const { session, loading } = useAuth();
-  const [mode, setMode] = useState<"in" | "up">("in");
+  const [mode, setMode] = useState<"in" | "up" | "link">("in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -22,7 +22,13 @@ export function Login() {
     e.preventDefault();
     setBusy(true); setError(null); setNotice(null);
     try {
-      if (mode === "in") {
+      if (mode === "link") {
+        const { error: err } = await supabase.auth.signInWithOtp({
+          email: email.trim(),
+          options: { emailRedirectTo: window.location.origin },
+        });
+        if (err) setError(err.message); else setNotice(t("auth.linkSent"));
+      } else if (mode === "in") {
         const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (err) setError(err.message);
       } else {
@@ -54,22 +60,29 @@ export function Login() {
               <input id="email" className="input" type="email" autoComplete="email" required
                 value={email} onChange={(e) => setEmail(e.target.value)} dir="ltr" />
             </div>
-            <div>
+            {mode === "link" && <p className="muted text-sm m-0">{t("auth.linkHelp")}</p>}
+            {mode !== "link" && <div>
               <label className="label" htmlFor="password">{t("auth.password")}</label>
               <input id="password" className="input" type="password" required minLength={8}
                 autoComplete={mode === "in" ? "current-password" : "new-password"}
                 value={password} onChange={(e) => setPassword(e.target.value)} dir="ltr" />
-            </div>
+            </div>}
             {error && <p className="error m-0" role="alert">{error}</p>}
             {notice && <p className="m-0" role="status">{notice}</p>}
             <button className="btn btn-primary" disabled={busy || !configured}>
-              {mode === "in" ? t("auth.signIn") : t("auth.signUp")}
+              {mode === "link" ? t("auth.sendLink") : mode === "in" ? t("auth.signIn") : t("auth.signUp")}
             </button>
           </form>
           <button className="btn mt-3 w-full" style={{ border: "none", background: "none" }}
-            onClick={() => { setMode(mode === "in" ? "up" : "in"); setError(null); setNotice(null); }}>
-            {mode === "in" ? t("auth.noAccount") : t("auth.haveAccount")}
+            onClick={() => { setMode(mode === "link" ? "in" : "link"); setError(null); setNotice(null); }}>
+            {mode === "link" ? t("auth.passwordMode") : t("auth.linkMode")}
           </button>
+          {mode !== "link" && (
+            <button className="btn w-full" style={{ border: "none", background: "none" }}
+              onClick={() => { setMode(mode === "in" ? "up" : "in"); setError(null); setNotice(null); }}>
+              {mode === "in" ? t("auth.noAccount") : t("auth.haveAccount")}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -654,6 +654,7 @@ export type Database = {
         Row: {
           agent_enabled: boolean
           business_info: string | null
+          business_info_fields: Json | null
           created_at: string
           currency: string
           id: string
@@ -665,6 +666,7 @@ export type Database = {
         Insert: {
           agent_enabled?: boolean
           business_info?: string | null
+          business_info_fields?: Json | null
           created_at?: string
           currency?: string
           id?: string
@@ -676,6 +678,7 @@ export type Database = {
         Update: {
           agent_enabled?: boolean
           business_info?: string | null
+          business_info_fields?: Json | null
           created_at?: string
           currency?: string
           id?: string

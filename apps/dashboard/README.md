@@ -5,11 +5,12 @@ so it can be hosted for free on Cloudflare Pages. It is also an installable app 
 
 **What owners can do**
 
+- **Get started**: a checklist on the Chats page walks a new owner through adding products, filling in store info and trying the assistant. Sign in with a password or an emailed link.
 - **Chats** (inbox): conversations the assistant handed over ("Needs you"), ones it is handling, and closed ones. Open a chat to read it, write a reply, hand it back to the assistant, or close it. Under your own reply, **save it as an answer** the assistant will use next time. A banner appears if the assistant couldn't answer some messages because the AI service was down.
 - **Orders**: cash-on-delivery orders the assistant took (confirm, ship, deliver, cancel; cancelling returns the stock).
 - **Catalog**: add and edit products and options, set prices, change stock with one tap, give products **other names** customers use, mark a product **sold out today**, and **import a stock list** pasted from a spreadsheet. Products whose numbers are 14+ days old are flagged.
 - **Assistant**: this month's reply usage, a **test chat** (nothing real is created), and channels.
-- **Settings**: store name, currency, time zone, "what the assistant should know", the assistant on/off switch, the order-taking switch, **answers the assistant knows** (FAQ), and delivery fees per wilaya.
+- **Settings**: store name, currency, time zone, "what the assistant should know" (labelled fields: hours, delivery, payment, returns, address, anything else), the assistant on/off switch, the order-taking switch, **answers the assistant knows** (FAQ), and delivery fees per wilaya.
 - **Channels**: Facebook and Instagram connection is "coming soon" until the Meta step.
 - Languages: Arabic (right-to-left), French and English. The Arabic and French text is a first draft and needs a native speaker's review.
 
@@ -26,6 +27,7 @@ The first account you create gets the "Set up your store" screen, which calls th
 
 ## Supabase settings to check
 
+- **Email-link sign-in:** works out of the box, but Supabase's built-in email sender allows only a few emails per hour. For real use, set a custom SMTP sender under Authentication → Emails.
 - **Authentication → URL Configuration:** add your Cloudflare Pages URL as the Site URL, and add `http://localhost:5173` as a redirect URL.
 - **Authentication → Providers → Email:** email confirmation is on by default, so new users must click the link in an email before they can sign in. Turn it off while testing if you prefer.
 

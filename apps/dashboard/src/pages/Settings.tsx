@@ -6,6 +6,8 @@ import { useStore } from "../lib/store";
 import { centsToInput, formatMoney, parsePrice } from "../lib/format";
 import { WILAYAS } from "../lib/wilayas";
 import { FaqEditor } from "../components/FaqEditor";
+import { INFO_KEYS, MAX_FIELD, MAX_OTHER, composeInfo, fieldsFromStore } from "../lib/storeInfo";
+import type { InfoFields, InfoKey } from "../lib/storeInfo";
 import { CURRENCIES } from "./Onboarding";
 
 const ZONES = ["Africa/Algiers", "Africa/Casablanca", "Africa/Tunis", "Europe/Paris", "UTC"];
@@ -17,7 +19,7 @@ export function Settings() {
   const [name, setName] = useState(s.name);
   const [currency, setCurrency] = useState(s.currency);
   const [timezone, setTimezone] = useState(s.timezone);
-  const [info, setInfo] = useState(s.business_info ?? "");
+  const [info, setInfo] = useState<InfoFields>(() => fieldsFromStore(s.business_info_fields, s.business_info));
   const [enabled, setEnabled] = useState(s.agent_enabled);
   const [ordersOn, setOrdersOn] = useState(s.orders_enabled);
   const [busy, setBusy] = useState(false);
@@ -32,7 +34,7 @@ export function Settings() {
     if (!name.trim()) return;
     setBusy(true); setError(null); setSaved(false);
     const { error: err } = await supabase.from("stores").update({
-      name: name.trim(), currency, timezone, business_info: info.trim() || null, agent_enabled: enabled,
+      name: name.trim(), currency, timezone, business_info: composeInfo(info) || null, business_info_fields: info, agent_enabled: enabled,
       orders_enabled: ordersOn,
     }).eq("id", s.id);
     if (err) setError(t("common.error"));
@@ -62,11 +64,18 @@ export function Settings() {
             </select>
           </div>
         </div>
-        <div>
-          <label className="label" htmlFor="sinfo">{t("settings.info")}</label>
-          <textarea id="sinfo" className="input" style={{ minHeight: 160 }} maxLength={2000} value={info} onChange={(e) => setInfo(e.target.value)} />
-          <p className="muted text-sm mt-1 mb-0">{t("settings.infoHelp")}</p>
-        </div>
+        <fieldset className="border-0 p-0 m-0 flex flex-col gap-3">
+          <legend className="label text-base">{t("settings.info")}</legend>
+          <p className="muted text-sm m-0">{t("settings.infoHelp")}</p>
+          {INFO_KEYS.map((k) => (
+            <div key={k}>
+              <label className="label" htmlFor={`info-${k}`}>{t(`settings.f.${k}`)}</label>
+              <textarea id={`info-${k}`} className="input" style={{ minHeight: k === "other" ? 100 : 64 }}
+                maxLength={k === "other" ? MAX_OTHER : MAX_FIELD} value={info[k]} placeholder={t(`settings.f.${k}Ph`)}
+                onChange={(e) => setInfo((f) => ({ ...f, [k as InfoKey]: e.target.value }))} />
+            </div>
+          ))}
+        </fieldset>
         <div>
           <label className="flex items-center gap-2 font-semibold">
             <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} /> {t("settings.agent")}
