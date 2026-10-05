@@ -12,6 +12,7 @@ import { Catalog } from "./pages/Catalog";
 import { Settings } from "./pages/Settings";
 import { Orders } from "./pages/Orders";
 import { Assistant } from "./pages/Assistant";
+import { DataDeletion, Privacy, Terms } from "./pages/Legal";
 
 function Centered({ children }: { children: React.ReactNode }) {
   return <div className="min-h-screen grid place-items-center p-6 text-center">{children}</div>;
@@ -55,6 +56,9 @@ export function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/data-deletion" element={<DataDeletion />} />
             <Route element={<Protected />}>
               <Route path="/onboarding" element={<Onboarding />} />
               <Route element={<WithStore />}>

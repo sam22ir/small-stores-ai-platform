@@ -11,7 +11,8 @@ so it can be hosted for free on Cloudflare Pages. It is also an installable app 
 - **Catalog**: add and edit products and options, set prices, change stock with one tap, give products **other names** customers use, mark a product **sold out today**, and **import a stock list** pasted from a spreadsheet. Products whose numbers are 14+ days old are flagged.
 - **Assistant**: this month's reply usage, a **test chat** (nothing real is created), and channels.
 - **Settings**: store name, currency, time zone, "what the assistant should know" (labelled fields: hours, delivery, payment, returns, address, anything else), the assistant on/off switch, the order-taking switch, **answers the assistant knows** (FAQ), and delivery fees per wilaya.
-- **Channels**: Facebook and Instagram connection is "coming soon" until the Meta step.
+- **Channels**: **Connect Instagram** (sign in with the shop's Instagram professional account, approve, and the assistant starts answering its DMs) and Disconnect. Facebook Pages are "coming soon".
+- **Public pages** (no sign-in): `/privacy`, `/terms` and `/data-deletion`, which Meta requires before the app goes live.
 - Languages: Arabic (right-to-left), French and English. The Arabic and French text is a first draft and needs a native speaker's review.
 
 ## Run it locally
@@ -35,7 +36,7 @@ The first account you create gets the "Set up your store" screen, which calls th
 
 1. Cloudflare dashboard → Workers & Pages → Create → Pages → connect the GitHub repository.
 2. Settings: **Root directory** `apps/dashboard`, **Build command** `npm run build`, **Build output directory** `dist`.
-3. Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (same as `.env.example`) and `NODE_VERSION` = `22`.
+3. Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (same as `.env.example`) and `NODE_VERSION` = `22`. For the public legal pages also set `VITE_LEGAL_OPERATOR` (your legal name exactly as on your business registration), `VITE_LEGAL_EMAIL` (contact email), and optionally `VITE_LEGAL_PRODUCT` and `VITE_LEGAL_LOCATION`. Until they are set the pages show a visible placeholder. These are build-time values: redeploy after changing them.
 4. `public/_redirects` makes deep links work and `public/_headers` sets security headers, including a content-security-policy that only allows this origin and `*.supabase.co`. If you add another API host, add it to `connect-src` there.
 
 ## Security model
@@ -46,7 +47,7 @@ The first account you create gets the "Set up your store" screen, which calls th
 
 ## Known limits
 
-- Owner replies are **saved, not delivered**, until Instagram/Facebook are connected. They show "Saved. Not sent yet".
+- Owner replies are sent to Instagram right after you write them (the dashboard calls the `deliver-messages` function). If Instagram refuses (for example more than 24 hours since the customer last wrote) the message shows **Not delivered** with the reason. An open chat retries messages still waiting every 8 s. Facebook replies are not supported yet.
 - The "Assistant is on" switch applies to live channels. The test chat on the Assistant page ignores it, so you can always try the assistant.
 - No push notifications yet (planned: Telegram alert, then web push).
 - No realtime updates: the inbox refreshes every 15 s and an open chat every 8 s.
@@ -55,7 +56,7 @@ The first account you create gets the "Set up your store" screen, which calls th
 
 ```sh
 npm run typecheck
-npm run test:ui     # builds against a mock Supabase and drives a real browser: 32 checks, screenshots in .test-shots/
+npm run test:ui     # builds against a mock Supabase and drives a real browser: 96 checks, screenshots in .test-shots/
 ```
 
 `test:ui` needs a Chromium: set `CHROMIUM_PATH` to an existing Chrome/Chromium, or run `npx playwright-core install chromium` once.

@@ -33,8 +33,8 @@ async function newPage(opts = {}) {
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
-  // The rate-limit test deliberately triggers a 429 from the function.
-  page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("status of 429")) errors.push("console: " + m.text()); });
+  // The rate-limit and not-configured tests deliberately trigger a 429 / 503 from a function.
+  page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("status of 429") && !m.text().includes("status of 503")) errors.push("console: " + m.text()); });
   return { page, ctx, errors };
 }
 
@@ -58,7 +58,7 @@ try {
   await page.waitForURL(/\/inbox/);
   await page.waitForSelector("text=Customer chats");
   ok("sign-in lands on the inbox", true);
-  ok("'Needs you' tab shows the handed-off chat", await page.isVisible("text=Amine"));
+  ok("'Needs you' tab shows the handed-off chat", await page.waitForSelector("text=Amine", { timeout: 5000 }).then(() => true, () => false));
   ok("handoff reason is visible on the card", await page.isVisible("text=Customer wants to order 2 hoodies"));
   ok("inbox card previews the latest message", await page.isVisible("text=The owner will reply to you personally."));
   ok("tab counts rendered", await page.isVisible("text=Needs you (1)"));
@@ -66,7 +66,7 @@ try {
   ok("outage banner counts messages the assistant couldn't answer", await page.isVisible("text=couldn't answer 2 message(s)"));
   ok("setup checklist shows progress for a new store", await page.isVisible("text=Get your assistant ready") && await page.isVisible("text=0 of 3 done") && await page.isVisible("text=2 added"));
   ok("the first unfinished step is marked Next", await page.isVisible("li:has-text('Add your products') >> text=Next"));
-  ok("optional and coming-soon steps are listed", await page.isVisible("text=Take orders in chats (optional)") && await page.isVisible("li:has-text('Connect Instagram or Facebook') >> text=Coming soon"));
+  ok("optional steps are listed, with a Connect link for Instagram", await page.isVisible("text=Take orders in chats (optional)") && await page.isVisible("li:has-text('Connect Instagram') >> a:has-text('Connect')"));
   await page.screenshot({ path: OUT + "02-inbox.png" });
 
   await page.click("[role=tab]:has-text('Assistant')");
@@ -88,9 +88,10 @@ try {
   await page.fill("textarea", "Hi! Yes we can arrange 2 hoodies.");
   await page.click("button:has-text('Send')");
   await page.waitForSelector("text=Hi! Yes we can arrange 2 hoodies.");
-  await page.waitForSelector("text=Not sent yet");
-  ok("owner reply appears with the 'not sent yet' note", true);
   ok("reply was POSTed as sender=owner, delivery pending", await logged((l) => l.startsWith("POST /rest/v1/messages") && l.includes('"sender":"owner"') && l.includes('"delivery_status":"pending"')));
+  ok("the dashboard then asks the server to deliver it", await logged((l) => l.startsWith("POST /functions/v1/deliver-messages") && l.includes('"conversation_id":"c1"')));
+  await page.waitForTimeout(500);
+  ok("once delivered the reply no longer says 'Not sent yet'", !(await page.isVisible("text=Not sent yet")) && !(await page.isVisible("text=Not delivered")));
   await page.click("button:has-text('Save as an answer the assistant can use')");
   await page.waitForSelector("[role=dialog]");
   ok("save-to-FAQ prefills the customer question and the owner's reply",
@@ -103,6 +104,14 @@ try {
   await page.screenshot({ path: OUT + "03-thread.png" });
   await page.click("button:has-text('Hand back to the assistant')");
   ok("hand-back sends status=bot and clears the reason", await logged((l) => l.startsWith("PATCH /rest/v1/conversations") && l.includes('"status":"bot"') && l.includes('"handoff_reason":null')));
+
+  // 2b. a reply Instagram refuses is flagged, with the reason
+  state.deliverMode = "fail";
+  await page.fill("textarea", "Second reply that cannot be delivered");
+  await page.click("button:has-text('Send')");
+  await page.waitForSelector("text=Not delivered");
+  ok("an undelivered reply is flagged with Instagram's reason", await page.isVisible("text=Instagram only allows a reply within 24 hours"));
+  state.deliverMode = "ok";
 
   // 3. catalog
   await page.click("a:has-text('Catalog')");
@@ -219,7 +228,24 @@ try {
   await page.click("a:has-text('Assistant')");
   await page.waitForSelector("text=Try your assistant");
   ok("usage meter shows replies used of the limit", await page.isVisible("text=7 of 1000"));
-  ok("channels are listed as coming soon", (await page.locator("button:has-text('Coming soon')").count()) === 2);
+  ok("Facebook is still marked coming soon; Instagram can be connected", (await page.locator("button:has-text('Coming soon')").count()) === 1 && await page.isEnabled("button:has-text('Connect Instagram')"));
+  ok("channels start empty", await page.isVisible("text=No account connected yet."));
+  await page.click("button:has-text('Connect Instagram')");
+  await page.waitForSelector("text=Instagram is connected.");
+  ok("Connect asks the server for Instagram's approval page for this store", await logged((l) => l.startsWith("POST /functions/v1/instagram-connect") && l.includes('"action":"start"') && l.includes('"store_id":"s1"')));
+  ok("coming back from Instagram shows the connected account and clears the URL", await page.isVisible("li:has-text('@fennec_vision_') >> text=Connected") && !/instagram=/.test(page.url()));
+  page.once("dialog", (d) => d.accept());
+  await page.click("li:has-text('@fennec_vision_') >> button:has-text('Disconnect')");
+  await page.waitForSelector("li:has-text('@fennec_vision_') >> text=Disconnected");
+  ok("Disconnect asks first, then calls the server with the channel id", await logged((l) => l.startsWith("POST /functions/v1/instagram-connect") && l.includes('"action":"disconnect"') && l.includes('"channel_id":"ch-ig"')));
+  await page.goto("http://127.0.0.1:4173/assistant?instagram=error&reason=already_connected");
+  await page.waitForSelector("[role=alert]:has-text('already connected to another store')");
+  ok("a failed connection explains why", !/instagram=/.test(page.url()));
+  state.startStatus = 503;
+  await page.click("button:has-text('Connect Instagram')");
+  await page.waitForSelector("[role=alert]:has-text('set up on this server yet')");
+  ok("a server without Instagram configured says so", true);
+  state.startStatus = 200;
   await page.fill("input[aria-label='Write as a customer…']", "do you have the hoodie in M?");
   await page.click("button:has-text('Send')");
   await page.waitForSelector("text=Black Hoodie in M is available");
@@ -267,6 +293,23 @@ try {
   await page.screenshot({ path: OUT + "08-catalog-ar.png" });
   ok("no runtime errors across the desktop run", errors.length === 0);
   if (errors.length) console.log(errors.join("\n"));
+  await ctx.close();
+
+  // 6b. public legal pages need no sign-in
+  ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
+  for (const [path, heading, text] of [
+    ["/privacy", "Privacy policy", "Instagram"],
+    ["/terms", "Terms of service", "cash-on-delivery"],
+    ["/data-deletion", "Data deletion", "Delete my data"],
+  ]) {
+    await page.goto("http://127.0.0.1:4173" + path);
+    await page.waitForSelector(`h1:has-text('${heading}')`);
+    ok(`${path} is public and readable`, !/\/login/.test(page.url()) && (await page.textContent("main")).includes(text));
+  }
+  ok("legal pages link to each other", await page.isVisible("nav[aria-label=Legal] >> text=Privacy policy"));
+  await page.goto("http://127.0.0.1:4173/login");
+  ok("the sign-in page links to them", await page.isVisible("nav[aria-label=Legal] >> text=Data deletion"));
+  ok("no runtime errors on public pages", errors.length === 0);
   await ctx.close();
 
   // 7. mobile layout

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { supabase, configured } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
@@ -84,6 +84,11 @@ export function Login() {
             </button>
           )}
         </div>
+        <nav className="muted text-xs mt-4 flex justify-center gap-4" aria-label="Legal">
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/terms">Terms</Link>
+          <Link to="/data-deletion">Data deletion</Link>
+        </nav>
       </div>
     </div>
   );

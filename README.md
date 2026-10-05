@@ -20,6 +20,7 @@ Out of scope for v0: taking payments, creating orders, comment replies, other ch
 - [Economics](docs/economics.md)
 - [Competitors](docs/competitors.md)
 - [Architecture](docs/architecture.md)
+- [Connecting Instagram](docs/instagram-setup.md)
 - [Data model](supabase/migrations/0001_init.sql)
 
 ## Stack

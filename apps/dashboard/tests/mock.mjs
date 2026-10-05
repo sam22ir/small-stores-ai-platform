@@ -40,6 +40,8 @@ export const state = {
   fees: [ { id: "f1", wilaya: "Alger", fee_cents: 40000 } ],
   faq: [ { id: "q1", question: "Do you gift wrap?", answer: "Yes, free of charge.", created_at: "2026-10-03T10:00:00Z" } ],
   testRuns: 0,
+  deliverMode: "ok", // "fail" makes deliver-messages report a closed 24-hour window
+  startStatus: 200, // 503 = Instagram connection not configured on the server
   log: [],
 };
 
@@ -80,10 +82,43 @@ export function start(port = 54321) {
         if (/spam/i.test(text)) return send(429, { error: "Too many test messages. Try again later." });
         return send(200, { ok: true, reply: "Yes, the Black Hoodie in M is available (3 left).", status: "bot", tool_calls: ["search_products"], fast_path: false });
       }
+      if (url.pathname === "/functions/v1/deliver-messages") {
+        if (req.method !== "POST") return send(204);
+        const { conversation_id } = JSON.parse(body || "{}");
+        let sent = 0, failed = 0;
+        for (const m of state.messages) {
+          if (m.conversation_id !== conversation_id || m.direction !== "outbound" || m.delivery_status !== "pending") continue;
+          if (state.deliverMode === "fail") { m.delivery_status = "failed"; m.delivery_error = "Instagram only allows a reply within 24 hours of the customer's last message."; failed++; }
+          else { m.delivery_status = "sent"; sent++; }
+        }
+        return send(200, { sent, failed, skipped: 0 });
+      }
+      if (url.pathname === "/functions/v1/instagram-connect") {
+        if (req.method !== "POST") return send(204);
+        const { action, channel_id } = JSON.parse(body || "{}");
+        if (action === "start") {
+          if (state.startStatus !== 200) return send(state.startStatus, { error: "not_configured" });
+          // The real function returns Instagram's approval page; the mock returns the page Instagram
+          // would send the owner back to, and registers the channel the callback would have saved.
+          if (!state.channels.some((c) => c.platform === "instagram")) state.channels.push({ id: "ch-ig", platform: "instagram", display_name: "@fennec_vision_", status: "active" });
+          else state.channels.find((c) => c.platform === "instagram").status = "active";
+          return send(200, { url: "http://127.0.0.1:4173/assistant?instagram=connected" });
+        }
+        if (action === "disconnect") {
+          const c = state.channels.find((x) => x.id === channel_id);
+          if (c) c.status = "disconnected";
+          return send(200, { ok: true });
+        }
+        return send(400, { error: "Unknown action" });
+      }
       if (!url.pathname.startsWith("/rest/v1/")) return send(404, { message: "not found" });
 
       const pick = (rows) => single ? (rows[0] ? send(200, rows[0]) : send(406, { code: "PGRST116", message: "no rows", details: "", hint: "" })) : send(200, rows);
       if (req.method === "HEAD" && table === "products") return send(200, undefined, { "content-range": `*/${state.products.filter((p) => p.active).length}` });
+      if (req.method === "HEAD" && table === "channels") {
+        const n = state.channels.filter((c) => c.platform !== "playground" && c.status === "active").length;
+        return send(200, undefined, { "content-range": `*/${n}` });
+      }
       if (req.method === "HEAD" && table === "agent_runs") {
         const n = url.search.includes("source=eq.test") ? state.testRuns : url.search.includes("not.is.null") ? 2 : 7;
         return send(200, undefined, { "content-range": `*/${n}` });

@@ -2,18 +2,19 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
 // What the owner has done so far, from data the dashboard can already read.
-export type SetupData = { products: number; tested: boolean };
+export type SetupData = { products: number; tested: boolean; channels: number };
 
 export const PRODUCTS_TARGET = 3;
 
 export function useSetupData(): { data: SetupData | null; reload: () => Promise<void> } {
   const [data, setData] = useState<SetupData | null>(null);
   const reload = useCallback(async () => {
-    const [p, r] = await Promise.all([
+    const [p, r, c] = await Promise.all([
       supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true),
       supabase.from("agent_runs").select("id", { count: "exact", head: true }).eq("source", "test"),
+      supabase.from("channels").select("id", { count: "exact", head: true }).eq("status", "active").neq("platform", "playground"),
     ]);
-    setData({ products: p.count ?? 0, tested: (r.count ?? 0) > 0 });
+    setData({ products: p.count ?? 0, tested: (r.count ?? 0) > 0, channels: c.count ?? 0 });
   }, []);
   useEffect(() => { void reload(); }, [reload]);
   return { data, reload };

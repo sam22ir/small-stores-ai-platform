@@ -3,25 +3,24 @@
 ## Flow
 
 ```
-Customer DM (IG / FB Page)
+Customer DM (Instagram)
         │
         ▼
-Meta webhook ──► POST /api/webhooks/meta
-                  1. verify X-Hub-Signature-256 (app secret)
-                  2. dedupe on platform message id
-                  3. resolve tenant: channels.external_id -> store
-                  4. persist inbound message, ack 200 fast
-                        │
+Meta webhook ──► POST /functions/v1/meta-webhook
+                  1. verify X-Hub-Signature-256 (app secret), answer 200 at once
+                  2. parse events; ignore echoes, self messages, deletions
+                  3. resolve tenant: channels.external_id -> store (active channels only)
+                        │  (background, EdgeRuntime.waitUntil)
                         ▼
-                  Agent worker (async)
-                  - load conversation history + store settings
-                  - Claude with tools (below)
-                  - guardrails, then send via Graph API Send endpoint
-                  - persist outbound message + agent_run (tool calls)
+                  ingestEvent (_shared/meta/ingest.ts)
+                  - upsert customer + conversation, insert inbound message (retries find the same row)
+                  - handleInbound: debounce, lock, limit, agent, run log (see below)
+                  - deliverPending: claim each pending reply, send via graph.instagram.com, mark sent/failed
 ```
 
-Meta expects a 200 within a few seconds, so the webhook only verifies, dedupes and
-enqueues; the agent runs out of band (queue table + worker, or a background function).
+Meta expects a 200 within a few seconds, so the webhook acknowledges first and the pipeline runs in the background.
+Owner replies are saved by the dashboard as `pending` and sent by the `deliver-messages` function it calls right after.
+Setup and operations: [instagram-setup.md](instagram-setup.md).
 
 ## Agent tools (v0)
 
@@ -41,7 +40,7 @@ Implementation notes (`supabase/functions/_shared/agent/`):
 - Stock is reported as `in_stock` / `low_stock` / `out_of_stock`. Exact counts are only exposed at 5 or fewer, so competitors can't read inventory by asking.
 - Default model is `claude-sonnet-5-5` (`AGENT_MODEL` overrides) with low effort and the server-side refusal fallback enabled.
 - Model providers can be chained (`providers.ts`): primary first, optional fallback on any error, with a short per-isolate circuit breaker. Falling back only protects uptime; whichever provider is primary still sees every message.
-- `assistant-chat` (dashboard test chat with the owner's JWT, plus a dev-secret mode) and, later, `meta-webhook` are entry points to the same pipeline in `_shared/pipeline.ts`; Meta delivery plugs in last.
+- `assistant-chat` (dashboard test chat with the owner's JWT, plus a dev-secret mode) and `meta-webhook` are entry points to the same pipeline in `_shared/pipeline.ts`. Delivery to Instagram is in `_shared/meta/` (`deliver.ts`, `instagram.ts`).
 
 Orders: the model never supplies prices or the store id. `place_order` recomputes prices from the catalog, checks and
 decrements stock under row locks, ignores duplicates (idempotency key) and runs as one transaction; test chats call it in
@@ -57,12 +56,12 @@ output, so one tenant can never read another's data.
 - One `store` per tenant; `store_members` links Supabase Auth users to stores.
 - RLS on every table via `is_store_member(store_id)`.
 - The webhook worker uses the service role and always filters by `store_id` explicitly.
-- Meta page tokens live in `channel_credentials`, which has no client-facing policies.
+- Instagram access tokens live encrypted (AES-GCM) in `channel_credentials`, which has no client-facing policies. The key is an Edge Function secret, not in the database.
 
 ## Meta platform constraints to design around
 
 - **24-hour window:** a business may reply freely only within 24h of the customer's last
-  message (`conversations.last_customer_message_at`); the worker must check this before sending.
+  message (`conversations.last_customer_message_at`); `deliverPending` checks this and marks later replies `failed` with the reason.
 - **App Review:** `pages_messaging` and `instagram_manage_messages` need Meta App Review
   and a Business-verified app before real stores can connect.
 - **Instagram** requires a professional account linked to a Facebook Page.

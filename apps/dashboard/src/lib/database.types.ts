@@ -339,6 +339,8 @@ export type Database = {
           conversation_id: string
           created_at: string
           delivery_status: string | null
+          delivery_claimed_at: string | null
+          delivery_error: string | null
           direction: string
           id: string
           platform_message_id: string | null
@@ -352,6 +354,8 @@ export type Database = {
           conversation_id: string
           created_at?: string
           delivery_status?: string | null
+          delivery_claimed_at?: string | null
+          delivery_error?: string | null
           direction: string
           id?: string
           platform_message_id?: string | null
@@ -365,6 +369,8 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           delivery_status?: string | null
+          delivery_claimed_at?: string | null
+          delivery_error?: string | null
           direction?: string
           id?: string
           platform_message_id?: string | null

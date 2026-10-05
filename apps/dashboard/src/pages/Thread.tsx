@@ -23,6 +23,7 @@ type Msg = {
   body: string | null;
   created_at: string;
   delivery_status: string | null;
+  delivery_error: string | null;
 };
 
 export function Thread() {
@@ -47,20 +48,37 @@ export function Thread() {
         .select("id,store_id,channel_id,status,handoff_reason,customers(display_name,platform_user_id),channels(platform)")
         .eq("id", id).single(),
       supabase.from("messages")
-        .select("id,direction,sender,body,created_at,delivery_status")
+        .select("id,direction,sender,body,created_at,delivery_status,delivery_error")
         .eq("conversation_id", id).order("created_at", { ascending: true }).limit(500),
     ]);
     if (c.error || m.error) { setFailed(true); return; }
     setFailed(false);
     setConv(c.data as unknown as Conv);
     setMsgs(m.data as Msg[]);
+    return m.data as Msg[];
+  }, [id]);
+
+  // Replies are delivered to Instagram by a function; this asks it to (re)send what is waiting.
+  // Safe to repeat: the server sends each message at most once.
+  const deliver = useCallback(async () => {
+    if (!id) return;
+    await supabase.functions.invoke("deliver-messages", { body: { conversation_id: id } });
   }, [id]);
 
   useEffect(() => {
-    void load();
-    const timer = window.setInterval(() => { if (!document.hidden) void load(); }, 8000);
+    // Load, and when something is still waiting to go out (a reply whose delivery was interrupted),
+    // ask for it to be sent and look again.
+    const refresh = async () => {
+      const rows = await load();
+      if (rows?.some((r) => r.direction === "outbound" && r.delivery_status === "pending")) {
+        await deliver();
+        await load();
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, 8000);
     return () => window.clearInterval(timer);
-  }, [load]);
+  }, [load, deliver]);
 
   useEffect(() => {
     if (msgs.length !== lastCount.current) {
@@ -97,6 +115,7 @@ export function Thread() {
     // Writing as the owner takes the chat over from the assistant.
     if (conv.status !== "human") await supabase.from("conversations").update({ status: "human" }).eq("id", conv.id);
     setReply("");
+    await deliver();
     await load();
     setBusy(false);
   }
@@ -147,7 +166,9 @@ export function Thread() {
             <div className="muted text-xs">
               {who(m)} · {formatTime(m.created_at, lang)}
               {m.delivery_status === "pending" && <span> · {t("thread.pending")}</span>}
+              {m.delivery_status === "failed" && <span style={{ color: "var(--warn-text)" }}> · {t("thread.notDelivered")}</span>}
             </div>
+            {m.delivery_status === "failed" && m.delivery_error && <div className="text-xs" style={{ color: "var(--warn-text)" }}>{m.delivery_error}</div>}
             {m.sender === "owner" && m.body && (faqSaved.has(m.id)
               ? <span className="badge badge-ok">{t("thread.faqSaved")}</span>
               : <button className="btn btn-small" onClick={() => { setFaqMsgId(m.id); setFaqFor({ question: questionFor(m), answer: m.body! }); }}>{t("thread.saveFaq")}</button>)}

@@ -12,7 +12,6 @@ type Step = {
   done: boolean;
   badge?: string;
   optional?: boolean;
-  soon?: boolean;
   actions: { to: string; label: TKey }[];
 };
 
@@ -35,7 +34,7 @@ export function SetupChecklist() {
     { id: "info", title: "setup.info.title", desc: "setup.info.desc", done: infoDone, actions: [{ to: "/settings", label: "setup.info.action" }] },
     { id: "test", title: "setup.test.title", desc: "setup.test.desc", done: data.tested, actions: [{ to: "/assistant", label: "setup.test.action" }] },
     { id: "orders", title: "setup.orders.title", desc: "setup.orders.desc", done: store!.orders_enabled, optional: true, actions: [{ to: "/settings", label: "setup.orders.action" }] },
-    { id: "channel", title: "setup.channel.title", desc: "setup.channel.desc", done: false, optional: true, soon: true, actions: [] },
+    { id: "channel", title: "setup.channel.title", desc: "setup.channel.desc", done: data.channels > 0, optional: true, actions: [{ to: "/assistant", label: "setup.channel.action" }] },
   ];
   const required = steps.filter((s) => !s.optional);
   const done = required.filter((s) => s.done).length;
@@ -68,7 +67,7 @@ export function SetupChecklist() {
       </div>
       <ul className="list-none p-0 mt-3 mb-0 flex flex-col gap-2">
         {steps.map((s) => (
-          <li key={s.id} className="rounded-xl px-3 py-2.5 flex items-start gap-3" style={{ background: "var(--bg)", opacity: s.soon ? 0.7 : 1 }}>
+          <li key={s.id} className="rounded-xl px-3 py-2.5 flex items-start gap-3" style={{ background: "var(--bg)" }}>
             <span aria-hidden="true" className="mt-0.5 shrink-0 grid place-items-center rounded-full text-xs font-bold"
               style={{ width: 22, height: 22, background: s.done ? "var(--ok-bg)" : "var(--border)", color: s.done ? "var(--ok-text)" : "var(--muted)" }}>
               {s.done ? "✓" : ""}
