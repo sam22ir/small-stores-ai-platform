@@ -1,4 +1,4 @@
-import { detectLang, holdingReply, lastCustomerText } from "./language.ts";
+import { conversationLang, detectLang, holdingReply, lastCustomerText } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import {
   MAX_REPLY_BYTES,
@@ -98,7 +98,7 @@ export async function runAgentChatCompletions(
     throw new Error("history must end with a customer message");
   }
   const messages: Message[] = [
-    { role: "system", content: buildSystemPrompt(store) },
+    { role: "system", content: buildSystemPrompt(store, conversationLang(opts.history)) },
     ...history.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content as string,
@@ -225,7 +225,7 @@ export async function runAgentChatCompletions(
   }
 
   if (!reply) {
-    reply = holdingReply(detectLang(lastCustomerText(opts.history)));
+    reply = holdingReply(conversationLang(opts.history));
     handoffReason = handoffReason ?? "No reply was produced";
   }
 

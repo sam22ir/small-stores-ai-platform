@@ -13,8 +13,15 @@ test("greetings get a localized welcome", () => {
   assert.match(fastPathReply("سلام", S)!, /أهلاً/);
 });
 
-test("Latin-script Darija greetings are answered in French", () => {
-  for (const t of ["salam", "Slm", "salaaaam", "Salam alaykoum", "ahlan", "marhba"]) {
+test("Latin-script Darija greetings are answered in Latin-script Darija, not French", () => {
+  for (const t of ["salam", "Slm", "salaaaam", "Salam alaykoum", "ahlan", "marhba", "salam 3alaykoum", "salam alikoum"]) {
+    assert.equal(fastPathReply(t, S), "Salam, mar7ba bik f Demo Boutique! Kifach n9der n3awnek?", t);
+  }
+  assert.match(fastPathReply("salam", S) ?? "", /Salam, mar7ba bik/);
+});
+
+test("French greetings in Latin letters stay French", () => {
+  for (const t of ["slt", "bjr", "BSR!", "salut"]) {
     assert.match(fastPathReply(t, S) ?? "", /Bonjour et bienvenue/, t);
   }
 });
@@ -22,7 +29,10 @@ test("Latin-script Darija greetings are answered in French", () => {
 test("thanks get a closing reply, and win over a greeting", () => {
   assert.match(fastPathReply("thanks!", S)!, /You're welcome/);
   assert.match(fastPathReply("Merci beaucoup", S)!, /Avec plaisir/);
-  assert.match(fastPathReply("choukran", S)!, /Avec plaisir/);
+  assert.match(fastPathReply("choukran", S)!, /Bla mochkil/);
+  assert.match(fastPathReply("saha", S)!, /Bla mochkil/);
+  assert.match(fastPathReply("ya3tik saha", S)!, /Bla mochkil/);
+  assert.match(fastPathReply("merci bzaf", S)!, /Bla mochkil/);
   assert.match(fastPathReply("شكرا", S)!, /العفو/);
   assert.match(fastPathReply("بارك الله فيك", S)!, /العفو/);
   assert.match(fastPathReply("salam merci", S)!, /Avec plaisir/);
@@ -57,14 +67,15 @@ test("common spelling variants of the greeting are free too", () => {
   for (const t of ["سلام عليكن", "السلام عليكن", "السلام عليك", "السلام عليكي", "السلام", "اهلين", "هلا والله"]) {
     assert.match(fastPathReply(t, S) ?? "", /أهلاً وسهلاً بك في Demo Boutique/, t);
   }
-  for (const t of ["salam 3alaykoum", "Salam 3alikom", "slt", "bjr", "BSR!", "salam alikoum"]) {
-    assert.match(fastPathReply(t, S) ?? "", /Bonjour et bienvenue/, t);
+  for (const t of ["Salam 3alikom", "salam alikoum"]) {
+    assert.match(fastPathReply(t, S) ?? "", /mar7ba bik/, t);
   }
 });
 
 test("more ways to say thanks", () => {
   for (const t of ["يعطيك الصحة", "الله يعطيك الصحة", "تسلم", "جزاك الله"]) assert.match(fastPathReply(t, S) ?? "", /العفو/, t);
-  for (const t of ["mrc", "merci bcp", "jazak allah khair"]) assert.match(fastPathReply(t, S) ?? "", /Avec plaisir/, t);
+  for (const t of ["mrc", "merci bcp"]) assert.match(fastPathReply(t, S) ?? "", /Avec plaisir/, t);
+  assert.match(fastPathReply("jazak allah khair", S) ?? "", /Bla mochkil/);
   assert.match(fastPathReply("thank u", S) ?? "", /You're welcome/);
 });
 

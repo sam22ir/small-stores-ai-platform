@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { detectLang, holdingReply, lastCustomerText } from "./language.ts";
+import { conversationLang, detectLang, holdingReply, lastCustomerText } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import { errorText, executeTool, toolsForStore } from "./tools.ts";
 import type {
@@ -85,7 +85,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
   let reply = "";
 
   const frontier = isFrontierModel(model);
-  const system = buildSystemPrompt(store);
+  const system = buildSystemPrompt(store, conversationLang(opts.history));
   const tools = toolsForStore(store);
 
   for (let round = 0; ; round++) {
@@ -186,7 +186,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
 
   if (!reply) {
     // Nothing safe to say: either a handoff was requested or the loop gave up.
-    reply = holdingReply(detectLang(lastCustomerText(opts.history)));
+    reply = holdingReply(conversationLang(opts.history));
     handoffReason = handoffReason ?? "No reply was produced";
   }
 

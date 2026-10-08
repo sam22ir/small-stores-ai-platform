@@ -5,7 +5,7 @@
 // mean "I confirm", and only the agent (with the conversation) can tell.
 
 type Kind = "greeting" | "thanks";
-type Lang = "ar" | "fr" | "en";
+type Lang = "ar" | "fr" | "en" | "dz";
 
 interface Phrase {
   text: string;
@@ -41,7 +41,12 @@ const GREETINGS: [Lang, string[]][] = [
     "salut",
     "coucou",
     "cc",
-    // Latin-script Darija: answered in French, the usual written register.
+    "slt",
+    "bjr",
+    "bsr",
+  ]],
+  // Latin-script Darija: answered in Latin-script Darija, never French.
+  ["dz", [
     "salam alaykum",
     "salam aleykoum",
     "salam alikom",
@@ -70,9 +75,6 @@ const GREETINGS: [Lang, string[]][] = [
     "salam aleikom",
     "salam aleikum",
     "salam wa rahmatu allah",
-    "slt",
-    "bjr",
-    "bsr",
     "sbah el khir",
     "sba7 lkhir",
     "msa el khir",
@@ -101,6 +103,10 @@ const THANKS: [Lang, string[]][] = [
     "merci bcp",
     "merci",
     "mrc",
+  ]],
+  ["dz", [
+    "merci bzaf",
+    "merci bzzaf",
     "jazak allah khair",
     "jazakallah khair",
     "jazak allahu khayran",
@@ -109,10 +115,12 @@ const THANKS: [Lang, string[]][] = [
     "shukran",
     "saha",
     "sahit",
+    "ya3tik saha",
+    "yaatik essaha",
+    "yaatik saha",
     "barak allah fik",
     "barakallahou fik",
     "baraka allahou fik",
-    "yaatik essaha",
   ]],
   ["en", ["thank you very much", "thank you", "thanks a lot", "thanks", "thank u", "thx"]],
 ];
@@ -122,11 +130,13 @@ const REPLIES: Record<Kind, Record<Lang, (store: string) => string>> = {
     ar: (s) => `أهلاً وسهلاً بك في ${s}! كيف يمكنني مساعدتك؟`,
     fr: (s) => `Bonjour et bienvenue chez ${s} ! Comment puis-je vous aider ?`,
     en: (s) => `Hi, welcome to ${s}! How can I help you?`,
+    dz: (s) => `Salam, mar7ba bik f ${s}! Kifach n9der n3awnek?`,
   },
   thanks: {
     ar: () => "العفو! إذا احتجت أي شيء آخر أنا هنا.",
     fr: () => "Avec plaisir ! Si vous avez besoin d'autre chose, je suis là.",
     en: () => "You're welcome! Let me know if you need anything else.",
+    dz: () => "Bla mochkil! Ila bghiti chi 7aja okhra, ana hna.",
   },
 };
 
@@ -135,7 +145,7 @@ const REPLIES: Record<Kind, Record<Lang, (store: string) => string>> = {
 export function normalize(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[ً-ٰٟـ]/g, "")
+    .replace(/[ً-ٰٟـ]/g, "")
     .replace(/[أإآ]/g, "ا")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/(.)\1+/gu, "$1")
