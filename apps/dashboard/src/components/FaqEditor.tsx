@@ -28,7 +28,7 @@ export function FaqEditor({ storeId }: { storeId: string }) {
     <section className="card p-5 mt-6 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-extrabold m-0">{t("faq.title")}</h2>
+          <h2 className="text-lg font-semibold m-0" style={{ color: "var(--heading)" }}>{t("faq.title")}</h2>
           <p className="muted text-sm mt-1 mb-0">{t("faq.help")}</p>
         </div>
         <button className="btn btn-primary btn-small shrink-0" onClick={() => setEditing({})}>+ {t("faq.add")}</button>
@@ -37,7 +37,7 @@ export function FaqEditor({ storeId }: { storeId: string }) {
       {entries && entries.length === 0 && <p className="muted m-0">{t("faq.empty")}</p>}
       <ul className="list-none p-0 m-0 flex flex-col gap-2">
         {(entries ?? []).map((e) => (
-          <li key={e.id} className="rounded-xl p-3" style={{ background: "var(--bg)" }}>
+          <li key={e.id} className="rounded-xl p-3" style={{ background: "var(--surface-2)" }}>
             <div className="font-semibold">{e.question}</div>
             <div className="muted text-sm mt-1 whitespace-pre-wrap">{e.answer}</div>
             <div className="flex gap-2 mt-2">

@@ -46,7 +46,7 @@ export function SetupChecklist() {
   if (allDone) {
     return (
       <div className="card p-4 mb-4 flex items-center justify-between gap-3 flex-wrap" role="status">
-        <span className="font-semibold">✓ {t("setup.ready")}</span>
+        <span className="font-semibold" style={{ color: "var(--brand)" }}>✓ {t("setup.ready")}</span>
         <button className="btn btn-small" onClick={hide}>{t("setup.hide")}</button>
       </div>
     );
@@ -55,26 +55,26 @@ export function SetupChecklist() {
   return (
     <section className="card p-4 mb-4" aria-label={t("setup.title")}>
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-extrabold m-0">{t("setup.title")}</h2>
+        <h2 className="text-lg font-semibold m-0" style={{ color: "var(--heading)" }}>{t("setup.title")}</h2>
         <button className="btn btn-small" onClick={hide}>{t("setup.hide")}</button>
       </div>
       <div className="flex items-center gap-3 mt-2">
-        <div className="grow h-2 rounded-full overflow-hidden" style={{ background: "var(--border)" }} role="progressbar"
+        <div className="grow h-2 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }} role="progressbar"
           aria-valuenow={done} aria-valuemin={0} aria-valuemax={required.length}>
-          <div className="h-full" style={{ width: `${(done / required.length) * 100}%`, background: "var(--brand)" }} />
+          <div className="h-full rounded-full" style={{ width: `${(done / required.length) * 100}%`, background: "var(--brand)" }} />
         </div>
         <span className="muted text-sm shrink-0">{t("setup.progress", { done, total: required.length })}</span>
       </div>
       <ul className="list-none p-0 mt-3 mb-0 flex flex-col gap-2">
         {steps.map((s) => (
-          <li key={s.id} className="rounded-xl px-3 py-2.5 flex items-start gap-3" style={{ background: "var(--bg)" }}>
+          <li key={s.id} className="rounded-xl px-3 py-2.5 flex items-start gap-3" style={{ background: "var(--surface-2)" }}>
             <span aria-hidden="true" className="mt-0.5 shrink-0 grid place-items-center rounded-full text-xs font-bold"
-              style={{ width: 22, height: 22, background: s.done ? "var(--ok-bg)" : "var(--border)", color: s.done ? "var(--ok-text)" : "var(--muted)" }}>
+              style={{ width: 22, height: 22, background: s.done ? "var(--brand-soft)" : "var(--surface)", color: s.done ? "var(--brand)" : "var(--muted)", border: s.done ? 0 : "1px solid var(--border)" }}>
               {s.done ? "✓" : ""}
             </span>
             <div className="grow min-w-0">
               <div className={`font-semibold ${s.done ? "line-through muted" : ""}`}>{t(s.title)}
-                {s.id === nextId && <span className="badge badge-warn ms-2">{t("setup.next")}</span>}
+                {s.id === nextId && <span className="badge badge-ok ms-2">{t("setup.next")}</span>}
               </div>
               <div className="muted text-sm">{t(s.desc)}{s.badge && !s.done ? ` · ${s.badge}` : ""}</div>
               {!s.done && s.actions.length > 0 && (

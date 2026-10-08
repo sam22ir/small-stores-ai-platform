@@ -6,7 +6,7 @@ export function LangSwitch() {
   return (
     <select
       className="input"
-      style={{ minHeight: 36, width: "auto", padding: ".25rem .5rem" }}
+      style={{ minHeight: 36, width: "auto", padding: ".25rem .75rem", borderRadius: 999 }}
       value={lang}
       onChange={(e) => setLang(e.target.value as Lang)}
       aria-label={t("common.language")}

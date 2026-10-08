@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Conversations</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#F7F8F7}
+button,input{font-family:'IBM Plex Sans', sans-serif}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; overflow: hidden; font-family: 'IBM Plex Sans', sans-serif; color: #16181A; background: #F7F8F7; display: flex; flex-direction: column;">
+
+  <header style="flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 64px; box-sizing: border-box; padding: 0 8px 0 16px; background: #FFFFFF; border-bottom: 1px solid #E3E6E4;">
+    <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+      <div aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 999px; background: #0B6E4F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600;">L</div>
+      <h1 style="margin: 0; font-size: 17px; font-weight: 600; color: #2B3A4A; white-space: nowrap;">Boutique Lina</h1>
+    </div>
+    <button type="button" role="switch" aria-checked="true" aria-label="Assistant actif" style="flex: none; height: 44px; padding: 0 8px 0 10px; border: 1px solid #E3E6E4; border-radius: 999px; background: #FFFFFF; color: #16181A; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap;">
+      <span aria-hidden="true" style="position: relative; display: block; width: 40px; height: 24px; border-radius: 999px; background: #0B6E4F;">
+        <span style="position: absolute; top: 2px; inset-inline-end: 2px; width: 20px; height: 20px; border-radius: 999px; background: #FFFFFF;"></span>
+      </span>
+      Assistant actif
+    </button>
+  </header>
+
+  <section aria-labelledby="needs-title" style="flex: none; margin: 12px 16px 0 16px; background: #FFFFFF; border: 1px solid #E3E6E4; border-radius: 12px; overflow: hidden;">
+    <div style="box-sizing: border-box; height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 14px; background: #FDF7EE; border-bottom: 1px solid #F2E3CC;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 999px; background: #B45309;"></span>
+        <h2 id="needs-title" style="margin: 0; font-size: 14px; font-weight: 600; color: #B45309;">À traiter</h2>
+      </div>
+      <span style="font-size: 13px; font-weight: 500; color: #B45309; white-space: nowrap;">2 clients attendent</span>
+    </div>
+
+    <button type="button" style="display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; box-sizing: border-box; padding: 8px 14px; border: 0; border-bottom: 1px solid #EEF0EF; background: #FFFFFF; color: #16181A; text-align: start; cursor: pointer;">
+      <span aria-hidden="true" style="flex: none; width: 36px; height: 36px; border-radius: 999px; background: #EEF0EF; color: #16181A; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600;">Y</span>
+      <span style="flex: 1; min-width: 0;">
+        <span style="display: block; font-size: 15px; font-weight: 500;">Yacine Benali</span>
+        <span style="display: block; font-size: 13px; color: #565C63; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Le hoodie noir en M, il reste ?</span>
+      </span>
+      <span style="flex: none; font-size: 12px; color: #565C63;">10:42</span>
+    </button>
+
+    <button type="button" style="display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; box-sizing: border-box; padding: 8px 14px; border: 0; background: #FFFFFF; color: #16181A; text-align: start; cursor: pointer;">
+      <span aria-hidden="true" style="flex: none; width: 36px; height: 36px; border-radius: 999px; background: #EEF0EF; color: #16181A; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600;">S</span>
+      <span style="flex: 1; min-width: 0;">
+        <span style="display: block; font-size: 15px; font-weight: 500;">Sofiane Mebarki</span>
+        <span style="display: block; font-size: 13px; color: #565C63; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">C'est original ?</span>
+      </span>
+      <span style="flex: none; font-size: 12px; color: #565C63;">Hier</span>
+    </button>
+  </section>
+
+  <div role="tablist" aria-label="Filtrer les conversations" style="flex: none; display: flex; gap: 8px; margin: 12px 16px 0 16px;">
+    <button type="button" role="tab" aria-selected="true" style="flex: 1; min-height: 44px; padding: 0 8px; border: 1px solid #0B6E4F; border-radius: 999px; background: #0B6E4F; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;">Tous</button>
+    <button type="button" role="tab" aria-selected="false" style="flex: 1; min-height: 44px; padding: 0 8px; border: 1px solid #E3E6E4; border-radius: 999px; background: #FFFFFF; color: #565C63; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap;">À traiter (2)</button>
+    <button type="button" role="tab" aria-selected="false" style="flex: 1; min-height: 44px; padding: 0 8px; border: 1px solid #E3E6E4; border-radius: 999px; background: #FFFFFF; color: #565C63; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap;">Commandes</button>
+  </div>
+
+  <section aria-label="Utilisation ce mois-ci" style="flex: none; display: flex; flex-direction: column; gap: 8px; margin: 12px 16px 0 16px;">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">
+      <p style="margin: 0; font-size: 13px; color: #565C63;">312 réponses · 58 conversations ce mois</p>
+      <span style="font-size: 12px; color: #565C63; white-space: nowrap;">312 / 1 000</span>
+    </div>
+    <div role="progressbar" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="312" aria-label="Réponses utilisées" style="height: 6px; border-radius: 999px; background: #E3E6E4; overflow: hidden;">
+      <div style="width: 31.2%; height: 100%; border-radius: 999px; background: #0B6E4F;"></div>
+    </div>
+  </section>
+
+  <section aria-label="Liste des conversations" style="flex: 1; min-height: 0; margin: 12px 16px 0 16px; background: #FFFFFF; border: 1px solid #E3E6E4; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;">
+
+    <button type="button" style="display: flex; align-items: center; gap: 12px; width: 100%; min-height: 68px; box-sizing: border-box; padding: 10px 14px; border: 0; border-bottom: 1px solid #EEF0EF; background: #FFFFFF; color: #16181A; text-align: start; cursor: pointer;">
+      <span aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 999px; background: #EEF0EF; color: #16181A; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600;">A</span>
+      <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+        <span style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 15px; font-weight: 600;">Amina Kaci</span>
+          <span style="flex: none; font-size: 12px; color: #565C63;">10:15</span>
+        </span>
+        <span style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+          <span style="flex: 1; min-width: 0; font-size: 13px; color: #565C63; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Livraison à Oran c'est combien ?</span>
+          <span style="flex: none; font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: #EAF4EF; color: #0B6E4F;">Assistant</span>
+        </span>
+      </span>
+    </button>
+
+    <button type="button" style="display: flex; align-items: center; gap: 12px; width: 100%; min-height: 68px; box-sizing: border-box; padding: 10px 14px; border: 0; border-bottom: 1px solid #EEF0EF; background: #FFFFFF; color: #16181A; text-align: start; cursor: pointer;">
+      <span aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 999px; background: #EEF0EF; color: #16181A; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600;">K</span>
+      <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+        <span style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 15px; font-weight: 600;">Karim Meziane</span>
+          <span style="flex: none; font-size: 12px; color: #565C63;">09:58</span>
+        </span>
+        <span style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+          <span style="flex: 1; min-width: 0; font-size: 13px; color: #565C63; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Vous livrez à Constantine ?</span>
+          <span style="flex: none; font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: #EAF4EF; color: #0B6E4F;">Assistant</span>
+        </span>
+      </span>
+    </button>
+
+    <button type="button" style="display: flex; align-items: center; gap: 12px; width: 100%; min-height: 68px; box-sizing: border-box; padding: 10px 14px; border: 0; border-bottom: 1px solid #EEF0EF; background: #FFFFFF; color: #16181A; text-align: start; cursor: pointer;">
+      <span aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 999px; background: #EEF0EF; color: #16181A; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600;">R</span>
+      <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+        <span style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 15px; font-weight: 600;">Rania Haddad</span>
+          <span style="flex: none; font-size: 12px; color: #565C63;">09:03</span>
+        </span>
+        <span style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+          <span style="flex: 1; min-width: 0; font-size: 13px; color: #565C63; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Merci, commande confirmée</span>
+          <span style="flex: none; font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: #F1F3F2; color: #565C63;">Commande</span>
+        </span>
+      </span>
+    </button>
+
+    <button type="button" style="display: flex; align-items: center; gap: 12px; width: 100%; min-height: 68px; box-sizing: border-box; padding: 10px 14px; border: 0; border-bottom: 1px solid #EEF0EF; background: #FFFFFF; color: #16181A; text-align: start; cursor: pointer;">
+      <span aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 999px; background: #EEF0EF; color: #16181A; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600;">L</span>
+      <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+        <span style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 15px; font-weight: 600;">Lydia Ait Ali</span>
+          <span style="flex: none; font-size: 12px; color: #565C63;">Hier</span>
+        </span>
+        <span style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+          <span style="flex: 1; min-width: 0; font-size: 13px; color: #565C63; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Je veux 2 pièces</span>
+          <span style="flex: none; font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: #EAF4EF; color: #0B6E4F;">Assistant</span>
+        </span>
+      </span>
+    </button>
+
+  </section>
+
+  <nav aria-label="Navigation principale" style="flex: none; display: grid; grid-template-columns: repeat(5, 1fr); padding: 6px 4px 14px 4px; background: #FFFFFF; border-top: 1px solid #E3E6E4;">
+
+    <button type="button" aria-current="page" style="position: relative; min-height: 56px; border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 600; color: #0B6E4F; cursor: pointer;">
+      <span style="position: relative; display: block; width: 24px; height: 24px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2H9.5L5 21v-4a2 2 0 0 1-1-1.7z"/></svg>
+        <span aria-label="2 à traiter" style="position: absolute; top: -6px; inset-inline-start: 13px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #0B6E4F; color: #FFFFFF; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;">2</span>
+      </span>
+      <span>Chats</span>
+    </button>
+
+    <button type="button" style="min-height: 56px; border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500; color: #565C63; cursor: pointer;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+      <span>Commandes</span>
+    </button>
+
+    <button type="button" style="min-height: 56px; border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500; color: #565C63; cursor: pointer;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>
+      <span>Catalogue</span>
+    </button>
+
+    <button type="button" style="min-height: 56px; border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500; color: #565C63; cursor: pointer;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M18.5 16.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></svg>
+      <span>Assistant</span>
+    </button>
+
+    <button type="button" style="min-height: 56px; border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500; color: #565C63; cursor: pointer;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>
+      <span>Réglages</span>
+    </button>
+
+  </nav>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

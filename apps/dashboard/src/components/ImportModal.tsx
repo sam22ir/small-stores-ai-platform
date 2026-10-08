@@ -103,10 +103,10 @@ export function ImportModal({ storeId, existing, onClose, onDone }: {
         </label>
 
         {text.trim() && (
-          <div className="rounded-xl p-3 text-sm" style={{ background: "var(--bg)" }} aria-live="polite">
+          <div className="rounded-xl p-3 text-sm" style={{ background: "var(--surface-2)" }} aria-live="polite">
             <div className="font-semibold">{t("import.preview", { products: groups.length, options: optionCount })}</div>
             {parsed.errors.length > 0 && (
-              <div className="mt-1" style={{ color: "var(--warn-text)" }}>
+              <div className="mt-1" style={{ color: "var(--warn)" }}>
                 {t("import.errors", { n: parsed.errors.length, lines: parsed.errors.slice(0, 10).map((e) => e.line).join(", ") })}
               </div>
             )}
