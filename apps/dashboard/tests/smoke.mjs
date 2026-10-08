@@ -210,6 +210,15 @@ try {
   ok("settings save sends only allowed columns", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes("business_info") && !l.includes('"id"')));
   ok("the fields are composed into the text the assistant reads, and kept as JSON", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes("Opening hours: Every day 10:00-18:00") && l.includes("Delivery: 3-5 days") && l.includes("Gift wrapping available.") && l.includes('"business_info_fields"')));
   ok("orders toggle is saved", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes('"orders_enabled":true')));
+  // 5b. pause switch flipped in the header while Settings is open must survive a Settings save
+  const mark = state.log.length;
+  await toggle.click();
+  await page.waitForSelector("aside [data-testid=agent-toggle]:has-text('Paused')", { timeout: 3000 });
+  await page.click("button:has-text('Save')");
+  await page.waitForSelector("text=Saved");
+  ok("settings save does not overwrite a header toggle", state.store.agent_enabled === false && state.log.slice(mark).some((l) => l.startsWith("PATCH /rest/v1/stores") && !l.includes('"agent_enabled"')));
+  await toggle.click();
+  await page.waitForSelector("aside [data-testid=agent-toggle]:has-text('Assistant on')", { timeout: 3000 });
 
   // 5a. FAQ the assistant knows
   await page.waitForSelector("text=Answers the assistant knows");
@@ -257,6 +266,7 @@ try {
   await page.click("a:has-text('Assistant')");
   await page.waitForSelector("text=Try your assistant");
   ok("usage meter shows replies used of the limit", await page.isVisible("text=7 of 1000"));
+  ok("usage meter shows conversations and replies per conversation", await page.isVisible("text=7 replies · 3 conversations") && await page.isVisible("text=(≈2.3 replies each)"));
   ok("Facebook is still marked coming soon; Instagram can be connected", (await page.locator("button:has-text('Coming soon')").count()) === 1 && await page.isEnabled("button:has-text('Connect Instagram')"));
   ok("channels start empty", await page.isVisible("text=No account connected yet."));
   await page.click("button:has-text('Connect Instagram')");

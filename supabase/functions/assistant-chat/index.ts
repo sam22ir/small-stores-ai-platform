@@ -6,7 +6,7 @@ import { getUsage, handleInbound, type RunSource } from "../_shared/pipeline.ts"
 // POST JSON, three actions:
 //   {"store_id", "text"}                 -> run the assistant on one message (default)
 //   {"store_id", "action": "reset"}      -> put the test conversation back under the bot
-//   {"store_id", "action": "usage"}      -> this month's reply count and limit
+//   {"store_id", "action": "usage"}      -> this month's reply count, conversations and limit
 //
 // Auth (verify_jwt is off; this function checks it itself):
 //   - Owner: `Authorization: Bearer <user JWT>` of a member of the store. Source "test".

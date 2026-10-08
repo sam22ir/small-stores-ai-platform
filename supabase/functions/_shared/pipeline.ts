@@ -26,6 +26,9 @@ import type {
   StoreContext,
 } from "./agent/types.ts";
 import { monthStartUtc, usageStatus, type UsageStatus } from "./agent/usage.ts";
+
+const USAGE_PAGE = 1000;
+export type UsageWithConversations = UsageStatus & { conversations: number };
 import { notifyOwner } from "./telegram.ts";
 
 // Everything that happens between "a customer message is stored" and "the reply is stored":
@@ -190,12 +193,14 @@ export function supabaseOrders(client: SupabaseClient, dryRun: boolean): OrderPo
 // --- Usage -------------------------------------------------------------------
 
 // Billable replies this calendar month: customer-facing, answered by the model, not failed.
+// `conversations` counts the distinct conversations those replies belong to.
 export async function getUsage(
   db: SupabaseClient,
   storeId: string,
   limit: number,
   now = new Date(),
-): Promise<UsageStatus> {
+): Promise<UsageWithConversations> {
+  const since = monthStartUtc(now).toISOString();
   const { count, error } = await db
     .from("agent_runs")
     .select("id", { count: "exact", head: true })
@@ -203,9 +208,27 @@ export async function getUsage(
     .eq("source", "customer")
     .eq("fast_path", false)
     .is("error", null)
-    .gte("created_at", monthStartUtc(now).toISOString());
+    .gte("created_at", since);
   if (error) throw error;
-  return usageStatus(count ?? 0, limit);
+
+  const conversationIds = new Set<string>();
+  for (let from = 0; ; from += USAGE_PAGE) {
+    const { data, error: convErr } = await db
+      .from("agent_runs")
+      .select("conversation_id")
+      .eq("store_id", storeId)
+      .eq("source", "customer")
+      .eq("fast_path", false)
+      .is("error", null)
+      .gte("created_at", since)
+      .order("id", { ascending: true })
+      .range(from, from + USAGE_PAGE - 1);
+    if (convErr) throw convErr;
+    const rows = (data ?? []) as { conversation_id: string }[];
+    for (const r of rows) conversationIds.add(r.conversation_id);
+    if (rows.length < USAGE_PAGE) break;
+  }
+  return { ...usageStatus(count ?? 0, limit), conversations: conversationIds.size };
 }
 
 // --- Main entry --------------------------------------------------------------

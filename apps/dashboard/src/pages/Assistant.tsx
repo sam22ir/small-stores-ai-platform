@@ -12,27 +12,23 @@ type Channel = { id: string; platform: string; display_name: string | null; stat
 
 const randomId = () => Math.random().toString(36).slice(2, 10);
 
-function monthStartIso(): string {
-  const d = new Date();
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
-}
-
 function UsageMeter() {
   const { t } = useI18n();
   const { store } = useStore();
-  const [used, setUsed] = useState<number | null>(null);
+  const [usage, setUsage] = useState<{ used: number; conversations: number } | null>(null);
   const limit = store!.monthly_reply_limit;
 
   const load = useCallback(async () => {
-    const { count } = await supabase
-      .from("agent_runs").select("id", { count: "exact", head: true })
-      .eq("source", "customer").eq("fast_path", false).is("error", null)
-      .gte("created_at", monthStartIso());
-    setUsed(count ?? 0);
-  }, []);
+    const { data } = await supabase.functions.invoke("assistant-chat", {
+      body: { store_id: store!.id, action: "usage" },
+    });
+    const u = (data as { usage?: { used?: number; conversations?: number } } | null)?.usage;
+    setUsage({ used: u?.used ?? 0, conversations: u?.conversations ?? 0 });
+  }, [store]);
   useEffect(() => { void load(); }, [load]);
 
-  if (used === null) return null;
+  if (usage === null) return null;
+  const { used, conversations } = usage;
   const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 100;
   const out = used >= limit;
   const near = !out && used >= limit * 0.8;
@@ -45,6 +41,14 @@ function UsageMeter() {
       <div className="mt-2 h-2 rounded-full overflow-hidden" style={{ background: "var(--border)" }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
         <div className="h-full" style={{ width: `${pct}%`, background: out ? "var(--danger, #c0392b)" : near ? "var(--warn-text)" : "var(--brand)" }} />
       </div>
+      <p className="text-sm muted mt-2 mb-0">
+        {conversations > 0
+          ? t("assistant.usageConversations", { used, conversations })
+          : t("assistant.usageRepliesOnly", { used })}
+        {conversations > 0 && (
+          <> {t("assistant.usageRatio", { ratio: (used / conversations).toFixed(1) })}</>
+        )}
+      </p>
       {(near || out) && (
         <p className="text-sm mt-2 mb-0" style={{ color: "var(--warn-text)" }}>{out ? t("assistant.usageOut") : t("assistant.usageNear")}</p>
       )}

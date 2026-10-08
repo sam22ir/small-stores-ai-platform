@@ -152,7 +152,9 @@ export function start(port = 54321) {
       }
       if (url.pathname === "/functions/v1/assistant-chat") {
         if (req.method !== "POST") return send(204);
-        const { text = "" } = JSON.parse(body || "{}");
+        const payload = JSON.parse(body || "{}");
+        if (payload.action === "usage") return send(200, { usage: { used: 7, limit: 1000, remaining: 993, exceeded: false, nearLimit: false, conversations: 3 } });
+        const { text = "" } = payload;
         state.testRuns++;
         if (/human/i.test(text)) return send(200, { ok: true, reply: "Thanks! I've passed this to the owner.", status: "human", handoff: "asked for a human", tool_calls: ["handoff_to_owner"], fast_path: false });
         if (/hello/i.test(text)) return send(200, { ok: true, reply: "Hi, welcome to Demo Boutique! How can I help you?", status: "bot", tool_calls: [], fast_path: true });

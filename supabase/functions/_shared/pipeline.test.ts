@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { handleInbound, type StoreSettings } from "./pipeline.ts";
+import { getUsage, handleInbound, type StoreSettings } from "./pipeline.ts";
 
 // A tiny in-memory stand-in for the parts of supabase-js the pipeline uses.
 type Row = Record<string, unknown>;
@@ -14,6 +14,7 @@ class Query {
   private wantCount = false;
   private descending = false;
   private max = Infinity;
+  private offset = 0;
   private single = false;
   private tables: Record<string, Row[]>;
   private table: string;
@@ -58,6 +59,11 @@ class Query {
     this.max = n;
     return this;
   }
+  range(from: number, to: number) {
+    this.offset = from;
+    this.max = to - from + 1;
+    return this;
+  }
   maybeSingle() {
     this.single = true;
     return this;
@@ -93,7 +99,7 @@ class Query {
     const sorted = [...matching].sort((a, b) => (Number(a._seq) - Number(b._seq)) * (this.descending ? -1 : 1));
     if (this.single) return { data: sorted[0] ?? null, error: null };
     return {
-      data: sorted.slice(0, this.max),
+      data: sorted.slice(this.offset, this.offset + this.max),
       count: this.wantCount ? matching.length : undefined,
       error: null,
     };
@@ -248,6 +254,33 @@ test("the limit notice is written in the customer's language", async () => {
   assert.ok(ar.ok && /[\u0600-\u06ff]/.test(ar.reply ?? ""));
   const fr = await handleInbound(setup({ runs: runs.map((r) => ({ ...r })) }).input("Bonjour, vous livrez à Oran ?"));
   assert.ok(fr.ok && /Merci pour votre message/.test(fr.reply ?? ""));
+});
+
+test("usage counts the distinct conversations behind this month's counted replies", async () => {
+  const now = new Date("2026-10-15T12:00:00Z");
+  const thisMonth = "2026-10-03T09:00:00Z";
+  const row = (conversation_id: string, extra: Row = {}, created_at = thisMonth) =>
+    ({ store_id: "s1", conversation_id, source: "customer", fast_path: false, error: null, created_at, ...extra });
+  const tables = {
+    agent_runs: [
+      row("c1"),
+      row("c1"),
+      row("c2"),
+      row("c3", { source: "test" }),
+      row("c4", { fast_path: true }),
+      row("c5", { error: "boom" }),
+      row("c6", {}, "2026-09-30T23:00:00Z"),
+      row("c7", { store_id: "s2" }),
+    ].map((r, i) => ({ ...r, _seq: i })),
+  };
+  const usage = await getUsage(fakeDb(tables), "s1", 1000, now);
+  assert.equal(usage.used, 3);
+  assert.equal(usage.conversations, 2);
+  assert.equal(usage.limit, 1000);
+
+  const none = await getUsage(fakeDb({ agent_runs: [] }), "s1", 1000, now);
+  assert.equal(none.conversations, 0);
+  assert.equal(none.used, 0);
 });
 
 test("failed runs, test runs and fast-path runs don't use up the allowance", async () => {

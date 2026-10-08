@@ -20,7 +20,10 @@ export function Settings() {
   const [currency, setCurrency] = useState(s.currency);
   const [timezone, setTimezone] = useState(s.timezone);
   const [info, setInfo] = useState<InfoFields>(() => fieldsFromStore(s.business_info_fields, s.business_info));
-  const [enabled, setEnabled] = useState(s.agent_enabled);
+  // null = the owner has not touched this checkbox here, so it follows the store
+  // (the header pause switch can change agent_enabled while this page is open).
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const agentOn = enabled ?? s.agent_enabled;
   const [ordersOn, setOrdersOn] = useState(s.orders_enabled);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,11 +37,12 @@ export function Settings() {
     if (!name.trim()) return;
     setBusy(true); setError(null); setSaved(false);
     const { error: err } = await supabase.from("stores").update({
-      name: name.trim(), currency, timezone, business_info: composeInfo(info) || null, business_info_fields: info, agent_enabled: enabled,
+      name: name.trim(), currency, timezone, business_info: composeInfo(info) || null, business_info_fields: info,
       orders_enabled: ordersOn,
+      ...(enabled === null ? {} : { agent_enabled: enabled }),
     }).eq("id", s.id);
     if (err) setError(t("common.error"));
-    else { setSaved(true); await refresh(); }
+    else { setEnabled(null); setSaved(true); await refresh(); }
     setBusy(false);
   }
 
@@ -78,7 +82,7 @@ export function Settings() {
         </fieldset>
         <div>
           <label className="flex items-center gap-2 font-semibold">
-            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} /> {t("settings.agent")}
+            <input type="checkbox" checked={agentOn} onChange={(e) => setEnabled(e.target.checked)} /> {t("settings.agent")}
           </label>
           <p className="muted text-sm mt-1 mb-0">{t("settings.agentHelp")}</p>
         </div>
