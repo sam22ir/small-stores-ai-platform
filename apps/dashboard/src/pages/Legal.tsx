@@ -7,13 +7,13 @@ import { legal } from "../lib/legal";
 
 function Page({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="min-h-screen px-4 py-8">
-      <main className="mx-auto max-w-2xl">
+    <div className="min-h-screen bg-[var(--bg)] px-4 py-10">
+      <main className="mx-auto max-w-[65ch] text-[15px] leading-relaxed text-[var(--text)]">
         <Link to="/" className="muted text-sm no-underline">← {legal.product}</Link>
-        <h1 className="text-3xl font-extrabold mt-3 mb-1">{title}</h1>
-        <p className="muted mt-0 mb-6">Last updated: {legal.updated}</p>
-        <div className="legal flex flex-col gap-3 leading-relaxed">{children}</div>
-        <nav className="muted text-sm mt-10 flex gap-4 flex-wrap" aria-label="Legal">
+        <h1 className="text-2xl font-semibold text-[var(--heading)] mt-4 mb-1">{title}</h1>
+        <p className="muted text-[13px] mt-0 mb-8">Last updated: {legal.updated}</p>
+        <div className="legal flex flex-col gap-3">{children}</div>
+        <nav className="muted text-sm mt-12 pt-6 border-t border-[var(--divider)] flex gap-4 flex-wrap" aria-label="Legal">
           <Link to="/privacy">Privacy policy</Link>
           <Link to="/terms">Terms of service</Link>
           <Link to="/data-deletion">Data deletion</Link>
@@ -23,7 +23,7 @@ function Page({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-const H = ({ children }: { children: ReactNode }) => <h2 className="text-xl font-extrabold mt-5 mb-0">{children}</h2>;
+const H = ({ children }: { children: ReactNode }) => <h2 className="text-[17px] font-semibold text-[var(--heading)] mt-6 mb-0">{children}</h2>;
 const Mail = () => <a href={`mailto:${legal.email}`}>{legal.email}</a>;
 
 export function Privacy() {

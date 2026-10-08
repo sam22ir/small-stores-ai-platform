@@ -154,7 +154,7 @@ export function Layout() {
       </div>
 
       {/* Phone bottom tab bar (< 1024px) */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 grid grid-cols-5 border-t divider safe-bottom" style={{ background: "var(--surface)" }}>
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-5 border-t divider safe-bottom" style={{ background: "var(--surface)" }}>
         {NAV.map((n) => (
           <NavLink key={n.to} to={n.to}
             className="flex flex-col items-center justify-center gap-1 py-1.5 px-0.5 min-w-0 text-xs leading-tight"

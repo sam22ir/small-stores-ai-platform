@@ -12,6 +12,26 @@ import { CURRENCIES } from "./Onboarding";
 
 const ZONES = ["Africa/Algiers", "Africa/Casablanca", "Africa/Tunis", "Europe/Paris", "UTC"];
 
+const SECTION_TITLE = "text-[15px] font-semibold text-[var(--heading)] m-0";
+
+// Pill switch. The checkbox stays inside the label so the whole row is the click target.
+function Toggle({ checked, onChange, label, help }: { checked: boolean; onChange: (v: boolean) => void; label: string; help: string }) {
+  return (
+    <label className="flex items-start justify-between gap-4 cursor-pointer">
+      <span className="min-w-0">
+        <span className="block font-semibold text-[15px] text-[var(--heading)]">{label}</span>
+        <span className="block muted text-[13px] mt-1">{help}</span>
+      </span>
+      <span className="relative inline-block h-6 w-11 shrink-0 mt-0.5">
+        {/* The real checkbox sits on top of the track (transparent) so it is the click target. */}
+        <input type="checkbox" className="peer absolute inset-0 z-10 m-0 h-full w-full cursor-pointer opacity-0" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+        <span aria-hidden="true" className="pointer-events-none block h-full w-full rounded-full bg-[var(--border)] transition-colors peer-checked:bg-[var(--brand)] peer-focus-visible:[outline:2px_solid_var(--brand)] peer-focus-visible:outline-offset-2" />
+        <span aria-hidden="true" className="pointer-events-none absolute top-0.5 start-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5 rtl:peer-checked:-translate-x-5" />
+      </span>
+    </label>
+  );
+}
+
 export function Settings() {
   const { t } = useI18n();
   const { store, refresh } = useStore();
@@ -47,30 +67,36 @@ export function Settings() {
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-extrabold mt-1 mb-4">{t("settings.title")}</h1>
-      <form onSubmit={save} className="card p-5 flex flex-col gap-4">
-        <div>
-          <label className="label" htmlFor="sname">{t("settings.name")}</label>
-          <input id="sname" className="input" required maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+    <div className="mx-auto max-w-[760px] flex flex-col gap-4">
+      <h1 className="text-[20px] font-semibold text-[var(--heading)] mt-1 mb-0">{t("settings.title")}</h1>
+      <form onSubmit={save} className="flex flex-col gap-4">
+        <section className="card p-5 flex flex-col gap-4" aria-labelledby="sec-store">
+          <h2 id="sec-store" className={SECTION_TITLE}>{t("settings.sec.store")}</h2>
           <div>
-            <label className="label" htmlFor="scur">{t("settings.currency")}</label>
-            <select id="scur" className="input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              {currencies.map((c) => <option key={c}>{c}</option>)}
-            </select>
+            <label className="label" htmlFor="sname">{t("settings.name")}</label>
+            <input id="sname" className="input" required maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="scur">{t("settings.currency")}</label>
+              <select id="scur" className="input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                {currencies.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="stz">{t("settings.timezone")}</label>
+              <select id="stz" className="input" value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+                {zones.map((z) => <option key={z}>{z}</option>)}
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section className="card p-5 flex flex-col gap-4" aria-labelledby="sec-info">
           <div>
-            <label className="label" htmlFor="stz">{t("settings.timezone")}</label>
-            <select id="stz" className="input" value={timezone} onChange={(e) => setTimezone(e.target.value)}>
-              {zones.map((z) => <option key={z}>{z}</option>)}
-            </select>
+            <h2 id="sec-info" className={SECTION_TITLE}>{t("settings.info")}</h2>
+            <p className="muted text-[13px] mt-1 mb-0">{t("settings.infoHelp")}</p>
           </div>
-        </div>
-        <fieldset className="border-0 p-0 m-0 flex flex-col gap-3">
-          <legend className="label text-base">{t("settings.info")}</legend>
-          <p className="muted text-sm m-0">{t("settings.infoHelp")}</p>
           {INFO_KEYS.map((k) => (
             <div key={k}>
               <label className="label" htmlFor={`info-${k}`}>{t(`settings.f.${k}`)}</label>
@@ -79,29 +105,75 @@ export function Settings() {
                 onChange={(e) => setInfo((f) => ({ ...f, [k as InfoKey]: e.target.value }))} />
             </div>
           ))}
-        </fieldset>
-        <div>
-          <label className="flex items-center gap-2 font-semibold">
-            <input type="checkbox" checked={agentOn} onChange={(e) => setEnabled(e.target.checked)} /> {t("settings.agent")}
-          </label>
-          <p className="muted text-sm mt-1 mb-0">{t("settings.agentHelp")}</p>
-        </div>
-        <div>
-          <label className="flex items-center gap-2 font-semibold">
-            <input type="checkbox" checked={ordersOn} onChange={(e) => setOrdersOn(e.target.checked)} /> {t("settings.orders")}
-          </label>
-          <p className="muted text-sm mt-1 mb-0">{t("settings.ordersHelp")}</p>
-        </div>
+        </section>
+
+        <section className="card p-5 flex flex-col gap-4" aria-labelledby="sec-assistant">
+          <h2 id="sec-assistant" className={SECTION_TITLE}>{t("assistant.title")}</h2>
+          <Toggle checked={agentOn} onChange={(v) => setEnabled(v)} label={t("settings.agent")} help={t("settings.agentHelp")} />
+          <div className="border-t border-[var(--divider)] pt-4">
+            <Toggle checked={ordersOn} onChange={(v) => setOrdersOn(v)} label={t("settings.orders")} help={t("settings.ordersHelp")} />
+          </div>
+        </section>
+
         {error && <p className="error m-0" role="alert">{error}</p>}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <button className="btn btn-primary" disabled={busy}>{t("common.save")}</button>
           {saved && <span className="badge badge-ok" role="status">{t("common.saved")}</span>}
         </div>
       </form>
+      <PasswordCard />
       <FaqEditor storeId={s.id} />
       <DeliveryFees storeId={s.id} currency={s.currency} />
       {TELEGRAM_BOT && <TelegramAlerts storeId={s.id} />}
     </div>
+  );
+}
+
+// Lets owners who joined by email link set a password for password sign-in.
+function PasswordCard() {
+  const { t } = useI18n();
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setSaved(false);
+    if (password.length < 8) { setError(t("auth.passwordRule")); return; }
+    if (password !== confirm) { setError(t("auth.passwordMismatch")); return; }
+    setBusy(true); setError(null);
+    const { error: err } = await supabase.auth.updateUser({ password });
+    if (err) setError(t("common.error"));
+    else { setPassword(""); setConfirm(""); setSaved(true); }
+    setBusy(false);
+  }
+
+  return (
+    <section className="card p-5 flex flex-col gap-4" aria-labelledby="sec-password">
+      <div>
+        <h2 id="sec-password" className={SECTION_TITLE}>{t("settings.pw.title")}</h2>
+        <p className="muted text-[13px] mt-1 mb-0">{t("settings.pw.help")}</p>
+      </div>
+      <form onSubmit={save} className="flex flex-col gap-4">
+        <div>
+          <label className="label" htmlFor="pw-new">{t("auth.newPassword")}</label>
+          <input id="pw-new" className="input" type="password" required minLength={8} autoComplete="new-password"
+            value={password} onChange={(e) => setPassword(e.target.value)} dir="ltr" />
+        </div>
+        <div>
+          <label className="label" htmlFor="pw-confirm">{t("auth.confirmPassword")}</label>
+          <input id="pw-confirm" className="input" type="password" required minLength={8} autoComplete="new-password"
+            value={confirm} onChange={(e) => setConfirm(e.target.value)} dir="ltr" />
+        </div>
+        {error && <p className="error m-0" role="alert">{error}</p>}
+        <div className="flex items-center gap-3 flex-wrap">
+          <button className="btn btn-primary" disabled={busy}>{t("settings.pw.save")}</button>
+          {saved && <span className="badge badge-ok" role="status">{t("settings.pw.saved")}</span>}
+        </div>
+      </form>
+    </section>
   );
 }
 
@@ -133,14 +205,14 @@ function TelegramAlerts({ storeId }: { storeId: string }) {
   }
 
   return (
-    <section className="card p-5 mt-6 flex flex-col gap-3">
+    <section className="card p-5 flex flex-col gap-4">
       <div>
-        <h2 className="text-lg font-extrabold m-0">{t("settings.tg.title")}</h2>
-        <p className="muted text-sm mt-1 mb-0">{t("settings.tg.help")}</p>
+        <h2 className={SECTION_TITLE}>{t("settings.tg.title")}</h2>
+        <p className="muted text-[13px] mt-1 mb-0">{t("settings.tg.help")}</p>
       </div>
       {error && <p className="error m-0" role="alert">{error}</p>}
       {connected === true && (
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <span className="badge badge-ok">{t("settings.tg.connected")}</span>
           <button className="btn btn-small" disabled={busy} onClick={() => void disconnect()}>{t("settings.tg.disconnect")}</button>
         </div>
@@ -148,7 +220,7 @@ function TelegramAlerts({ storeId }: { storeId: string }) {
       {connected === false && (
         <>
           <span className="badge badge-muted w-fit">{t("settings.tg.notConnected")}</span>
-          <p className="muted text-sm m-0">{t("settings.tg.open")}</p>
+          <p className="muted text-[13px] m-0">{t("settings.tg.open")}</p>
           <div>
             <button className="btn btn-primary" disabled={busy || !code}
               onClick={() => window.open(`https://t.me/${TELEGRAM_BOT}?start=${code}`, "_blank", "noopener")}>
@@ -228,10 +300,10 @@ function DeliveryFees({ storeId, currency }: { storeId: string; currency: string
   }
 
   return (
-    <section className="card p-5 mt-6 flex flex-col gap-3">
+    <section className="card p-5 flex flex-col gap-4">
       <div>
-        <h2 className="text-lg font-extrabold m-0">{t("fees.title")}</h2>
-        <p className="muted text-sm mt-1 mb-0">{t("fees.help")}</p>
+        <h2 className={SECTION_TITLE}>{t("fees.title")}</h2>
+        <p className="muted text-[13px] mt-1 mb-0">{t("fees.help")}</p>
       </div>
 
       <form onSubmit={add} className="flex gap-2 flex-wrap items-end">
@@ -249,12 +321,12 @@ function DeliveryFees({ storeId, currency }: { storeId: string; currency: string
       </form>
       {error && <p className="error m-0" role="alert">{error}</p>}
       {failed && <p className="error m-0">{t("common.error")}</p>}
-      {fees && fees.length === 0 && <p className="muted m-0">{t("fees.empty")}</p>}
+      {fees && fees.length === 0 && <p className="muted text-[13px] m-0">{t("fees.empty")}</p>}
 
-      <ul className="list-none p-0 m-0 flex flex-col gap-2">
+      <ul className="list-none p-0 m-0 flex flex-col border-t border-[var(--divider)]">
         {(fees ?? []).map((f) => (
-          <li key={f.id} className="flex items-center gap-2">
-            <span className="grow font-semibold">{f.wilaya}</span>
+          <li key={f.id} className="flex items-center gap-3 py-2 border-b border-[var(--divider)] last:border-b-0">
+            <span className="grow font-semibold text-[15px] text-[var(--heading)]">{f.wilaya}</span>
             <input className="input" style={{ width: 110 }} inputMode="decimal" defaultValue={centsToInput(f.fee_cents)} key={`${f.id}-${f.fee_cents}`}
               aria-label={`${t("fees.fee")} ${f.wilaya} (${formatMoney(f.fee_cents, currency, lang)})`}
               onBlur={(e) => void update(f, e.target.value)} />

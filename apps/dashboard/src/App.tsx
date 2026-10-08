@@ -5,8 +5,9 @@ import { StoreProvider, useStore } from "./lib/store";
 import { configured } from "./lib/supabase";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
+import { ResetPassword } from "./pages/ResetPassword";
 import { Onboarding } from "./pages/Onboarding";
-import { Inbox } from "./pages/Inbox";
+import { Inbox, InboxEmpty } from "./pages/Inbox";
 import { Thread } from "./pages/Thread";
 import { Catalog } from "./pages/Catalog";
 import { Settings } from "./pages/Settings";
@@ -56,6 +57,8 @@ export function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            {/* Outside Protected: the recovery link lands here, and the guard must not send it to /login first. */}
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/data-deletion" element={<DataDeletion />} />
@@ -63,8 +66,10 @@ export function App() {
               <Route path="/onboarding" element={<Onboarding />} />
               <Route element={<WithStore />}>
                 <Route index element={<Navigate to="/inbox" replace />} />
-                <Route path="/inbox" element={<Inbox />} />
-                <Route path="/inbox/:id" element={<Thread />} />
+                <Route path="/inbox" element={<Inbox />}>
+                  <Route index element={<InboxEmpty />} />
+                  <Route path=":id" element={<Thread />} />
+                </Route>
                 <Route path="/catalog" element={<Catalog />} />
                 <Route path="/orders" element={<Orders />} />
                 <Route path="/assistant" element={<Assistant />} />

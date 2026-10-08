@@ -111,21 +111,21 @@ export function Catalog() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 mb-4 mt-1">
-        <h1 className="text-2xl font-extrabold m-0">{t("catalog.title")}</h1>
-        <div className="flex gap-2">
-          <button className="btn" onClick={() => setImporting(true)}>{t("catalog.import")}</button>
-          <button className="btn btn-primary" onClick={() => setEditing({})}>+ {t("catalog.add")}</button>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 mt-1">
+        <h1 className="text-[20px] font-semibold m-0" style={{ color: "var(--heading)" }}>{t("catalog.title")}</h1>
+        <div className="flex gap-2 shrink-0">
+          <button className="btn btn-small" onClick={() => setImporting(true)}>{t("catalog.import")}</button>
+          <button className="btn btn-small btn-primary" onClick={() => setEditing({})}>+ {t("catalog.add")}</button>
         </div>
       </div>
       {products && products.length > 0 && setup && !setup.tested && (
-        <div className="rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3 flex-wrap" style={{ background: "var(--brand-soft)" }} role="status">
-          <span className="text-sm font-semibold">{t("catalog.tryNudge")}</span>
+        <div className="card px-4 py-3 mb-3 flex items-center justify-between gap-3 flex-wrap" style={{ background: "var(--brand-soft)", borderColor: "var(--brand-border)" }} role="status">
+          <span className="text-sm font-semibold" style={{ color: "var(--heading)" }}>{t("catalog.tryNudge")}</span>
           <Link to="/assistant" className="btn btn-small btn-primary no-underline">{t("catalog.tryNow")}</Link>
         </div>
       )}
       {staleIds.length > 0 && (
-        <div className="rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3 flex-wrap" style={{ background: "var(--warn-bg)", color: "var(--warn-text)" }} role="status">
+        <div className="card px-4 py-3 mb-3 flex items-center justify-between gap-3 flex-wrap" style={{ background: "var(--warn-soft)", borderColor: "var(--warn-border)", color: "var(--warn)" }} role="status">
           <span className="text-sm">{t("catalog.staleBanner", { n: staleIds.length })}</span>
           <button className="btn btn-small" onClick={() => void markChecked(staleIds)}>{t("catalog.markAllChecked")}</button>
         </div>
@@ -135,45 +135,50 @@ export function Catalog() {
 
       {failed && <p className="error">{t("common.error")} <button className="btn btn-small" onClick={() => void load()}>{t("common.retry")}</button></p>}
       {!products && !failed && <p className="muted">{t("common.loading")}</p>}
-      {products && products.length === 0 && <p className="muted card p-5">{t("catalog.empty")}</p>}
+      {products && products.length === 0 && (
+        <div className="card p-6 text-center">
+          <p className="m-0 font-semibold" style={{ color: "var(--heading)" }}>{t("catalog.empty")}</p>
+        </div>
+      )}
       {products && products.length > 0 && shown.length === 0 && <p className="muted">{t("catalog.noMatch")}</p>}
 
-      <ul className="list-none p-0 m-0 flex flex-col gap-3">
+      <ul className="list-none p-0 m-0 grid gap-3 lg:grid-cols-2">
         {shown.map((p) => (
-          <li key={p.id} className="card p-4" style={p.active ? undefined : { opacity: 0.65 }}>
+          <li key={p.id} className="card p-4 flex flex-col gap-3" style={p.active ? undefined : { opacity: 0.65 }}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="font-bold text-lg">{p.name}</div>
-                <div className="muted">{formatMoney(p.price_cents, currency, lang)}{!p.active && ` · ${t("catalog.hidden")}`}</div>
-                <div className="text-xs muted mt-1 flex items-center gap-2 flex-wrap">
-                  <span>{t("catalog.updated", { when: formatAgo(new Date(lastTouched(p)).toISOString(), lang) })}</span>
-                  {isStale(p) && <span className="badge badge-warn">{t("catalog.stale")}</span>}
-                  {isSoldOut(p) && <span className="badge badge-bad">{t("catalog.soldOutBadge")}</span>}
-                </div>
+                <div className="font-semibold text-[15px]" style={{ color: "var(--heading)" }}>{p.name}</div>
+                {p.aliases && <div className="text-[13px] muted truncate">{p.aliases}</div>}
+                <div className="text-[15px] font-semibold mt-1">{formatMoney(p.price_cents, currency, lang)}{!p.active && <span className="muted font-normal text-[13px]"> · {t("catalog.hidden")}</span>}</div>
               </div>
               <div className="flex gap-2 shrink-0">
                 <button className="btn btn-small" onClick={() => setEditing({ product: p })}>{t("common.edit")}</button>
                 <button className="btn btn-small btn-danger" onClick={() => void remove(p)}>{t("common.delete")}</button>
               </div>
             </div>
-            <ul className="list-none p-0 mt-3 mb-0 flex flex-col gap-2">
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <span className="badge badge-muted">{t("catalog.updated", { when: formatAgo(new Date(lastTouched(p)).toISOString(), lang) })}</span>
+              {isStale(p) && <span className="badge badge-warn">{t("catalog.stale")}</span>}
+              {isSoldOut(p) && <span className="badge badge-muted">{t("catalog.soldOutBadge")}</span>}
+            </div>
+            <ul className="list-none p-0 m-0 flex flex-col gap-2">
               {p.product_variants.map((v) => (
-                <li key={v.id} className="flex items-center justify-between gap-2 flex-wrap rounded-xl px-3 py-2" style={{ background: "var(--bg)" }}>
+                <li key={v.id} className="flex items-center justify-between gap-2 rounded-xl px-3 py-2" style={{ background: "var(--bg)", border: "1px solid var(--divider)" }}>
                   <div className="min-w-0">
-                    <span className="font-semibold">{v.label}</span>
-                    {v.price_cents !== null && <span className="muted"> · {formatMoney(v.price_cents, currency, lang)}</span>}
+                    <span className="font-semibold text-[15px]">{v.label}</span>
+                    {v.price_cents !== null && <span className="muted text-[13px]"> · {formatMoney(v.price_cents, currency, lang)}</span>}
                     <div className="mt-1">{stockBadge(v.stock_quantity)}</div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button className="btn btn-icon" aria-label={t("catalog.decrease")} onClick={() => void adjustStock(p, v, -1)}>−</button>
-                    <span className="min-w-10 text-center font-bold tabular-nums" aria-live="polite">{v.stock_quantity}</span>
-                    <button className="btn btn-icon" aria-label={t("catalog.increase")} onClick={() => void adjustStock(p, v, 1)}>+</button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button className="btn btn-icon" style={{ borderRadius: 999 }} aria-label={t("catalog.decrease")} onClick={() => void adjustStock(p, v, -1)}>−</button>
+                    <span className="min-w-10 text-center font-semibold text-[15px] tabular-nums" aria-live="polite">{v.stock_quantity}</span>
+                    <button className="btn btn-icon" style={{ borderRadius: 999 }} aria-label={t("catalog.increase")} onClick={() => void adjustStock(p, v, 1)}>+</button>
                   </div>
                 </li>
               ))}
             </ul>
-            <div className="flex items-center justify-between gap-2 flex-wrap mt-3">
-              <label className="flex items-center gap-2 text-sm muted">
+            <div className="flex items-center justify-between gap-2 flex-wrap pt-3" style={{ borderTop: "1px solid var(--divider)" }}>
+              <label className="flex items-center gap-2 text-[13px] muted">
                 <input type="checkbox" checked={p.active} onChange={() => void toggleActive(p)} /> {t("catalog.active")}
               </label>
               <div className="flex gap-2 flex-wrap">

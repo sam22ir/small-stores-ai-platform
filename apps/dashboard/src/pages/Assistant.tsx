@@ -6,11 +6,14 @@ import { _dicts, useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { useStore } from "../lib/store";
 import { platformKey } from "./Inbox";
+import { SparkIcon } from "../components/icons";
 
 type Turn = { role: "customer" | "assistant"; text: string; note?: string };
 type Channel = { id: string; platform: string; display_name: string | null; status: string };
 
 const randomId = () => Math.random().toString(36).slice(2, 10);
+
+const SECTION_TITLE = "text-[15px] font-semibold text-[var(--heading)] m-0";
 
 function UsageMeter() {
   const { t } = useI18n();
@@ -32,27 +35,35 @@ function UsageMeter() {
   const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 100;
   const out = used >= limit;
   const near = !out && used >= limit * 0.8;
+  const barColor = out ? "var(--danger)" : near ? "var(--warn)" : "var(--brand)";
   return (
-    <div className="card p-4 mb-4">
+    <section className="card p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-bold">{t("assistant.usage")}</span>
-        <span className="muted text-sm">{t("assistant.usageOf", { used, limit })}</span>
+        <span className={SECTION_TITLE}>{t("assistant.usage")}</span>
+        <span className="muted text-[13px]">{t("assistant.usageOf", { used, limit })}</span>
       </div>
-      <div className="mt-2 h-2 rounded-full overflow-hidden" style={{ background: "var(--border)" }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-        <div className="h-full" style={{ width: `${pct}%`, background: out ? "var(--danger, #c0392b)" : near ? "var(--warn-text)" : "var(--brand)" }} />
-      </div>
-      <p className="text-sm muted mt-2 mb-0">
-        {conversations > 0
-          ? t("assistant.usageConversations", { used, conversations })
-          : t("assistant.usageRepliesOnly", { used })}
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-2">
+        <div>
+          <div className="text-[28px] leading-none font-semibold tabular-nums text-[var(--heading)]">{used}</div>
+          <div className="muted text-[12px] mt-1">{t("assistant.statReplies")}</div>
+        </div>
+        <div>
+          <div className="text-[28px] leading-none font-semibold tabular-nums text-[var(--heading)]">{conversations}</div>
+          <div className="muted text-[12px] mt-1">{t("assistant.statConversations")}</div>
+        </div>
         {conversations > 0 && (
-          <> {t("assistant.usageRatio", { ratio: (used / conversations).toFixed(1) })}</>
+          <p className="muted text-[13px] m-0 pb-0.5">
+            {t("assistant.usageConversations", { used, conversations })} {t("assistant.usageRatio", { ratio: (used / conversations).toFixed(1) })}
+          </p>
         )}
-      </p>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden bg-[var(--surface-2)]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+        <div className="h-full rounded-full transition-[width]" style={{ width: `${pct}%`, background: barColor }} />
+      </div>
       {(near || out) && (
-        <p className="text-sm mt-2 mb-0" style={{ color: "var(--warn-text)" }}>{out ? t("assistant.usageOut") : t("assistant.usageNear")}</p>
+        <p className="text-[13px] m-0" style={{ color: out ? "var(--danger)" : "var(--warn)" }}>{out ? t("assistant.usageOut") : t("assistant.usageNear")}</p>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -104,33 +115,46 @@ function TestChat() {
   }
 
   return (
-    <div className="card p-4 mb-6">
+    <section className="card p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-extrabold m-0">{t("assistant.testTitle")}</h2>
+        <h2 className={SECTION_TITLE}>{t("assistant.testTitle")}</h2>
         <button className="btn btn-small" onClick={newChat}>{t("assistant.newChat")}</button>
       </div>
-      <p className="muted text-sm mt-1">{t("assistant.testIntro")}</p>
+      <p className="muted text-[13px] m-0">{t("assistant.testIntro")}</p>
 
-      <div className="flex flex-col gap-2 py-2 min-h-24" aria-live="polite">
-        {turns.length === 0 && <p className="muted text-sm">{t("assistant.example")}</p>}
+      <div className="flex flex-col gap-2 min-h-24" aria-live="polite">
+        {turns.length === 0 && <p className="muted text-[13px] m-0">{t("assistant.example")}</p>}
         {turns.map((m, i) => (
           <div key={i} className={`flex flex-col gap-0.5 w-full ${m.role === "customer" ? "items-start" : "items-end"}`}>
-            <div className={`bubble ${m.role === "customer" ? "bubble-in" : "bubble-out"}`}>{m.text}</div>
+            <div className={`bubble text-[15px] ${m.role === "customer" ? "bubble-in" : "bubble-out"}`}>
+              {m.role === "assistant" && (
+                <div className="flex items-center gap-1 text-[12px] font-semibold mb-0.5" style={{ color: "var(--brand)" }}>
+                  <span className="inline-flex [&>svg]:size-3.5" aria-hidden="true"><SparkIcon /></span>
+                  {t("assistant.title")}
+                </div>
+              )}
+              {m.text}
+            </div>
             {m.note && <div className="muted text-xs">{m.note}</div>}
           </div>
         ))}
-        {busy && <p className="muted text-sm m-0">{t("assistant.typing")}</p>}
+        {busy && <p className="muted text-[13px] m-0">{t("assistant.typing")}</p>}
         <div ref={endRef} />
       </div>
 
-      {handedOver && <p className="text-sm rounded-lg px-3 py-2" style={{ background: "var(--warn-bg)", color: "var(--warn-text)" }}>{t("assistant.handedOver")}</p>}
-      {error && <p className="error" role="alert">{error}</p>}
-      <form onSubmit={send} className="flex gap-2">
+      {handedOver && <p className="text-[13px] rounded-xl px-3 py-2 m-0" style={{ background: "var(--warn-bg)", color: "var(--warn-text)" }}>{t("assistant.handedOver")}</p>}
+      {error && <p className="error m-0" role="alert">{error}</p>}
+      <form onSubmit={send} className="flex items-center gap-2">
         <input className="input" value={text} maxLength={1000} disabled={handedOver}
           onChange={(e) => setText(e.target.value)} placeholder={t("assistant.placeholder")} aria-label={t("assistant.placeholder")} />
-        <button className="btn btn-primary shrink-0" disabled={busy || handedOver || !text.trim()}>{t("assistant.send")}</button>
+        <button className="btn btn-primary btn-icon shrink-0" disabled={busy || handedOver || !text.trim()}>
+          <span className="sr-only">{t("assistant.send")}</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="rtl:-scale-x-100">
+            <path d="M12 19V5M5 12l7-7 7 7" />
+          </svg>
+        </button>
       </form>
-    </div>
+    </section>
   );
 }
 
@@ -193,30 +217,32 @@ function ChannelsPanel() {
     : { background: "var(--warn-bg)", color: "var(--warn-text)" };
 
   return (
-    <section>
-      <h2 className="text-lg font-extrabold mt-0 mb-1">{t("channels.title")}</h2>
-      <p className="muted mt-0 mb-3">{t("channels.intro")}</p>
-      {notice && <p role={notice.kind === "error" ? "alert" : "status"} className="text-sm rounded-lg px-3 py-2" style={noticeStyle(notice.kind)}>{notice.text}</p>}
-      <div className="grid gap-3 sm:grid-cols-2 mb-4">
+    <section className="flex flex-col gap-3">
+      <div>
+        <h2 className={SECTION_TITLE}>{t("channels.title")}</h2>
+        <p className="muted text-[13px] mt-1 mb-0">{t("channels.intro")}</p>
+      </div>
+      {notice && <p role={notice.kind === "error" ? "alert" : "status"} className="text-[13px] rounded-xl px-3 py-2 m-0" style={noticeStyle(notice.kind)}>{notice.text}</p>}
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="card p-4 flex items-center justify-between gap-3">
-          <div>
-            <span className="font-bold">{t("channels.instagram")}</span>
-            <div className="muted text-xs">{t("channels.proNote")}</div>
+          <div className="min-w-0">
+            <span className="font-semibold text-[15px] text-[var(--heading)]">{t("channels.instagram")}</span>
+            <div className="muted text-[12px] mt-0.5">{t("channels.proNote")}</div>
           </div>
-          <button className="btn btn-small btn-primary" disabled={busy} onClick={() => void connect()}>{t("channels.connect")}</button>
+          <button className="btn btn-primary shrink-0" disabled={busy} onClick={() => void connect()}>{t("channels.connect")}</button>
         </div>
         <div className="card p-4 flex items-center justify-between gap-3">
-          <span className="font-bold">{t("channels.facebook")}</span>
-          <button className="btn btn-small" disabled>{t("channels.soon")}</button>
+          <span className="font-semibold text-[15px] text-[var(--heading)]">{t("channels.facebook")}</span>
+          <button className="btn shrink-0" disabled>{t("channels.soon")}</button>
         </div>
       </div>
-      {failed && <p className="error">{t("common.error")}</p>}
-      {channels && channels.length === 0 && <p className="muted">{t("channels.none")}</p>}
+      {failed && <p className="error m-0">{t("common.error")}</p>}
+      {channels && channels.length === 0 && <p className="muted text-[13px] m-0">{t("channels.none")}</p>}
       <ul className="list-none p-0 m-0 flex flex-col gap-2">
         {(channels ?? []).map((c) => (
           <li key={c.id} className="card p-4 flex items-center justify-between gap-3 flex-wrap">
-            <span className="font-semibold">{t(platformKey(c.platform))}{c.display_name ? ` · ${c.display_name}` : ""}</span>
-            <span className="flex items-center gap-2">
+            <span className="font-semibold text-[15px] text-[var(--heading)]">{t(platformKey(c.platform))}{c.display_name ? ` · ${c.display_name}` : ""}</span>
+            <span className="flex items-center gap-2 flex-wrap">
               <span className={`badge ${c.status === "active" ? "badge-ok" : "badge-muted"}`}>{t(c.status === "active" ? "channels.connected" : "channels.disconnected")}</span>
               {c.status === "active" && <button className="btn btn-small" disabled={busy} onClick={() => void disconnect(c)}>{t("channels.disconnect")}</button>}
             </span>
@@ -230,8 +256,8 @@ function ChannelsPanel() {
 export function Assistant() {
   const { t } = useI18n();
   return (
-    <div>
-      <h1 className="text-2xl font-extrabold mt-1 mb-4">{t("assistant.title")}</h1>
+    <div className="mx-auto max-w-[760px] flex flex-col gap-4">
+      <h1 className="text-[20px] font-semibold text-[var(--heading)] mt-1 mb-0">{t("assistant.title")}</h1>
       <UsageMeter />
       <TestChat />
       <ChannelsPanel />

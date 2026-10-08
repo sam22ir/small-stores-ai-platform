@@ -30,13 +30,21 @@ export function Onboarding() {
   }
 
   return (
-    <div className="min-h-screen grid place-items-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="flex justify-end mb-3"><LangSwitch /></div>
-        <form onSubmit={submit} className="card p-6 flex flex-col gap-4">
-          <div>
-            <h1 className="text-xl font-extrabold m-0">{t("onboarding.title")}</h1>
-            <p className="muted mt-1 mb-0">{t("onboarding.subtitle")}</p>
+    <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-4 py-8">
+      <div className="w-full max-w-[400px]">
+        <div className="flex justify-end mb-4"><LangSwitch /></div>
+        <form onSubmit={submit} className="card p-6 flex flex-col gap-5">
+          <div className="flex flex-col gap-3">
+            <div
+              aria-hidden="true"
+              className="grid size-10 place-items-center rounded-full bg-[var(--brand)] text-[var(--brand-contrast)] font-bold"
+            >
+              1
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold text-[var(--heading)] m-0">{t("onboarding.title")}</h1>
+              <p className="muted text-sm mt-1 mb-0">{t("onboarding.subtitle")}</p>
+            </div>
           </div>
           <div>
             <label className="label" htmlFor="name">{t("onboarding.name")}</label>
@@ -49,7 +57,7 @@ export function Onboarding() {
             </select>
           </div>
           {error && <p className="error m-0" role="alert">{error}</p>}
-          <button className="btn btn-primary" disabled={busy || !name.trim()}>{t("onboarding.create")}</button>
+          <button className="btn btn-primary w-full" disabled={busy || !name.trim()}>{t("onboarding.create")}</button>
         </form>
       </div>
     </div>

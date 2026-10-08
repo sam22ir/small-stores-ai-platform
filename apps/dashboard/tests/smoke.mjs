@@ -399,6 +399,32 @@ try {
   await page.waitForURL(/\/inbox/);
   ok("create_store RPC called with name and DZD", await logged((l) => l.includes("/rest/v1/rpc/create_store") && l.includes('"p_name":"My Shop"') && l.includes('"p_currency":"DZD"')));
   await ctx.close();
+
+  // 9. forgot password: the link action shows the neutral confirmation and calls recover
+  state.hasStore = true;
+  ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
+  await page.goto("http://127.0.0.1:4173/login");
+  await page.click("button:has-text('Forgot password?')");
+  await page.fill("#email", "owner@example.com");
+  await page.click("button.btn-primary");
+  ok("forgot password shows the neutral confirmation", await page.waitForSelector("text=If an account exists for this email", { timeout: 3000 }).then(() => true, () => false));
+  ok("forgot password calls /auth/v1/recover", await logged((l) => l.startsWith("POST /auth/v1/recover")));
+  await ctx.close();
+
+  // 10. recovery link: /reset-password with a recovery session sets the password via PUT /auth/v1/user
+  {
+    const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+    const token = `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: "user-1", role: "authenticated", exp: 4102444800, aud: "authenticated" })}.sig`;
+    ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
+    await page.goto(`http://127.0.0.1:4173/reset-password#access_token=${token}&refresh_token=r&expires_in=3600&token_type=bearer&type=recovery`);
+    await page.waitForSelector("#new-password", { timeout: 5000 });
+    await page.fill("#new-password", "newpassword1");
+    await page.fill("#confirm-password", "newpassword1");
+    await page.click("button.btn-primary");
+    ok("reset-password sets the password and confirms", await page.waitForSelector("text=Your password is saved", { timeout: 3000 }).then(() => true, () => false));
+    ok("reset-password sends PUT /auth/v1/user with the new password", await logged((l) => l.startsWith("PUT /auth/v1/user") && l.includes("newpassword1")));
+    await ctx.close();
+  }
 } catch (e) {
   console.log("TEST ERROR:", e.message.split("\n")[0]);
   results.push(["test run completed", false]);

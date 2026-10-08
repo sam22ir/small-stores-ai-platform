@@ -48,7 +48,7 @@ export const state = {
   log: [],
 };
 
-const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS", "access-control-expose-headers": "*" };
+const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS", "access-control-expose-headers": "*" };
 
 // Realtime: a minimal Phoenix-channel websocket. It accepts joins, answers heartbeats, and can push
 // a postgres_changes event for the conversations table to every joined client (see pushConversationChange).
@@ -140,6 +140,7 @@ export function start(port = 54321) {
       if (url.pathname === "/auth/v1/token") return send(200, session);
       if (url.pathname === "/auth/v1/user") return send(200, user);
       if (url.pathname === "/auth/v1/otp") return send(200, {});
+      if (url.pathname === "/auth/v1/recover") return send(200, {});
       if (url.pathname === "/auth/v1/signup") return send(200, { ...user, identities: [] });
       if (url.pathname === "/auth/v1/logout") return send(204);
 
