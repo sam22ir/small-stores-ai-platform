@@ -6,7 +6,8 @@
 
 export type Lang = "ar" | "fr" | "en" | "dz";
 
-const ARABIC_SCRIPT = /[؀-ۿ]/;
+const ARABIC_SCRIPT = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/u;
+export const hasArabicScript = (text: string) => ARABIC_SCRIPT.test(text);
 const FRENCH_ACCENT = /[éèêëàâçùûîïôœ]/iu;
 
 // Words that only appear in French (not in Darija or English).

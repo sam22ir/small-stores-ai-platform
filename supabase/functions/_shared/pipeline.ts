@@ -192,6 +192,33 @@ export function supabaseOrders(client: SupabaseClient, dryRun: boolean): OrderPo
 
 // --- Usage -------------------------------------------------------------------
 
+// Facts from the successful lookups (search, stock, delivery quotes) of this chat's last few runs,
+// so a later turn still knows the variant ids, prices and fees. Oldest first. A failed read only
+// costs the facts, never the reply.
+const LOOKUP_RUNS = 5;
+export async function loadLookups(db: SupabaseClient, conversationId: string): Promise<string[]> {
+  const { data, error } = await db
+    .from("agent_runs")
+    .select("tool_calls,error")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(LOOKUP_RUNS);
+  if (error) {
+    console.error("loading lookups failed", error.message);
+    return [];
+  }
+  const lines: string[] = [];
+  // A run that failed never reached the customer, so its lookups don't count.
+  const runs = ((data ?? []) as { tool_calls?: unknown; error?: unknown }[]).filter((r) => !r.error);
+  for (const run of runs.reverse()) {
+    const calls = Array.isArray(run.tool_calls) ? run.tool_calls as { output?: unknown }[] : [];
+    for (const c of calls) {
+      if (typeof c.output === "string" && c.output && !lines.includes(c.output)) lines.push(c.output);
+    }
+  }
+  return lines;
+}
+
 // Billable replies this calendar month: customer-facing, answered by the model, not failed.
 // `conversations` counts the distinct conversations those replies belong to.
 export async function getUsage(
@@ -406,6 +433,8 @@ async function processLocked(input: HandleInboundInput, alerts: OwnerAlert[]): P
       text: m.body as string,
     }));
 
+  const lookups = await loadLookups(db, conversation.id);
+
   const model = useOpenAICompatible ? primary!.model : env("AGENT_MODEL") ?? DEFAULT_MODEL;
   const meta: { provider: string | null; attempts: AttemptError[] } = {
     provider: null,
@@ -421,6 +450,7 @@ async function processLocked(input: HandleInboundInput, alerts: OwnerAlert[]): P
       catalog,
       store,
       history,
+      lookups,
       orders,
       faq: supabaseFaq(db),
       conversationId: conversation.id,

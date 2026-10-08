@@ -2,10 +2,11 @@ import { conversationLang, detectLang, holdingReply, lastCustomerText } from "./
 import { buildSystemPrompt } from "./prompt.ts";
 import {
   MAX_REPLY_BYTES,
+  toLatinDarija,
   toMessageParams,
   truncateUtf8,
 } from "./run.ts";
-import { errorText, executeTool, toolsForStore } from "./tools.ts";
+import { capLookupOutputs, errorText, executeTool, lookupOutput, toolsForStore } from "./tools.ts";
 import type {
   AgentResult,
   Catalog,
@@ -47,6 +48,7 @@ export interface ChatCompletionsOptions {
   faq?: FaqPort;
   conversationId?: string;
   customerId?: string;
+  lookups?: string[]; // facts from earlier lookups in this chat, oldest first
 }
 
 interface ToolCall {
@@ -98,7 +100,7 @@ export async function runAgentChatCompletions(
     throw new Error("history must end with a customer message");
   }
   const messages: Message[] = [
-    { role: "system", content: buildSystemPrompt(store, conversationLang(opts.history)) },
+    { role: "system", content: buildSystemPrompt(store, conversationLang(opts.history), opts.lookups) },
     ...history.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content as string,
@@ -111,12 +113,11 @@ export async function runAgentChatCompletions(
   let handoffReason: string | null = null;
   let reply = "";
 
-  async function complete(): Promise<Completion> {
+  async function complete(msgs: Message[] = messages, useTools = true): Promise<Completion> {
     const body = JSON.stringify({
       model,
-      messages,
-      tools,
-      tool_choice: "auto",
+      messages: msgs,
+      ...(useTools ? { tools, tool_choice: "auto" } : {}),
       [opts.tokenParam ?? "max_tokens"]: MAX_TOKENS,
       ...(opts.reasoningEffort ? { reasoning_effort: opts.reasoningEffort } : {}),
       ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
@@ -200,11 +201,13 @@ export async function runAgentChatCompletions(
           customerId: opts.customerId,
         });
         if (outcome.handoffReason) handoffReason = outcome.handoffReason;
+        const output = outcome.isError ? undefined : lookupOutput(call.function.name, input, outcome.content);
         toolCalls.push({
           name: call.function.name,
           input,
           is_error: !!outcome.isError,
           ...(outcome.isError ? { error: outcome.content.slice(0, 300) } : {}),
+          ...(output ? { output } : {}),
         });
         messages.push({ role: "tool", tool_call_id: call.id, content: outcome.content });
       } catch (err) {
@@ -224,6 +227,18 @@ export async function runAgentChatCompletions(
     }
   }
 
+  if (reply && conversationLang(opts.history) === "dz") {
+    reply = await toLatinDarija(reply, async (system, user) => {
+      const completion = await complete([
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ], false);
+      usage.input_tokens += completion.usage?.prompt_tokens ?? 0;
+      usage.output_tokens += completion.usage?.completion_tokens ?? 0;
+      return stripThinking(completion.choices?.[0]?.message?.content ?? "");
+    });
+  }
+
   if (!reply) {
     reply = holdingReply(conversationLang(opts.history));
     handoffReason = handoffReason ?? "No reply was produced";
@@ -232,7 +247,7 @@ export async function runAgentChatCompletions(
   return {
     reply: truncateUtf8(reply, MAX_REPLY_BYTES),
     handoffReason,
-    toolCalls,
+    toolCalls: capLookupOutputs(toolCalls),
     usage,
     model,
   };

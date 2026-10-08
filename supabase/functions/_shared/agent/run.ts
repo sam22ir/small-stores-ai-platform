@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { conversationLang, detectLang, holdingReply, lastCustomerText } from "./language.ts";
+import { conversationLang, detectLang, hasArabicScript, holdingReply, lastCustomerText } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
-import { errorText, executeTool, toolsForStore } from "./tools.ts";
+import { capLookupOutputs, errorText, executeTool, lookupOutput, toolsForStore } from "./tools.ts";
 import type {
   AgentResult,
   Catalog,
@@ -34,6 +34,7 @@ export interface RunAgentOptions {
   faq?: FaqPort;
   conversationId?: string;
   customerId?: string;
+  lookups?: string[]; // facts from earlier lookups in this chat, oldest first (see lookupSection)
 }
 
 // Models that accept `output_config.effort` and the server-side refusal fallback.
@@ -55,6 +56,25 @@ export function toMessageParams(history: ChatMessage[]): MessageParam[] {
   }
   while (out.length && out[0].role !== "user") out.shift();
   return out;
+}
+
+const LATIN_DARIJA_SYSTEM =
+  "Rewrite the customer message below in Algerian Darija written in Latin letters (arabizi). Use only Latin letters, digits and punctuation: no Arabic script and no French sentences. Keep every fact, number, price, name and phone number exactly. Reply with the rewritten message only.";
+
+// A Darija reply must not contain Arabic script. If the model wrote some anyway, ask once for a
+// rewrite and keep it only when it is clean; otherwise keep the original reply.
+export async function toLatinDarija(
+  reply: string,
+  ask: (system: string, user: string) => Promise<string>,
+): Promise<string> {
+  if (!hasArabicScript(reply)) return reply;
+  try {
+    const rewritten = (await ask(LATIN_DARIJA_SYSTEM, reply)).trim();
+    if (rewritten && !hasArabicScript(rewritten)) return rewritten;
+  } catch (err) {
+    console.error("latin darija rewrite failed", err instanceof Error ? err.message : err);
+  }
+  return reply;
 }
 
 export function truncateUtf8(text: string, maxBytes: number): string {
@@ -85,7 +105,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
   let reply = "";
 
   const frontier = isFrontierModel(model);
-  const system = buildSystemPrompt(store, conversationLang(opts.history));
+  const system = buildSystemPrompt(store, conversationLang(opts.history), opts.lookups);
   const tools = toolsForStore(store);
 
   for (let round = 0; ; round++) {
@@ -152,11 +172,13 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
             customerId: opts.customerId,
           });
           if (outcome.handoffReason) handoffReason = outcome.handoffReason;
+          const output = outcome.isError ? undefined : lookupOutput(use.name, use.input, outcome.content);
           toolCalls.push({
             name: use.name,
             input: use.input,
             is_error: !!outcome.isError,
             ...(outcome.isError ? { error: outcome.content.slice(0, 300) } : {}),
+            ...(output ? { output } : {}),
           });
           return {
             type: "tool_result",
@@ -184,6 +206,23 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
     messages.push({ role: "user", content: results });
   }
 
+  if (reply && conversationLang(opts.history) === "dz") {
+    reply = await toLatinDarija(reply, async (system, user) => {
+      const r = await client.beta.messages.create({
+        model,
+        max_tokens: 512,
+        system,
+        messages: [{ role: "user", content: user }],
+      });
+      usage.input_tokens += r.usage.input_tokens;
+      usage.output_tokens += r.usage.output_tokens;
+      return r.content
+        .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("\n");
+    });
+  }
+
   if (!reply) {
     // Nothing safe to say: either a handoff was requested or the loop gave up.
     reply = holdingReply(conversationLang(opts.history));
@@ -193,7 +232,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
   return {
     reply: truncateUtf8(reply, MAX_REPLY_BYTES),
     handoffReason,
-    toolCalls,
+    toolCalls: capLookupOutputs(toolCalls),
     usage,
     model,
   };

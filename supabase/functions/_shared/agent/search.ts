@@ -21,6 +21,16 @@ const STOPWORDS = new Set([
   "ديالكم", "ديالك", "شنو", "علاش", "ولا", "بغيت", "بغينا", "واخا",
 ]);
 
+// Arabic glues the article to the word ("الكاسكيطة"), but aliases are usually written bare
+// ("كاسكيطة"). Returns the word without its article, or null when there is none.
+const ARABIC_ARTICLE = /^(وال|بال|لل|ال)/u;
+function withoutArticle(w: string): string | null {
+  const m = ARABIC_ARTICLE.exec(w);
+  if (!m) return null;
+  const rest = w.slice(m[0].length);
+  return rest.length >= 3 ? rest : null;
+}
+
 // Each word becomes a group of spelling variants; a product matches the word if it
 // contains any variant. Over-matching is fine: results are ranked afterwards.
 export function searchGroups(query: string): string[][] {
@@ -29,6 +39,8 @@ export function searchGroups(query: string): string[][] {
   for (const w of new Set(words)) {
     if (w.length < 3 || STOPWORDS.has(w)) continue;
     const variants = new Set([w]);
+    const bare = withoutArticle(w);
+    if (bare) variants.add(bare);
     if (w.length > 3 && w.endsWith("s")) variants.add(w.slice(0, -1)); // hoodies -> hoodie
     if (w.length > 4 && w.endsWith("es")) variants.add(w.slice(0, -2)); // dresses -> dress
     if (w.length > 4 && w.endsWith("ies")) variants.add(`${w.slice(0, -3)}y`); // hoodies -> hoody

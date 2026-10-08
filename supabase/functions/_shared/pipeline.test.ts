@@ -510,3 +510,99 @@ test("an owner alert that fails does not change the customer's reply", async () 
   await settle();
   assert.equal(tables.messages.filter((m) => m.sender === "agent").length, 1);
 });
+
+// Fake provider: replies in order and records each request body.
+function stubSequence(replies: Record<string, unknown>[]) {
+  const bodies: any[] = [];
+  globalThis.fetch = (async (_url: string, init: { body: string }) => {
+    bodies.push(JSON.parse(init.body));
+    const message = replies.shift();
+    if (!message) throw new Error("fake provider: script exhausted");
+    return new Response(
+      JSON.stringify({ choices: [{ message, finish_reason: "stop" }], usage: { prompt_tokens: 1, completion_tokens: 1 } }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+  return bodies;
+}
+
+test("a later turn's prompt carries the variant id from an earlier search", async () => {
+  const { input } = setup({
+    runs: [{
+      id: "run-old",
+      _seq: 0,
+      store_id: "s1",
+      conversation_id: "c1",
+      source: "customer",
+      fast_path: false,
+      error: null,
+      tool_calls: [
+        { name: "search_products", input: { query: "hoodie" }, is_error: false, output: "Black Hoodie 4,500.00 DA: M variant_id v-123, in_stock" },
+        { name: "search_products", input: { query: "broken" }, is_error: true, error: "db down" },
+      ],
+    }, {
+      id: "run-failed",
+      _seq: 1,
+      store_id: "s1",
+      conversation_id: "c1",
+      source: "customer",
+      fast_path: false,
+      error: "500: boom",
+      tool_calls: [{ name: "check_stock", input: {}, is_error: false, output: "Other 1 DA: X variant_id v-999, in_stock" }],
+    }],
+  });
+  const bodies = stubSequence([{ content: "Hoodie noir taille M: 4 500 DA. Ça marche ?" }]);
+  const r = await handleInbound(input("Ahmed, 0550 12 34 56, Oran"));
+  assert.ok(r.ok && r.reply);
+  const system = bodies[0].messages[0].content as string;
+  assert.match(system, /Facts from your earlier lookups in this chat/);
+  assert.match(system, /variant_id v-123/);
+  assert.doesNotMatch(system, /v-999/); // runs that failed don't leave facts behind
+});
+
+test("the order rules are in the prompt when orders are on", async () => {
+  const { input } = setup();
+  const bodies = stubSequence([{ content: "Merci, quel est votre nom ?" }]);
+  await handleInbound(input("je veux commander", "customer", { orders_enabled: true }));
+  const system = bodies[0].messages[0].content as string;
+  assert.match(system, /Collecting the order details is YOUR job, not the owner's/);
+  assert.match(system, /Never hand off just to collect details/);
+});
+
+const dzMessages = () => [{ id: "m1", conversation_id: "c1", direction: "inbound", body: "wach kayen hoodie noir taille M?", _seq: 0 }];
+
+test("a Darija reply with Arabic script gets one Latin rewrite request, which is used", async () => {
+  const { input } = setup({ messages: dzMessages() });
+  const bodies = stubSequence([
+    { content: "Hoodie noir 3500 DA، تقدر تكمل" },
+    { content: "Hoodie noir 3500 DA, tqdar tkmel." },
+  ]);
+  const r = await handleInbound(input("wach kayen hoodie noir taille M?"));
+  assert.ok(r.ok && r.reply === "Hoodie noir 3500 DA, tqdar tkmel.");
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[1].tools, undefined); // the rewrite is plain text only
+  assert.match(bodies[1].messages[0].content, /Latin letters/);
+});
+
+test("the Latin rewrite falls back to the original when it still has Arabic script", async () => {
+  const { input } = setup({ messages: dzMessages() });
+  const bodies = stubSequence([
+    { content: "Hoodie noir 3500 DA، تقدر تكمل" },
+    { content: "Hoodie noir 3500 DA، كاينة" },
+  ]);
+  const r = await handleInbound(input("wach kayen hoodie noir taille M?"));
+  assert.ok(r.ok && r.reply === "Hoodie noir 3500 DA، تقدر تكمل");
+  assert.equal(bodies.length, 2);
+});
+
+test("a clean Darija reply needs no rewrite, and a non-Darija reply is never rewritten", async () => {
+  const { input } = setup();
+  const clean = stubSequence([{ content: "Hoodie noir 3500 DA, kayna. Bghiti tcommandi?" }]);
+  await handleInbound(input("wach kayen hoodie noir taille M?"));
+  assert.equal(clean.length, 1); // no rewrite request: the clean reply is sent as it is
+  const { input: input2 } = setup({ messages: [{ id: "m1", conversation_id: "c1", direction: "inbound", body: "واش كاين هودي أسود؟", _seq: 0 }] });
+  const arabic = stubSequence([{ content: "هوديي أسود 3500 دج" }]);
+  const r = await handleInbound(input2("واش كاين هودي أسود؟"));
+  assert.ok(r.ok && r.reply === "هوديي أسود 3500 دج");
+  assert.equal(arabic.length, 1);
+});

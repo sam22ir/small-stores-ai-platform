@@ -99,6 +99,7 @@ export interface ToolCallLog {
   input: unknown;
   is_error: boolean;
   error?: string; // why it failed, so agent_runs is enough to debug
+  output?: string; // compact facts from a successful lookup, reused on later turns
 }
 
 export interface AgentResult {
