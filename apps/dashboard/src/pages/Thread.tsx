@@ -3,6 +3,7 @@ import type { FormEvent, KeyboardEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
+import type { TKey } from "../lib/i18n";
 import { formatTime } from "../lib/format";
 import { platformKey } from "./Inbox";
 import { FaqModal } from "../components/FaqModal";
@@ -16,6 +17,9 @@ type Conv = {
   customers: { display_name: string | null; platform_user_id: string } | null;
   channels: { platform: string } | null;
 };
+// Canned replies the owner can drop into the box (filled, never sent automatically).
+const QUICK_REPLIES: TKey[] = ["thread.quick.phone", "thread.quick.confirmed", "thread.quick.delivery", "thread.quick.thanks"];
+
 type Msg = {
   id: string;
   direction: "inbound" | "outbound";
@@ -178,6 +182,11 @@ export function Thread() {
       </div>
 
       <form onSubmit={send} className="card p-3 flex flex-col gap-2">
+        <div className="flex gap-2 flex-wrap" role="group" aria-label={t("thread.quickLabel")}>
+          {QUICK_REPLIES.map((key) => (
+            <button key={key} type="button" className="btn btn-small" onClick={() => setReply(t(key))}>{t(key)}</button>
+          ))}
+        </div>
         <textarea className="input" style={{ minHeight: 84 }} value={reply} maxLength={1000} onKeyDown={onKey}
           onChange={(e) => setReply(e.target.value)} placeholder={t("thread.replyPlaceholder")} aria-label={t("thread.replyPlaceholder")} />
         {error && <p className="error m-0" role="alert">{error}</p>}

@@ -2,7 +2,7 @@
 //   npm run test:ui          (needs a Chromium: set CHROMIUM_PATH, or run `npx playwright-core install chromium`)
 import { chromium } from "playwright-core";
 import { spawn } from "node:child_process";
-import { start, state } from "./mock.mjs";
+import { start, state, pushConversationChange } from "./mock.mjs";
 
 const ROOT = new URL("../", import.meta.url).pathname;
 const OUT = ROOT + ".test-shots/";
@@ -34,7 +34,7 @@ async function newPage(opts = {}) {
   const errors = [];
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
   // The rate-limit and not-configured tests deliberately trigger a 429 / 503 from a function.
-  page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("status of 429") && !m.text().includes("status of 503")) errors.push("console: " + m.text()); });
+  page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("status of 429") && !m.text().includes("status of 503") && !m.text().includes("status of 500")) errors.push("console: " + m.text()); });
   return { page, ctx, errors };
 }
 
@@ -80,13 +80,42 @@ try {
   await page.click("a:has-text('Chats')");
   await page.waitForSelector("text=Customer chats");
 
+  // 1b. "Needs you" badge (realtime) and the pause switch
+  const toggle = page.locator("aside [data-testid=agent-toggle]");
+  ok("Chats badge counts chats that need you, not test chats",
+    await page.waitForSelector("aside [data-testid=needs-badge]:text-is('1')", { timeout: 5000 }).then(() => true, () => false));
+  for (let i = 0; i < 50 && state.realtimeJoins === 0; i++) await new Promise((r) => setTimeout(r, 100));
+  ok("dashboard subscribes to conversation changes", state.realtimeJoins > 0);
+  state.conversations.find((c) => c.id === "c2").status = "human";
+  pushConversationChange();
+  ok("a realtime change updates the badge without a reload",
+    await page.waitForSelector("aside [data-testid=needs-badge]:has-text('2')", { timeout: 5000 }).then(() => true, () => false));
+  state.conversations.find((c) => c.id === "c2").status = "bot";
+  pushConversationChange();
+  await page.waitForSelector("aside [data-testid=needs-badge]:has-text('1')", { timeout: 5000 });
+
+  ok("pause switch shows the assistant is on", (await toggle.textContent()).includes("Assistant on"));
+  await toggle.click();
+  ok("pause switch sets agent_enabled to false", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes('"agent_enabled":false')) && state.store.agent_enabled === false);
+  ok("pause switch shows Paused", await page.waitForSelector("aside [data-testid=agent-toggle]:has-text('Paused')", { timeout: 3000 }).then(() => true, () => false));
+  state.failStoreWrites = true;
+  await toggle.click();
+  ok("a failed write reverts the switch and says so",
+    await page.waitForSelector("aside :text('Could not change it')", { timeout: 3000 }).then(() => true, () => false)
+    && (await toggle.textContent()).includes("Paused"));
+  state.failStoreWrites = false;
+  await toggle.click();
+  ok("pause switch turns the assistant back on", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes('"agent_enabled":true')) && state.store.agent_enabled === true);
+  await page.waitForSelector("aside [data-testid=agent-toggle]:has-text('Assistant on')");
+
   // 2. thread + reply
   await page.click("[role=tab]:has-text('Needs you')");
   await page.click("text=Amine");
   await page.waitForSelector("text=I want to order 2 hoodies");
   ok("thread shows customer and assistant messages", await page.isVisible("text=The owner will reply to you personally."));
   await page.fill("textarea", "Hi! Yes we can arrange 2 hoodies.");
-  await page.click("button:has-text('Send')");
+  // "button.btn-primary" picks the Send button, not the quick replies that also start with "Send".
+  await page.click("button.btn-primary:has-text('Send')");
   await page.waitForSelector("text=Hi! Yes we can arrange 2 hoodies.");
   ok("reply was POSTed as sender=owner, delivery pending", await logged((l) => l.startsWith("POST /rest/v1/messages") && l.includes('"sender":"owner"') && l.includes('"delivery_status":"pending"')));
   ok("the dashboard then asks the server to deliver it", await logged((l) => l.startsWith("POST /functions/v1/deliver-messages") && l.includes('"conversation_id":"c1"')));
@@ -108,7 +137,7 @@ try {
   // 2b. a reply Instagram refuses is flagged, with the reason
   state.deliverMode = "fail";
   await page.fill("textarea", "Second reply that cannot be delivered");
-  await page.click("button:has-text('Send')");
+  await page.click("button.btn-primary:has-text('Send')");
   await page.waitForSelector("text=Not delivered");
   ok("an undelivered reply is flagged with Instagram's reason", await page.isVisible("text=Instagram only allows a reply within 24 hours"));
   state.deliverMode = "ok";
@@ -318,9 +347,17 @@ try {
   await page.fill("#email", "owner@example.com"); await page.fill("#password", "password123");
   await page.click("button.btn-primary");
   await page.waitForURL(/\/inbox/);
+  await page.waitForSelector("text=Discussions clients");
   ok("French is picked from the browser locale", await page.isVisible("text=Discussions clients"));
+  await page.waitForSelector("text=Amine");
   ok("mobile card shows a message preview, not the empty text", !(await page.isVisible("text=Aucun message")));
   ok("sign-out is a single compact button", (await page.locator("header button[aria-label='Se déconnecter']").count()) === 1);
+  ok("pause switch is in the phone header", await page.isVisible("header [data-testid=agent-toggle]:has-text('Assistant actif')"));
+  ok("Chats tab in the bottom bar shows the badge", await page.waitForSelector("nav [data-testid=needs-badge]:has-text('1')", { timeout: 3000 }).then(() => true, () => false));
+  await page.click("header [data-testid=agent-toggle]");
+  ok("pausing from the phone header works", await page.waitForSelector("header [data-testid=agent-toggle]:has-text('En pause')", { timeout: 3000 }).then(() => true, () => false));
+  await page.click("header [data-testid=agent-toggle]");
+  await page.waitForSelector("header [data-testid=agent-toggle]:has-text('Assistant actif')", { timeout: 3000 });
   ok("mobile shows the bottom navigation", await page.isVisible("nav.fixed"));
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   ok("no horizontal scroll on a phone", !overflow);

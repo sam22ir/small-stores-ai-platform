@@ -407,3 +407,73 @@ test("if the owner takes over while we wait, the assistant stays silent", async 
   assert.ok(r.ok && r.reply === null && r.status === "human");
   assert.equal(calls.n, 0);
 });
+
+// Owner alerts run after the reply is stored, in the background: let them settle before asserting.
+const settle = () => new Promise<void>((r) => setTimeout(r, 20));
+
+test("a handoff to the owner alerts the owner once, after the reply is stored", async () => {
+  const { tables, input } = setup();
+  let call = 0;
+  globalThis.fetch = (() => {
+    call++;
+    const message = call === 1
+      ? {
+        content: null,
+        tool_calls: [{ id: "t1", type: "function", function: { name: "handoff_to_owner", arguments: '{"reason":"wants a discount"}' } }],
+      }
+      : { content: "The owner will reply to you personally." };
+    return Promise.resolve(new Response(JSON.stringify({ choices: [{ message, finish_reason: "stop" }], usage: {} }), { status: 200 }));
+  }) as typeof fetch;
+  const alerts: { storeId: string; text: string }[] = [];
+  const r = await handleInbound({
+    ...input("can I get 20% off?"),
+    notify: (storeId: string, text: string) => {
+      alerts.push({ storeId, text });
+      return Promise.resolve(true);
+    },
+  });
+  assert.ok(r.ok && r.status === "human");
+  assert.equal(tables.messages.filter((m) => m.sender === "agent").length, 1, "reply stored");
+  await settle();
+  assert.equal(alerts.length, 1);
+  assert.equal(alerts[0].storeId, "s1");
+  assert.match(alerts[0].text, /Demo Boutique/);
+  assert.match(alerts[0].text, /wants a discount/);
+});
+
+test("a playground chat never alerts the owner, even when it hands off", async () => {
+  const { input } = setup();
+  let call = 0;
+  globalThis.fetch = (() => {
+    call++;
+    const message = call === 1
+      ? {
+        content: null,
+        tool_calls: [{ id: "t1", type: "function", function: { name: "handoff_to_owner", arguments: '{"reason":"test"}' } }],
+      }
+      : { content: "ok" };
+    return Promise.resolve(new Response(JSON.stringify({ choices: [{ message, finish_reason: "stop" }], usage: {} }), { status: 200 }));
+  }) as typeof fetch;
+  let alerts = 0;
+  await handleInbound({
+    ...input("can I get 20% off?", "test"),
+    notify: () => {
+      alerts++;
+      return Promise.resolve(true);
+    },
+  });
+  await settle();
+  assert.equal(alerts, 0);
+});
+
+test("an owner alert that fails does not change the customer's reply", async () => {
+  const { tables, input } = setup();
+  globalThis.fetch = (() => Promise.resolve(new Response("down", { status: 500 }))) as typeof fetch;
+  const r = await handleInbound({
+    ...input("do you ship to Oran?"),
+    notify: () => Promise.reject(new Error("telegram down")),
+  });
+  assert.ok(r.ok && r.degraded);
+  await settle();
+  assert.equal(tables.messages.filter((m) => m.sender === "agent").length, 1);
+});

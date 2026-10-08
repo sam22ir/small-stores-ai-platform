@@ -96,7 +96,67 @@ export function Settings() {
       </form>
       <FaqEditor storeId={s.id} />
       <DeliveryFees storeId={s.id} currency={s.currency} />
+      {TELEGRAM_BOT && <TelegramAlerts storeId={s.id} />}
     </div>
+  );
+}
+
+// Bot username (without @). When unset the Telegram card is hidden.
+const TELEGRAM_BOT = ((import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined) ?? "").trim();
+
+function TelegramAlerts({ storeId }: { storeId: string }) {
+  const { t } = useI18n();
+  const [connected, setConnected] = useState<boolean | null>(null);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function refresh() {
+    setBusy(true); setError(null);
+    const { data, error: err } = await supabase.rpc("telegram_link", { p_store_id: storeId });
+    if (err || !data) setError(t("common.error"));
+    else { setConnected(data.connected); setCode(data.code); }
+    setBusy(false);
+  }
+
+  useEffect(() => { void refresh(); }, [storeId]);
+
+  async function disconnect() {
+    setBusy(true); setError(null);
+    const { error: err } = await supabase.rpc("telegram_unlink", { p_store_id: storeId });
+    if (err) { setError(t("common.error")); setBusy(false); return; }
+    await refresh();
+  }
+
+  return (
+    <section className="card p-5 mt-6 flex flex-col gap-3">
+      <div>
+        <h2 className="text-lg font-extrabold m-0">{t("settings.tg.title")}</h2>
+        <p className="muted text-sm mt-1 mb-0">{t("settings.tg.help")}</p>
+      </div>
+      {error && <p className="error m-0" role="alert">{error}</p>}
+      {connected === true && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="badge badge-ok">{t("settings.tg.connected")}</span>
+          <button className="btn btn-small" disabled={busy} onClick={() => void disconnect()}>{t("settings.tg.disconnect")}</button>
+        </div>
+      )}
+      {connected === false && (
+        <>
+          <span className="badge badge-muted w-fit">{t("settings.tg.notConnected")}</span>
+          <p className="muted text-sm m-0">{t("settings.tg.open")}</p>
+          <div>
+            <button className="btn btn-primary" disabled={busy || !code}
+              onClick={() => window.open(`https://t.me/${TELEGRAM_BOT}?start=${code}`, "_blank", "noopener")}>
+              {t("settings.tg.connect")}
+            </button>
+          </div>
+        </>
+      )}
+      <div>
+        <button className="btn btn-small" disabled={busy} onClick={() => void refresh()}>{t("settings.tg.refresh")}</button>
+      </div>
+    </section>
   );
 }
 

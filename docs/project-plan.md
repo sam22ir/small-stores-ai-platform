@@ -92,6 +92,6 @@ Next, in this order (open). Items marked **needs you** require your accounts or 
 
 ## Reference
 
-- Supabase project ref: `xxfakkaofpkvcicjyuis` (region eu-west-1). Functions: `/functions/v1/assistant-chat` (dashboard test chat and dev), `/functions/v1/playground-chat` (stub, 410), webhook: `/functions/v1/meta-webhook`.
-- Demo store id: `2d25ccab-ffc6-4452-937b-6f4c40667de3`.
+- Supabase project ref: `xewaswcuccpankghkmhz` (region eu-west-3, org "Store Assistant DZ"; moved from `xxfakkaofpkvcicjyuis` on 2026-10-08). Functions: `/functions/v1/assistant-chat` (dashboard test chat and dev), `/functions/v1/playground-chat` (stub, 410), webhook: `/functions/v1/meta-webhook`.
+- Demo store id: `a9e0bc1a-952e-4dd5-a0b1-0b91c432eb18`.
 - Run the eval: `PLAYGROUND_URL=... PLAYGROUND_SECRET=... STORE_ID=... npm run eval`.

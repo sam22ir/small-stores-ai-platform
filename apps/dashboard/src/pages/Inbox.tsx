@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { formatTime } from "../lib/format";
+import { useConversationsRefresh, useStore } from "../lib/store";
 import { SetupChecklist } from "../components/SetupChecklist";
 
 type Status = "human" | "bot" | "closed";
@@ -29,6 +30,7 @@ export const platformKey = (p: string | undefined): TKey =>
 
 export function Inbox() {
   const { t, lang } = useI18n();
+  const { store } = useStore();
   const [tab, setTab] = useState<Status>("human");
   const [convs, setConvs] = useState<Conv[] | null>(null);
   const [previews, setPreviews] = useState<Record<string, Preview>>({});
@@ -61,11 +63,9 @@ export function Inbox() {
     setPreviews(latest);
   }, []);
 
-  useEffect(() => {
-    void load();
-    const id = window.setInterval(() => { if (!document.hidden) void load(); }, 15000);
-    return () => window.clearInterval(id);
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
+  // Refreshes on realtime changes to this store's chats; polls every 60 s (15 s if realtime is down).
+  useConversationsRefresh(store?.id, load);
 
   const counts = (s: Status) => (convs ?? []).filter((c) => c.status === s).length;
   const visible = (convs ?? []).filter((c) => c.status === tab);

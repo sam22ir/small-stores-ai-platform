@@ -4,6 +4,7 @@ import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { useStore } from "../lib/store";
 import { formatMoney, formatTime } from "../lib/format";
+import { buildOrderMessage, whatsappUrl } from "../lib/orderMessage";
 
 type Status = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 type Order = {
@@ -44,6 +45,24 @@ export function Orders() {
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const messageFor = (o: Order) => buildOrderMessage(o, {
+    greeting: (name) => t("orders.msg.greeting", { name }),
+    items: t("orders.msg.items"),
+    wilaya: t("orders.msg.wilaya"),
+    total: t("orders.msg.total"),
+  }, (cents) => formatMoney(cents, currency, lang));
+
+  async function copyMessage(o: Order) {
+    try {
+      await navigator.clipboard.writeText(messageFor(o));
+      setCopiedId(o.id);
+      window.setTimeout(() => setCopiedId((id) => (id === o.id ? null : id)), 2000);
+    } catch {
+      setError(true);
+    }
+  }
 
   const load = useCallback(async () => {
     const { data, error: err } = await supabase
@@ -99,6 +118,14 @@ export function Orders() {
                 <div className="min-w-0">
                   <div className="font-bold truncate">{o.customer_name}</div>
                   <a href={`tel:${o.phone}`} className="text-sm" dir="ltr">{t("orders.call")} {o.phone}</a>
+                  <div className="flex gap-2 flex-wrap mt-1">
+                    {whatsappUrl(o.phone, messageFor(o)) && (
+                      <a className="btn btn-small" href={whatsappUrl(o.phone, messageFor(o))!} target="_blank" rel="noopener noreferrer">{t("orders.whatsapp")}</a>
+                    )}
+                    <button className="btn btn-small" onClick={() => void copyMessage(o)}>
+                      {copiedId === o.id ? t("orders.copied") : t("orders.copyMessage")}
+                    </button>
+                  </div>
                 </div>
                 <div className="text-end shrink-0">
                   <span className="badge badge-muted">{t(STATUS_KEY[o.status])}</span>

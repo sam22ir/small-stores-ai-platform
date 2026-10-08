@@ -26,6 +26,7 @@ import type {
   StoreContext,
 } from "./agent/types.ts";
 import { monthStartUtc, usageStatus, type UsageStatus } from "./agent/usage.ts";
+import { notifyOwner } from "./telegram.ts";
 
 // Everything that happens between "a customer message is stored" and "the reply is stored":
 // fast path, monthly limit, history, the model call (with provider fallback), run logging
@@ -230,7 +231,16 @@ export interface HandleInboundInput {
   debounceMs?: number;
   lockWaitMs?: number; // how long to wait for another reply in the same chat to finish
   sleep?: (ms: number) => Promise<void>; // injectable for tests
+  // Sends an owner alert (default: Telegram via notifyOwner). Injectable for tests.
+  notify?: (storeId: string, text: string) => Promise<unknown>;
 }
+
+// Things the owner should hear about, collected during a run and sent after the reply is stored.
+export type OwnerAlert =
+  | { kind: "handoff"; reason: string }
+  | { kind: "limit" }
+  | { kind: "degraded" }
+  | { kind: "order"; total_cents: number };
 
 export type HandleInboundResult =
   | {
@@ -250,7 +260,7 @@ export type HandleInboundResult =
   }
   | { ok: false; error: string };
 
-async function processLocked(input: HandleInboundInput): Promise<HandleInboundResult> {
+async function processLocked(input: HandleInboundInput, alerts: OwnerAlert[]): Promise<HandleInboundResult> {
   const { db, store, conversation, source } = input;
   const base = {
     handoff: null,
@@ -335,6 +345,7 @@ async function processLocked(input: HandleInboundInput): Promise<HandleInboundRe
       await db.from("conversations")
         .update({ status: "human", handoff_reason: reason })
         .eq("id", conversation.id);
+      if (source === "customer") alerts.push({ kind: "limit" });
       return {
         ok: true,
         ...base,
@@ -381,7 +392,8 @@ async function processLocked(input: HandleInboundInput): Promise<HandleInboundRe
   try {
     const catalog = supabaseCatalog(db);
     // Test and dev chats price and validate orders but never write them.
-    const orders = store.orders_enabled ? supabaseOrders(db, source !== "customer") : undefined;
+    const ordersPort = store.orders_enabled ? supabaseOrders(db, source !== "customer") : undefined;
+    const orders = ordersPort && source === "customer" ? announceOrders(ordersPort, alerts) : ordersPort;
     const common = {
       catalog,
       store,
@@ -434,6 +446,7 @@ async function processLocked(input: HandleInboundInput): Promise<HandleInboundRe
       await db.from("conversations")
         .update({ status: "human", handoff_reason: result.handoffReason })
         .eq("id", conversation.id);
+      if (source === "customer") alerts.push({ kind: "handoff", reason: result.handoffReason });
     }
     return {
       ok: true,
@@ -476,6 +489,7 @@ async function processLocked(input: HandleInboundInput): Promise<HandleInboundRe
       await db.from("conversations")
         .update({ status: "human", handoff_reason: reason })
         .eq("id", conversation.id);
+      alerts.push({ kind: "degraded" });
       return {
         ok: true,
         ...base,
@@ -487,6 +501,82 @@ async function processLocked(input: HandleInboundInput): Promise<HandleInboundRe
     }
     return { ok: false, error: "Agent failed; see agent_runs for details" };
   }
+}
+
+// --- Owner alerts -----------------------------------------------------------
+// Each alert is a short Arabic + French line (the store has no language setting yet).
+
+// Records each placed order (not duplicates) so the owner hears about it once.
+function announceOrders(port: OrderPort, alerts: OwnerAlert[]): OrderPort {
+  return {
+    quoteDelivery: (storeId, wilaya) => port.quoteDelivery(storeId, wilaya),
+    async placeOrder(orderInput) {
+      const result = await port.placeOrder(orderInput);
+      if (result.ok && !result.duplicate) {
+        alerts.push({ kind: "order", total_cents: result.total_cents });
+      }
+      return result;
+    },
+  };
+}
+
+function alertText(
+  alert: OwnerAlert,
+  storeName: string,
+  currency: string,
+  who: string,
+  link: string | null,
+): string {
+  let line: string;
+  switch (alert.kind) {
+    case "handoff":
+      line = `${who} : besoin de votre réponse / تحتاج ردّكم` +
+        (alert.reason ? ` (${alert.reason.slice(0, 120)})` : "");
+      break;
+    case "limit":
+      line = `${who} : limite mensuelle atteinte, à vous / تم بلوغ الحد الشهري، الرد لكم`;
+      break;
+    case "degraded":
+      line = `${who} : assistant indisponible, à vous de répondre / المساعد غير متاح، ردّكم مطلوب`;
+      break;
+    case "order":
+      line = `Nouvelle commande de ${who} : ${Math.round(alert.total_cents / 100)} ${currency} / طلب جديد من ${who}`;
+      break;
+  }
+  return `[${storeName}] ${line}` + (link ? `\n${link}` : "");
+}
+
+// Fire and forget: the reply is already stored and must not wait for an owner alert. The promise is
+// handed to EdgeRuntime.waitUntil when available so the isolate isn't shut down mid-send.
+function sendOwnerAlerts(input: HandleInboundInput, alerts: OwnerAlert[]): void {
+  const work = sendOwnerAlertsNow(input, alerts);
+  (globalThis as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime?.waitUntil(work);
+}
+
+async function sendOwnerAlertsNow(input: HandleInboundInput, alerts: OwnerAlert[]): Promise<void> {
+  if (!alerts.length) return;
+  return (async () => {
+    try {
+      const { data } = await input.db
+        .from("customers")
+        .select("display_name")
+        .eq("id", input.customerId)
+        .maybeSingle();
+      const who = (data?.display_name as string | undefined) || "Un client / عميل";
+      const base = input.env("DASHBOARD_URL")?.replace(/\/+$/, "");
+      const link = base ? `${base}/inbox/${input.conversation.id}` : null;
+      const notify = input.notify ??
+        ((storeId: string, text: string) => notifyOwner(input.db, input.env, storeId, text));
+      for (const alert of alerts) {
+        await notify(
+          input.store.id,
+          alertText(alert, input.store.name, input.store.currency, who, link),
+        );
+      }
+    } catch (err) {
+      console.error("owner alert failed", err instanceof Error ? err.message : "unknown");
+    }
+  })();
 }
 
 // --- Reliability wrapper -----------------------------------------------------
@@ -552,6 +642,7 @@ export async function handleInbound(input: HandleInboundInput): Promise<HandleIn
   }
   if (await alreadyAnswered(input)) return silent("This message was already answered.");
 
+  const alerts: OwnerAlert[] = [];
   const polls = Math.max(1, Math.ceil((input.lockWaitMs ?? 30_000) / 1000));
   let claimed = false;
   for (let i = 0; i < polls && !claimed; i++) {
@@ -576,7 +667,9 @@ export async function handleInbound(input: HandleInboundInput): Promise<HandleIn
     if (fresh && fresh.status !== "bot") return silent("Conversation is with the owner.", fresh.status);
     if (await hasNewerInbound(input)) return silent("A newer message will be answered instead.");
     if (await alreadyAnswered(input)) return silent("This message was already answered.");
-    return await processLocked(input);
+    const result = await processLocked(input, alerts);
+    sendOwnerAlerts(input, alerts);
+    return result;
   } finally {
     const { error } = await db.rpc("release_conversation", { p_conversation_id: conversation.id });
     if (error) console.error("release_conversation failed", error);

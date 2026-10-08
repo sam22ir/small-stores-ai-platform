@@ -1,5 +1,6 @@
-// Tiny stand-in for Supabase (auth + PostgREST) so the UI can be exercised without the network.
+// Tiny stand-in for Supabase (auth + PostgREST + realtime) so the UI can be exercised without the network.
 import http from "node:http";
+import crypto from "node:crypto";
 
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 const jwt = `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: "user-1", role: "authenticated", exp: 4102444800, aud: "authenticated" })}.sig`;
@@ -40,12 +41,89 @@ export const state = {
   fees: [ { id: "f1", wilaya: "Alger", fee_cents: 40000 } ],
   faq: [ { id: "q1", question: "Do you gift wrap?", answer: "Yes, free of charge.", created_at: "2026-10-03T10:00:00Z" } ],
   testRuns: 0,
+  realtimeJoins: 0, // postgres_changes subscriptions the dashboard has joined
+  failStoreWrites: false, // true makes PATCH /stores fail, to test the pause switch's revert
   deliverMode: "ok", // "fail" makes deliver-messages report a closed 24-hour window
   startStatus: 200, // 503 = Instagram connection not configured on the server
   log: [],
 };
 
 const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS", "access-control-expose-headers": "*" };
+
+// Realtime: a minimal Phoenix-channel websocket. It accepts joins, answers heartbeats, and can push
+// a postgres_changes event for the conversations table to every joined client (see pushConversationChange).
+const sockets = new Set();
+let subId = 1000;
+
+function frame(text) {
+  const payload = Buffer.from(text);
+  const head = payload.length < 126 ? Buffer.from([0x81, payload.length]) : Buffer.from([0x81, 126, payload.length >> 8, payload.length & 255]);
+  return Buffer.concat([head, payload]);
+}
+
+// Client frames are masked. Returns the complete text messages and the unread remainder.
+function decodeFrames(buf) {
+  const msgs = [];
+  let off = 0;
+  while (buf.length - off >= 2) {
+    const opcode = buf[off] & 0x0f;
+    let len = buf[off + 1] & 0x7f;
+    let p = off + 2;
+    if (len === 126) { if (buf.length < p + 2) break; len = buf.readUInt16BE(p); p += 2; }
+    if (len === 127) { if (buf.length < p + 8) break; len = Number(buf.readBigUInt64BE(p)); p += 8; }
+    const masked = (buf[off + 1] & 0x80) !== 0;
+    let mask = null;
+    if (masked) { if (buf.length < p + 4) break; mask = buf.subarray(p, p + 4); p += 4; }
+    if (buf.length < p + len) break;
+    const payload = Buffer.from(buf.subarray(p, p + len));
+    if (mask) for (let i = 0; i < len; i++) payload[i] ^= mask[i % 4];
+    if (opcode === 1) msgs.push(payload.toString("utf8"));
+    off = p + len;
+  }
+  return { msgs, rest: buf.subarray(off) };
+}
+
+function onUpgrade(req, socket, head) {
+  const accept = crypto.createHash("sha1").update(req.headers["sec-websocket-key"] + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest("base64");
+  socket.write("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: " + accept + "\r\n\r\n");
+  const conn = { socket, buf: Buffer.alloc(0), subs: [] };
+  sockets.add(conn);
+  socket.on("error", () => {});
+  socket.on("close", () => sockets.delete(conn));
+  const read = (chunk) => {
+    const { msgs, rest } = decodeFrames(Buffer.concat([conn.buf, chunk]));
+    conn.buf = rest;
+    for (const m of msgs) handleRealtime(conn, JSON.parse(m));
+  };
+  // Frames sent right after the handshake can already be in `head` (bytes read with the request).
+  if (head?.length) read(head);
+  socket.on("data", read);
+}
+
+// Phoenix v2 frames (what supabase-js sends with vsn=2.0.0) are arrays: [join_ref, ref, topic, event, payload].
+function handleRealtime(conn, raw) {
+  const [joinRef, ref, topic, event, payload] = Array.isArray(raw) ? raw : [raw.join_ref, raw.ref, raw.topic, raw.event, raw.payload];
+  const reply = (body) => conn.socket.write(frame(JSON.stringify([joinRef ?? null, ref ?? null, topic, "phx_reply", body])));
+  if (event === "heartbeat") return reply({ status: "ok", response: {} });
+  if (event === "phx_join") {
+    const requested = payload?.config?.postgres_changes ?? [];
+    const pg = requested.map((c) => ({ id: subId++, ...c }));
+    for (const c of pg) conn.subs.push({ ...c, topic });
+    state.realtimeJoins += pg.length;
+    return reply({ status: "ok", response: { postgres_changes: pg } });
+  }
+}
+
+// Tells every subscribed dashboard that a conversation changed (as Supabase realtime would).
+export function pushConversationChange() {
+  for (const conn of sockets) {
+    for (const sub of conn.subs) {
+      if (sub.table !== "conversations") continue;
+      const body = { ids: [sub.id], data: { schema: "public", table: "conversations", type: "UPDATE", commit_timestamp: new Date().toISOString(), errors: null } };
+      conn.socket.write(frame(JSON.stringify([null, null, sub.topic, "postgres_changes", body])));
+    }
+  }
+}
 
 export function start(port = 54321) {
   const server = http.createServer((req, res) => {
@@ -131,7 +209,11 @@ export function start(port = 54321) {
         if (table === "stores") return pick([state.store]);
         if (table === "conversations") {
           const id = url.searchParams.get("id");
-          return pick(id ? state.conversations.filter((c) => `eq.${c.id}` === id) : state.conversations);
+          const status = url.searchParams.get("status");
+          let rows = state.conversations;
+          if (id) rows = rows.filter((c) => `eq.${c.id}` === id);
+          if (status) rows = rows.filter((c) => `eq.${c.status}` === status);
+          return pick(rows);
         }
         if (table === "messages") {
           const cid = url.searchParams.get("conversation_id");
@@ -166,10 +248,15 @@ export function start(port = 54321) {
         for (const r of rows) state.fees.push({ id: "f" + (state.fees.length + 1), wilaya: r.wilaya, fee_cents: r.fee_cents });
         return send(201);
       }
-      if (req.method === "PATCH" && table === "stores") { Object.assign(state.store, JSON.parse(body)); return send(204); }
+      if (req.method === "PATCH" && table === "stores") {
+        if (state.failStoreWrites) return send(500, { message: "write failed" });
+        Object.assign(state.store, JSON.parse(body));
+        return send(204);
+      }
       if (req.method === "PATCH" || req.method === "POST" || req.method === "DELETE") return send(204);
       return send(404, { message: "unhandled " + req.method + " " + table });
     });
   });
+  server.on("upgrade", onUpgrade);
   return new Promise((resolve) => server.listen(port, "127.0.0.1", () => resolve(server)));
 }

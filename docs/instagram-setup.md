@@ -93,6 +93,34 @@ In *Instagram → API setup with Instagram login*:
 | Replies marked "Not delivered" | the customer's last message is older than 24 hours, or the token expired: Connect again |
 | "already connected to another store" | that Instagram account is linked to a different store; Disconnect it there first |
 
+## Telegram alerts
+
+The owner can get a Telegram message when a chat is handed to them, the monthly reply limit is reached, the model is down
+(holding reply sent), or a customer places an order. Alerts never delay or change a customer reply, and test chats never send them.
+
+1. **Create a bot:** in Telegram, open `@BotFather`, send `/newbot`, and copy the token it gives you.
+2. **Secrets** (Supabase → Edge Functions → Secrets):
+
+   | Secret | Value |
+   |---|---|
+   | `TELEGRAM_BOT_TOKEN` | the token from BotFather. Unset = alerts are off (silent no-op) |
+   | `TELEGRAM_WEBHOOK_SECRET` | any long random string, e.g. `openssl rand -hex 24` |
+   | `DASHBOARD_URL` | already used by Instagram; alert messages link to `<DASHBOARD_URL>/inbox/<conversation>` when it is set |
+
+3. **Migration:** apply `supabase/migrations/0016_telegram_alerts.sql`. It adds a server-only `store_telegram` table (no client access); clients use the `telegram_link` / `telegram_unlink` RPCs.
+4. **Deploy** `telegram-webhook` with **Verify JWT off**.
+5. **Register the webhook** with the secret (replace the placeholders; the token goes in the URL, so don't paste the call in a shared chat):
+
+   ```
+   curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
+     -H "content-type: application/json" \
+     -d '{"url":"https://<project-ref>.supabase.co/functions/v1/telegram-webhook","secret_token":"<TELEGRAM_WEBHOOK_SECRET>"}'
+   ```
+
+6. **Link a store:** the dashboard calls `telegram_link(store_id)` and shows the code. In Telegram, open your bot and send
+   `/start <code>`. The bot replies "Connected: you'll get alerts for <store>". Codes are one-time; an old one replies
+   "That link has expired". `telegram_unlink(store_id)` stops the alerts.
+
 ## Going beyond testers
 
 Opening the app to any store needs **Business Verification** and **App Review** for `instagram_business_manage_messages`

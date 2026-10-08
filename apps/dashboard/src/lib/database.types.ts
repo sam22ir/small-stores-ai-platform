@@ -710,6 +710,14 @@ export type Database = {
         Args: { p_order_id: string; p_status: string }
         Returns: string
       }
+      telegram_link: {
+        Args: { p_store_id: string }
+        Returns: { connected: boolean; code: string }
+      }
+      telegram_unlink: {
+        Args: { p_store_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
