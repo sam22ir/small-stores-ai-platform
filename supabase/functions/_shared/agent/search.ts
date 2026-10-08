@@ -5,6 +5,20 @@ const STOPWORDS = new Set([
   "the", "you", "your", "have", "has", "any", "and", "for", "with", "what", "are",
   "can", "does", "there", "got", "sell", "this", "that", "from", "please", "available",
   "stock", "price", "how", "much", "want", "need", "looking",
+  // Algerian Darija, Latin script (wach = is it, kayen = there is, bghit = I want, ...).
+  "wach", "wash", "wesh", "ach", "kayen", "kayn", "kayna", "kaynin", "bghit", "bghina",
+  "nheb", "nebghi", "nhab", "chhal", "ch7al", "chno", "chnou", "3andkom",
+  "3andek", "3andi", "3andna", "3ndkom", "kifach", "kifash", "win", "fin", "bzaf",
+  "mzyan", "dyal", "dial", "gadech", "bach", "3lach", "wakha", "bslama", "salam",
+  // French filler.
+  "les", "des", "une", "pour", "avec", "est", "sur", "dans", "ces", "cette", "quel",
+  "quelle", "quels", "quelles", "que", "vous", "nous", "ils", "elles", "combien", "svp", "stp",
+  "bonjour", "bonsoir", "salut", "merci", "avez", "avoir", "dispo", "disponible", "prix",
+  "sont", "votre", "vos", "aussi", "bien", "tres", "acheter", "commander",
+  // Algerian Darija, Arabic script.
+  "واش", "كاين", "كاينة", "كاينين", "بغيت", "بغا", "نحب", "نبغي", "شحال", "عندكم",
+  "عندك", "عندي", "عندنا", "كيفاش", "فين", "وين", "بزاف", "مزيان", "سلام", "ديال",
+  "ديالكم", "ديالك", "شنو", "علاش", "ولا", "بغيت", "بغينا", "واخا",
 ]);
 
 // Each word becomes a group of spelling variants; a product matches the word if it

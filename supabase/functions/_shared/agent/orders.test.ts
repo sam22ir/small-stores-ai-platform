@@ -32,28 +32,54 @@ test("rejects numbers that are not Algerian mobiles", () => {
 
 test("idempotency key is stable for the same basket and differs otherwise", () => {
   const day = new Date("2026-10-04T10:00:00Z");
-  const a = orderIdempotencyKey("c1", "0555123456", [
+  const items = [
     { variant_id: "v1", quantity: 1 },
     { variant_id: "v2", quantity: 2 },
-  ], day);
-  const reordered = orderIdempotencyKey("c1", "0555123456", [
-    { variant_id: "v2", quantity: 2 },
-    { variant_id: "v1", quantity: 1 },
-  ], day);
-  assert.equal(a, reordered);
+  ];
+  const a = orderIdempotencyKey("c1", "0555123456", "Alger", "12 rue X", items, day);
+  assert.equal(
+    a,
+    orderIdempotencyKey("c1", "0555123456", "Alger", "12 rue X", [...items].reverse(), day),
+  );
   assert.notEqual(
     a,
-    orderIdempotencyKey("c1", "0555123456", [{ variant_id: "v1", quantity: 2 }], day),
+    orderIdempotencyKey("c1", "0555123456", "Alger", "12 rue X", [{ variant_id: "v1", quantity: 2 }], day),
   );
-  assert.notEqual(a, orderIdempotencyKey("c2", "0555123456", [
-    { variant_id: "v1", quantity: 1 },
-    { variant_id: "v2", quantity: 2 },
-  ], day));
   assert.notEqual(
     a,
-    orderIdempotencyKey("c1", "0555123456", [
-      { variant_id: "v1", quantity: 1 },
-      { variant_id: "v2", quantity: 2 },
-    ], new Date("2026-10-05T10:00:00Z")),
+    orderIdempotencyKey("c2", "0555123456", "Alger", "12 rue X", items, day),
   );
+  assert.notEqual(
+    a,
+    orderIdempotencyKey("c1", "0555123456", "Alger", "12 rue X", items, new Date("2026-10-05T10:00:00Z")),
+  );
+});
+
+test("a second order of the same items to another address is a different key", () => {
+  const day = new Date("2026-10-04T10:00:00Z");
+  const items = [{ variant_id: "v1", quantity: 1 }];
+  const a = orderIdempotencyKey("c1", "0555123456", "Alger", "12 rue X", items, day);
+  assert.notEqual(a, orderIdempotencyKey("c1", "0555123456", "Alger", "5 rue Y", items, day));
+  assert.notEqual(a, orderIdempotencyKey("c1", "0555123456", "Oran", "12 rue X", items, day));
+});
+
+test("address and wilaya differing only in case or whitespace give the same key", () => {
+  const day = new Date("2026-10-04T10:00:00Z");
+  const items = [{ variant_id: "v1", quantity: 1 }];
+  const a = orderIdempotencyKey("c1", "0555123456", "Alger", "12 Rue  des Lilas", items, day);
+  assert.equal(
+    a,
+    orderIdempotencyKey("c1", "0555123456", "  alger ", " 12 rue des   lilas ", items, day),
+  );
+});
+
+test("the day rolls over at local midnight (Africa/Algiers, UTC+1)", () => {
+  const items = [{ variant_id: "v1", quantity: 1 }];
+  const args = ["c1", "0555123456", "Alger", "12 rue X", items] as const;
+  // 23:30 UTC is 00:30 next day in Algiers, so it must not share a key with 22:30 UTC the same day.
+  const before = orderIdempotencyKey(...args, new Date("2026-10-04T22:30:00Z"));
+  const late = orderIdempotencyKey(...args, new Date("2026-10-04T23:30:00Z"));
+  const nextMorning = orderIdempotencyKey(...args, new Date("2026-10-05T08:00:00Z"));
+  assert.notEqual(before, late);
+  assert.equal(late, nextMorning);
 });

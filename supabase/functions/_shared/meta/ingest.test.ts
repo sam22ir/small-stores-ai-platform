@@ -65,6 +65,22 @@ test("a retried delivery doesn't duplicate the message but still finishes the jo
   assert.equal(handled[0].inboundMessageId, handled[1].inboundMessageId); // handleInbound skips an answered one
 });
 
+test("a late redelivery of an older message doesn't move last_customer_message_at backward", async () => {
+  const { tables, deps } = setup();
+  await ingestEvent(deps, event({ mid: "new", timestampMs: Date.parse("2026-10-05T12:00:00Z") }));
+  await ingestEvent(deps, event({ mid: "old", timestampMs: Date.parse("2026-10-04T09:00:00Z") }));
+  assert.equal(tables.conversations.length, 1);
+  assert.equal(tables.conversations[0].last_customer_message_at, "2026-10-05T12:00:00.000Z");
+  assert.equal(tables.messages.length, 2);
+});
+
+test("a newer message moves last_customer_message_at forward", async () => {
+  const { tables, deps } = setup();
+  await ingestEvent(deps, event({ mid: "a", timestampMs: Date.parse("2026-10-04T09:00:00Z") }));
+  await ingestEvent(deps, event({ mid: "b", timestampMs: Date.parse("2026-10-05T12:00:00Z") }));
+  assert.equal(tables.conversations[0].last_customer_message_at, "2026-10-05T12:00:00.000Z");
+});
+
 test("the same customer keeps one conversation; a second customer gets their own", async () => {
   const { tables, deps } = setup();
   await ingestEvent(deps, event({ mid: "a" }));

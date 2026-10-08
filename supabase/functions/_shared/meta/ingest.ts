@@ -24,6 +24,27 @@ export interface IngestDeps {
 
 export type IngestOutcome = "no_channel" | "no_store" | "handled";
 
+// Creates the conversation if needed and moves last_customer_message_at forward to `tsIso`, never
+// backward: a late redelivery with an older timestamp would wrongly close the 24-hour reply window.
+// The upsert leaves the timestamp out on purpose, so it never overwrites the stored value.
+async function openConversation(db: SupabaseClient, key: Record<string, unknown>, tsIso: string) {
+  const { data: conv, error: convErr } = await db
+    .from("conversations")
+    .upsert(key, { onConflict: "channel_id,customer_id" })
+    .select("id,status")
+    .single();
+  if (convErr) throw convErr;
+
+  const { error: mvErr } = await db
+    .from("conversations")
+    .update({ last_customer_message_at: tsIso })
+    .eq("id", conv.id)
+    .or(`last_customer_message_at.is.null,last_customer_message_at.lt.${tsIso}`);
+  if (mvErr) throw mvErr;
+
+  return { id: conv.id as string, status: conv.status };
+}
+
 export async function ingestEvent(deps: IngestDeps, event: InboundEvent): Promise<IngestOutcome> {
   const { db } = deps;
 
@@ -58,20 +79,11 @@ export async function ingestEvent(deps: IngestDeps, event: InboundEvent): Promis
     .single();
   if (custErr) throw custErr;
 
-  const { data: conversation, error: convErr } = await db
-    .from("conversations")
-    .upsert(
-      {
-        store_id: store.id,
-        channel_id: channel.id,
-        customer_id: customer.id,
-        last_customer_message_at: new Date(event.timestampMs).toISOString(),
-      },
-      { onConflict: "channel_id,customer_id" },
-    )
-    .select("id,status")
-    .single();
-  if (convErr) throw convErr;
+  const conversation = await openConversation(
+    db,
+    { store_id: store.id, channel_id: channel.id, customer_id: customer.id },
+    new Date(event.timestampMs).toISOString(),
+  );
 
   let inboundId: string;
   const { data: inserted, error: msgErr } = await db

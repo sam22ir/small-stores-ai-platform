@@ -77,6 +77,24 @@ class Query {
     this.filters.push((r) => String(r[col]) >= v);
     return this;
   }
+  // Compared as strings, like gte: ISO timestamps sort correctly that way. A null column never matches.
+  lt(col: string, v: string) {
+    this.filters.push((r) => r[col] != null && String(r[col]) < v);
+    return this;
+  }
+  // PostgREST-style OR of clauses such as "a.is.null,b.lt.2026-10-05T11:58:00.000Z".
+  or(clauses: string) {
+    const tests = clauses.split(",").map((c) => {
+      const [col, op, ...rest] = c.trim().split(".");
+      const v = rest.join(".");
+      if (op === "is") return (r: Row) => (r[col] ?? null) === (v === "null" ? null : v);
+      if (op === "eq") return (r: Row) => r[col] === v;
+      if (op === "lt") return (r: Row) => r[col] != null && String(r[col]) < v;
+      throw new Error(`memdb: unsupported .or operator "${op}"`);
+    });
+    this.filters.push((r) => tests.some((t) => t(r)));
+    return this;
+  }
   order(_col: string, opts?: { ascending?: boolean }) {
     this.descending = opts?.ascending === false;
     return this;

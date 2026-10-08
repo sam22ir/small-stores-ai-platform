@@ -20,7 +20,8 @@ test("filler words and short tokens are dropped", () => {
 });
 
 test("works for non-Latin scripts", () => {
-  assert.deepEqual(searchGroups("هل عندكم قميص"), [["عندكم"], ["قميص"]]);
+  assert.deepEqual(searchGroups("هل عندكم قميص"), [["قميص"]]);
+  assert.deepEqual(searchGroups("واش كاين قميص أسود"), [["قميص"], ["أسود"]]);
 });
 
 test("caps at five words and dedupes", () => {
@@ -38,4 +39,14 @@ test("aliases count like the product name", () => {
   const groups = searchGroups("do you have kapuchon");
   assert.ok(scoreProduct("Black Hoodie", null, groups, "kapuchon, sweat") >= 2);
   assert.equal(scoreProduct("Black Hoodie", null, groups, null), 0);
+});
+
+test("Algerian Darija and French filler is not searched", () => {
+  assert.deepEqual(searchGroups("wach kayen hoodie noir"), [["hoodie"], ["noir"]]);
+  assert.deepEqual(searchGroups("bghit hoodie, chhal ch7al 3andkom?"), [["hoodie"]]);
+  const fr = searchGroups("les robes pour femme svp");
+  assert.equal(fr.length, 2);
+  assert.ok(fr[0].includes("robes"));
+  assert.deepEqual(fr[1], ["femme"]);
+  assert.deepEqual(searchGroups("est-ce que vous avez sac avec poche"), [["sac"], ["poche"]]);
 });

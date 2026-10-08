@@ -423,7 +423,7 @@ async function createOrder(
     wilaya,
     address,
     items,
-    key: orderIdempotencyKey(ctx.conversationId, phone, items, ctx.now ?? new Date()),
+    key: orderIdempotencyKey(ctx.conversationId, phone, wilaya, address, items, ctx.now ?? new Date()),
   });
 
   if (!result.ok) {

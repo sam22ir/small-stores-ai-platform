@@ -11,6 +11,9 @@ import { MetaApiError, refreshLongLived, sendText, splitForInstagram } from "./i
 
 const WINDOW_MS = 24 * 3600 * 1000; // Meta's standard messaging window
 const REFRESH_WITHIN_MS = 10 * 24 * 3600 * 1000; // refresh a 60-day token in its last 10 days
+// A claim older than this belongs to a delivery that was killed mid-send (e.g. the function hit its
+// time limit). Such a message is claimed again, so it is retried or marked failed instead of stuck.
+export const CLAIM_STALE_MS = 120_000;
 
 export interface DeliverDeps {
   db: SupabaseClient;
@@ -48,6 +51,8 @@ export async function deliverPending(deps: DeliverDeps, conversationId: string):
   const { db, env } = deps;
   const now = deps.now ?? new Date();
   const result: DeliverResult = { sent: 0, failed: 0, skipped: 0 };
+  // Unclaimed, or claimed by a delivery that stopped long enough ago to be presumed dead.
+  const claimable = `delivery_claimed_at.is.null,delivery_claimed_at.lt.${new Date(now.getTime() - CLAIM_STALE_MS).toISOString()}`;
 
   const { data: pending, error: pendErr } = await db
     .from("messages")
@@ -55,7 +60,7 @@ export async function deliverPending(deps: DeliverDeps, conversationId: string):
     .eq("conversation_id", conversationId)
     .eq("direction", "outbound")
     .eq("delivery_status", "pending")
-    .is("delivery_claimed_at", null)
+    .or(claimable)
     .order("created_at", { ascending: true })
     .limit(20);
   if (pendErr) throw pendErr;
@@ -142,7 +147,7 @@ export async function deliverPending(deps: DeliverDeps, conversationId: string):
       .update({ delivery_claimed_at: now.toISOString() })
       .eq("id", m.id)
       .eq("delivery_status", "pending")
-      .is("delivery_claimed_at", null)
+      .or(claimable)
       .select("id");
     if (claimErr) throw claimErr;
     if (!claimed?.length) continue;

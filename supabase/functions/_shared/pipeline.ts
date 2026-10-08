@@ -12,6 +12,7 @@ import {
 } from "./agent/providers.ts";
 import { DEFAULT_MODEL, runAgent } from "./agent/run.ts";
 import { scoreProduct, searchGroups } from "./agent/search.ts";
+import { matchWilaya } from "./agent/wilaya.ts";
 import type {
   AgentResult,
   Catalog,
@@ -134,21 +135,29 @@ export function supabaseOrders(client: SupabaseClient, dryRun: boolean): OrderPo
         .order("wilaya");
       if (error) throw error;
       if (!data || data.length === 0) return { served: true, fee_cents: null };
-      const hit = data.find((r) => key(r.wilaya) === key(wilaya));
+      const names = data.map((r) => r.wilaya);
+      const exact = data.find((r) => key(r.wilaya) === key(wilaya));
+      const hit = exact ?? data.find((r) => r.wilaya === matchWilaya(wilaya, names));
       if (!hit) {
-        return { served: false, fee_cents: null, options: data.map((r) => r.wilaya) };
+        return { served: false, fee_cents: null, options: names };
       }
       return { served: true, fee_cents: hit.fee_cents, canonical: hit.wilaya };
     },
 
     async placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult> {
+      // Send the store's own spelling of the wilaya so the RPC's fee lookup matches.
+      const { data: fees } = await client
+        .from("delivery_fees")
+        .select("wilaya")
+        .eq("store_id", input.storeId);
+      const wilaya = matchWilaya(input.wilaya, (fees ?? []).map((r) => r.wilaya)) ?? input.wilaya;
       const { data, error } = await client.rpc("place_order", {
         p_store_id: input.storeId,
         p_conversation_id: input.conversationId,
         p_customer_id: input.customerId,
         p_customer_name: input.customerName,
         p_phone: input.phone,
-        p_wilaya: input.wilaya,
+        p_wilaya: wilaya,
         p_address: input.address,
         p_items: input.items,
         p_key: input.key,

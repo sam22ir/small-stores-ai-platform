@@ -81,6 +81,31 @@ test("a message already sent or already claimed is left alone", async () => {
   assert.equal(sent.length, 0);
 });
 
+test("a reply claimed moments ago by a live delivery is skipped", async () => {
+  const sent = stubInstagram();
+  const { tables, db } = await setup({
+    messages: [
+      { id: "m1", conversation_id: "c1", direction: "outbound", body: "a", delivery_status: "pending", delivery_claimed_at: "2026-10-05T11:59:30Z" },
+    ],
+  });
+  assert.deepEqual(await deliverPending({ db, env, now: NOW }, "c1"), { sent: 0, failed: 0, skipped: 0 });
+  assert.equal(sent.length, 0);
+  assert.equal(tables.messages[0].delivery_status, "pending");
+});
+
+test("a claim left behind by a killed delivery is reclaimed and the reply is sent", async () => {
+  const sent = stubInstagram();
+  const { tables, db } = await setup({
+    messages: [
+      { id: "m1", conversation_id: "c1", direction: "outbound", body: "Yes, it is in stock.", delivery_status: "pending", delivery_claimed_at: "2026-10-05T11:50:00Z" },
+    ],
+  });
+  const r = await deliverPending({ db, env, now: NOW }, "c1");
+  assert.deepEqual(r, { sent: 1, failed: 0, skipped: 0 });
+  assert.equal(sent.length, 1);
+  assert.equal(tables.messages[0].delivery_status, "sent");
+});
+
 test("after 24 hours the reply is not sent and the owner is told why", async () => {
   const sent = stubInstagram();
   const { tables, db } = await setup({ lastCustomerAt: "2026-10-04T11:00:00Z" });

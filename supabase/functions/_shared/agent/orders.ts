@@ -25,11 +25,20 @@ function fnv1a(text: string): string {
   return h.toString(16).padStart(8, "0");
 }
 
-// Same conversation + same basket + same phone on the same day = same order, so a model
-// that calls create_order twice (retry, double confirmation) can't place it twice.
+// Lowercases, trims and collapses whitespace so re-typed values still match.
+function normText(text: string): string {
+  return text.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+// Same conversation + same basket + same phone, wilaya and address on the same local day =
+// same order, so a model that calls create_order twice (retry, double confirmation) can't
+// place it twice. A different address or wilaya is a different order. The day is Algerian
+// local time (UTC+1, no DST): shifting by one hour before slicing makes it roll over at 00:00 local.
 export function orderIdempotencyKey(
   conversationId: string,
   phone: string,
+  wilaya: string,
+  address: string,
   items: { variant_id: string; quantity: number }[],
   now: Date,
 ): string {
@@ -37,6 +46,7 @@ export function orderIdempotencyKey(
     .map((i) => `${i.variant_id}x${i.quantity}`)
     .sort()
     .join(",");
-  const day = now.toISOString().slice(0, 10);
-  return `${conversationId}:${day}:${fnv1a(`${phone}|${basket}`)}`;
+  const day = new Date(now.getTime() + 60 * 60 * 1000).toISOString().slice(0, 10);
+  const fingerprint = JSON.stringify([phone, basket, normText(wilaya), normText(address)]);
+  return `${conversationId}:${day}:${fnv1a(fingerprint)}`;
 }
