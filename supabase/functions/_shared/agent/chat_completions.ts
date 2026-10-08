@@ -21,7 +21,7 @@ import type {
 // The Claude path in run.ts is the production path; behaviour on other models
 // (tool use, languages, prompt-injection resistance) is NOT representative of it.
 
-const MAX_TOOL_ROUNDS = 5;
+const MAX_TOOL_ROUNDS = 6; // search, create_order, one retry, then the reply
 // Reasoning models spend completion tokens on thinking before they answer.
 const MAX_TOKENS = 2048;
 const DEFAULT_TIMEOUT_MS = 45_000;

@@ -11,8 +11,9 @@ const FRENCH_ACCENT = /[éèêëàâçùûîïôœ]/iu;
 
 // Words that only appear in French (not in Darija or English).
 const FRENCH_WORDS = new Set([
-  "bonjour", "bonsoir", "salut", "merci", "vous", "avez", "avoir", "est", "combien", "prix",
-  "livraison", "livrer", "commande", "voudrais", "veux", "taille", "svp", "disponible", "je",
+  // Shop words (taille, prix, livraison, commande, disponible) are left out: Darija uses them too.
+  "bonjour", "bonsoir", "salut", "merci", "vous", "avez", "avoir", "est", "combien",
+  "voudrais", "veux", "svp", "je",
   "il", "elle", "le", "la", "les", "des", "du", "pour", "avec", "coûte", "coute", "quel", "quelle",
   "nous", "oui", "non", "j'ai", "s'il", "bien", "pas", "bonne", "jour",
 ]);
@@ -76,15 +77,25 @@ export function lastCustomerText(history: { role: string; text: string }[]): str
   return "";
 }
 
-// The language to reply in for this turn: the latest customer message with a clear language, so
-// "ok" or a name after a Darija conversation keeps the Darija. Falls back to English.
+// The language to reply in for this turn, read oldest first. Neutral messages ("ok", a name, an
+// address) keep the current language. A Darija conversation turns French only on strong evidence:
+// 2+ French words and no Darija word, so an accent such as "cité" alone doesn't switch it.
+// Falls back to English.
 export function conversationLang(history: { role: string; text: string }[]): Lang {
-  for (let i = history.length - 1; i >= 0; i--) {
-    if (history[i].role !== "user") continue;
-    const lang = detectLangStrict(history[i].text);
-    if (lang) return lang;
+  let lang: Lang | null = null;
+  for (const m of history) {
+    if (m.role !== "user") continue;
+    const signal = detectLangStrict(m.text);
+    if (!signal) continue;
+    if (lang === "dz" && signal !== "ar") {
+      const ws = words(m.text);
+      const darija = ws.some((w) => DARIJA_WORDS.has(w) || DARIJA_DIGIT_WORD.test(w));
+      const french = ws.filter((w) => FRENCH_WORDS.has(w)).length;
+      if (darija || french < 2) continue;
+    }
+    lang = signal;
   }
-  return "en";
+  return lang ?? "en";
 }
 
 const HOLDING: Record<Lang, string> = {

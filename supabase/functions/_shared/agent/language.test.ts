@@ -37,6 +37,44 @@ test("a message with no clear language gives no signal and keeps the conversatio
   assert.equal(conversationLang([{ role: "user", text: "bonjour le sac" }, { role: "user", text: "11" }]), "fr");
 });
 
+test("shop words used inside Darija do not count as French", () => {
+  assert.equal(detectLang("w taille L?"), "en");
+  assert.equal(detectLang("prix dyal hoodie"), "dz");
+  assert.equal(detectLang("chhal livraison?"), "dz");
+});
+
+test("a Darija conversation stays Darija on every turn", () => {
+  const history = [
+    { role: "user", text: "bghit nchri hoodie noir XL" },
+    { role: "assistant", text: "Wach..." },
+    { role: "user", text: "smiti Karim Benali, 0555 12 34 56" },
+    { role: "user", text: "Oran, cité 200 logements bloc B n°12, Bir El Djir" },
+    { role: "user", text: "ih confirmé" },
+  ];
+  for (let i = 1; i <= history.length; i++) {
+    assert.equal(conversationLang(history.slice(0, i)), "dz", `turn ${i}`);
+  }
+  assert.equal(conversationLang([{ role: "user", text: "b9addeh hoodie?" }, { role: "user", text: "w taille L?" }]), "dz");
+});
+
+test("a Darija conversation turns French only with 2+ French words and no Darija", () => {
+  const dz = { role: "user", text: "bghit hoodie" };
+  assert.equal(conversationLang([dz, { role: "user", text: "Bonjour, je voudrais le jean en 40, il coûte combien ?" }]), "fr");
+  assert.equal(conversationLang([dz, { role: "user", text: "merci" }]), "dz");
+  assert.equal(conversationLang([dz, { role: "user", text: "salam, je veux le jean" }]), "dz");
+});
+
+test("a French conversation stays French when the customer gives an address", () => {
+  assert.equal(
+    conversationLang([
+      { role: "user", text: "Bonjour, je voudrais le jean en 40, il coûte combien ?" },
+      { role: "user", text: "Karim Benali, 0555 12 34 56" },
+      { role: "user", text: "Oran, cité 200 logements bloc B n°12, Bir El Djir" },
+    ]),
+    "fr",
+  );
+});
+
 test("fixed server messages exist in every language and stay short", () => {
   for (const l of ["en", "fr", "ar", "dz"] as const) {
     assert.ok(holdingReply(l).length > 20 && new TextEncoder().encode(holdingReply(l)).length < 400);

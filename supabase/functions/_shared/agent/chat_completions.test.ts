@@ -121,7 +121,7 @@ test("a persistent error throws without leaking the api key", async () => {
 test("gives up after too many tool rounds", async () => {
   const { fetchImpl, calls } = fakeFetch(Array.from({ length: 9 }, () => toolCall("get_store_info", "{}")));
   const r = await runAgentChatCompletions({ ...base, fetchImpl });
-  assert.equal(calls.length, 5);
+  assert.equal(calls.length, 6);
   assert.equal(r.reply, HANDOFF_HOLDING_REPLY);
 });
 

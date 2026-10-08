@@ -209,3 +209,124 @@ test("a product marked sold out until later is reported out of stock, then back 
   const back = JSON.parse((await executeTool("search_products", { query: "hoodie" }, after)).content);
   assert.equal(back.results[0].availability, "available");
 });
+
+// A catalog with several products, for the variant-resolution tests.
+const XL = "44444444-4444-4444-8444-444444444444";
+const SHOP: Catalog = {
+  searchProducts: () =>
+    Promise.resolve([
+      {
+        id: "33333333-3333-4333-8333-333333333333",
+        name: "Black Hoodie",
+        description: null,
+        price_cents: 4500,
+        aliases: "hoodie noir, hoodie black",
+        variants: [
+          { id: VARIANT, label: "M", price_cents: null, stock_quantity: 3 },
+          { id: XL, label: "XL", price_cents: null, stock_quantity: 4 },
+        ],
+      },
+    ]),
+  getProduct: () => Promise.resolve(null),
+};
+
+function shopCtx(catalog: Catalog, calls: PlaceOrderInput[] = []) {
+  return { ...ctx(true, fakeOrders(OK, calls)), catalog };
+}
+
+test("an invented variant_id is recovered from product_name and variant_label", async () => {
+  const calls: PlaceOrderInput[] = [];
+  const r = await executeTool(
+    "create_order",
+    { ...goodOrder, items: [{ variant_id: "hoodie-noir-xl", quantity: 1, product_name: "Black Hoodie", variant_label: "XL" }] },
+    shopCtx(SHOP, calls),
+  );
+  assert.ok(!r.isError, r.content);
+  assert.deepEqual(calls[0].items, [{ variant_id: XL, quantity: 1 }]);
+});
+
+test("product aliases and label case or spacing resolve too", async () => {
+  const calls: PlaceOrderInput[] = [];
+  const r = await executeTool(
+    "create_order",
+    { ...goodOrder, items: [{ variant_id: "hoodie-black-m", quantity: 2, product_name: " hoodie NOIR ", variant_label: "m" }] },
+    shopCtx(SHOP, calls),
+  );
+  assert.ok(!r.isError, r.content);
+  assert.deepEqual(calls[0].items, [{ variant_id: VARIANT, quantity: 2 }]);
+});
+
+test("an invented id with an unknown product or label asks the model to search again", async () => {
+  const calls: PlaceOrderInput[] = [];
+  const c = shopCtx(SHOP, calls);
+  for (const item of [
+    { variant_id: "x", quantity: 1, product_name: "Red Shirt", variant_label: "M" },
+    { variant_id: "x", quantity: 1, product_name: "Black Hoodie", variant_label: "XXL" },
+  ]) {
+    const r = await executeTool("create_order", { ...goodOrder, items: [item] }, c);
+    assert.equal(r.isError, true);
+    assert.match(r.content, /search_products/);
+  }
+  assert.equal(calls.length, 0);
+});
+
+test("an ambiguous product or variant is not guessed", async () => {
+  const twin = { ...SHOP, searchProducts: async (...args: Parameters<Catalog["searchProducts"]>) => [
+    ...(await SHOP.searchProducts(...args)),
+    { ...(await SHOP.searchProducts(...args))[0], id: "55555555-5555-4555-8555-555555555555" },
+  ] } as Catalog;
+  const calls: PlaceOrderInput[] = [];
+  const byTwins = await executeTool(
+    "create_order",
+    { ...goodOrder, items: [{ variant_id: "x", quantity: 1, product_name: "Black Hoodie", variant_label: "M" }] },
+    shopCtx(twin, calls),
+  );
+  assert.equal(byTwins.isError, true);
+  assert.match(byTwins.content, /more than one/);
+
+  const noLabel = await executeTool(
+    "create_order",
+    { ...goodOrder, items: [{ variant_id: "x", quantity: 1, product_name: "Black Hoodie" }] },
+    shopCtx(SHOP, calls),
+  );
+  assert.equal(noLabel.isError, true);
+  assert.match(noLabel.content, /more than one/);
+  assert.equal(calls.length, 0);
+});
+
+test("an invented id without product_name gets the search guidance", async () => {
+  const calls: PlaceOrderInput[] = [];
+  const r = await executeTool(
+    "create_order",
+    { ...goodOrder, items: [{ variant_id: "hoodie-noir-xl", quantity: 1 }] },
+    shopCtx(SHOP, calls),
+  );
+  assert.equal(r.isError, true);
+  assert.match(r.content, /search_products/);
+  assert.equal(calls.length, 0);
+});
+
+test("a sold-out product is not used to recover an order", async () => {
+  const soldOut = { ...SHOP, searchProducts: async (...args: Parameters<Catalog["searchProducts"]>) => [
+    { ...(await SHOP.searchProducts(...args))[0], sold_out_until: "2026-10-05T10:00:00Z" },
+  ] } as Catalog;
+  const calls: PlaceOrderInput[] = [];
+  const r = await executeTool(
+    "create_order",
+    { ...goodOrder, items: [{ variant_id: "x", quantity: 1, product_name: "Black Hoodie", variant_label: "M" }] },
+    shopCtx(soldOut, calls),
+  );
+  assert.equal(r.isError, true);
+  assert.equal(calls.length, 0);
+});
+
+test("a real variant UUID still works when product_name is also given", async () => {
+  const calls: PlaceOrderInput[] = [];
+  const r = await executeTool(
+    "create_order",
+    { ...goodOrder, items: [{ variant_id: VARIANT, quantity: 1, product_name: "Black Hoodie", variant_label: "XL" }] },
+    shopCtx(SHOP, calls),
+  );
+  assert.ok(!r.isError, r.content);
+  assert.deepEqual(calls[0].items, [{ variant_id: VARIANT, quantity: 1 }]);
+});

@@ -154,7 +154,7 @@ test("gives up after too many tool rounds", async () => {
   }));
   const { client, requests } = fakeClient(loop);
   const r = await runAgent({ client, catalog, store: STORE, history: ask("hi") });
-  assert.equal(requests.length, 5);
+  assert.equal(requests.length, 6);
   assert.equal(r.reply, HANDOFF_HOLDING_REPLY);
   assert.ok(r.handoffReason);
 });

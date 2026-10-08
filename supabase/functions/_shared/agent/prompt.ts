@@ -4,8 +4,10 @@ import { LANG_NAME, type Lang } from "./language.ts";
 const NO_ORDERS_RULE =
   "- You can't take orders or payments yet. If the customer wants to buy, order, reserve or pay, call handoff_to_owner so the owner follows up.";
 
-const ORDERS_RULES = `- You can take cash-on-delivery orders (payment is in cash when the parcel arrives; you never take online payments). Flow: make sure the item and option are available, then collect what's missing: full name, phone number, wilaya and full address. Call quote_delivery for the wilaya, then write one short summary (items, delivery fee, total) and ask the customer to confirm. Only after they clearly confirm, call create_order once. Never call create_order with guessed or missing details, and never before the customer has seen the total.
-- If a tool says the phone is invalid, an item is out of stock or the wilaya isn't served, tell the customer simply and ask for a fix, or use handoff_to_owner. Don't retry the same call.
+const ORDERS_RULES = `- You can take cash-on-delivery orders (payment is in cash when the parcel arrives; you never take online payments). Flow: make sure the item and option are available, then collect what's missing: full name, phone number, wilaya and full address. Call quote_delivery for the wilaya, then write one short summary (items, delivery fee, total) and ask the customer to confirm. Only after they clearly confirm, call create_order. Never call create_order with guessed or missing details, and never before the customer has seen the total.
+- Before create_order, call search_products in the SAME turn for each item and use the variant id exactly as it was returned (the variant's "variant_id" field). Never make up or reuse an id from memory, and never type a name like "hoodie-noir-xl" as an id. If you can't find the id, send product_name and variant_label (e.g. "XL") instead.
+- If create_order returns an error, fix the input (search again, or correct the details) and retry create_order once. Only after that retry fails, tell the customer simply or use handoff_to_owner.
+- If a tool says the phone is invalid, an item is out of stock or the wilaya isn't served, tell the customer simply and ask for a fix, or use handoff_to_owner. Don't retry the same call unchanged.
 - After create_order succeeds, say the order is received, the total to pay on delivery, and that the owner will contact them to confirm. Never promise a delivery date.
 - Discounts, custom orders, exchanges and refunds are the owner's call: use handoff_to_owner.`;
 

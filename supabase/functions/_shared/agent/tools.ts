@@ -118,8 +118,19 @@ export const orderToolDefinitions: AgentTool[] = [
           items: {
             type: "object",
             properties: {
-              variant_id: { type: "string", description: "variant_id from the tools" },
+              variant_id: {
+                type: "string",
+                description: "id of the variant exactly as search_products or check_stock returned it. Never invent one.",
+              },
               quantity: { type: "integer", description: "Units, 1 to 10" },
+              product_name: {
+                type: "string",
+                description: "Only if variant_id is missing or unsure: the product's name as search_products returned it",
+              },
+              variant_label: {
+                type: "string",
+                description: "Only with product_name: the size or option, e.g. XL, 42, Unique",
+              },
             },
             required: ["variant_id", "quantity"],
             additionalProperties: false,
@@ -354,9 +365,55 @@ const ORDER_ERRORS: Record<string, string> = {
   wilaya_not_served:
     "The store doesn't deliver to that wilaya. Tell the customer and offer to ask the owner (handoff_to_owner).",
   unknown_variant:
-    "One of the variant_id values is not valid. Call check_stock for the product and use its variant_id.",
+    "One of the variant_id values is not valid. Call search_products for the product and retry create_order with the id of the variant from that result.",
   invalid: "The order details were rejected. Ask the customer to check them.",
 };
+
+function normalizeLabel(s: string): string {
+  return s.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+const GUIDE_RETRY =
+  "Call search_products for this product, then retry create_order with the variant's id exactly as that result returned it.";
+
+// Finds the one variant a customer means by product name and label, using the same search
+// as search_products. Orders only on exactly one active match; anything else asks the model to
+// look the product up again.
+async function resolveVariant(
+  item: Record<string, unknown>,
+  ctx: ToolContext,
+  now: Date,
+): Promise<{ id: string } | { error: string }> {
+  const productName = typeof item.product_name === "string"
+    ? item.product_name.trim().slice(0, 200)
+    : "";
+  if (!productName) {
+    return { error: `variant_id must be the id from search_products. ${GUIDE_RETRY}` };
+  }
+  const label = typeof item.variant_label === "string" ? normalizeLabel(item.variant_label) : "";
+  const want = normalizeLabel(productName);
+
+  const found = await ctx.catalog.searchProducts(ctx.store.id, productName, 5);
+  const matches: { id: string }[] = [];
+  for (const p of found) {
+    if (isSoldOut(p, now)) continue;
+    const aliases = (p.aliases ?? "").split(",").map(normalizeLabel).filter(Boolean);
+    if (normalizeLabel(p.name) !== want && !aliases.includes(want)) continue;
+    for (const v of p.variants) {
+      if (label && normalizeLabel(v.label) !== label) continue;
+      matches.push({ id: v.id });
+    }
+  }
+
+  const shown = label ? `"${productName}" in "${item.variant_label}"` : `"${productName}"`;
+  if (matches.length === 1) return matches[0];
+  if (matches.length === 0) {
+    return { error: `No active product or variant matches ${shown}. ${GUIDE_RETRY}` };
+  }
+  return {
+    error: `${shown} matches more than one variant. Ask the customer which option they want, then call search_products and use that variant's id.`,
+  };
+}
 
 async function createOrder(
   args: Record<string, unknown>,
@@ -392,10 +449,10 @@ async function createOrder(
   if (!Array.isArray(args.items) || args.items.length === 0 || args.items.length > 10) {
     return { content: "items must contain 1-10 entries.", isError: true };
   }
+  const now = ctx.now ?? new Date();
   for (const raw of args.items) {
     const it = asRecord(raw);
     if (
-      typeof it.variant_id !== "string" || !UUID.test(it.variant_id) ||
       typeof it.quantity !== "number" || !Number.isInteger(it.quantity) ||
       it.quantity < 1 || it.quantity > 10
     ) {
@@ -404,7 +461,16 @@ async function createOrder(
         isError: true,
       };
     }
-    merged.set(it.variant_id, (merged.get(it.variant_id) ?? 0) + it.quantity);
+    let variantId: string;
+    if (typeof it.variant_id === "string" && UUID.test(it.variant_id)) {
+      variantId = it.variant_id;
+    } else {
+      // An id the model made up: recover it from the product name and variant label.
+      const resolved = await resolveVariant(it, ctx, now);
+      if ("error" in resolved) return { content: resolved.error, isError: true };
+      variantId = resolved.id;
+    }
+    merged.set(variantId, (merged.get(variantId) ?? 0) + it.quantity);
   }
   const items: OrderLineInput[] = [...merged].map(([variant_id, quantity]) => ({
     variant_id,
@@ -423,7 +489,7 @@ async function createOrder(
     wilaya,
     address,
     items,
-    key: orderIdempotencyKey(ctx.conversationId, phone, wilaya, address, items, ctx.now ?? new Date()),
+    key: orderIdempotencyKey(ctx.conversationId, phone, wilaya, address, items, now),
   });
 
   if (!result.ok) {

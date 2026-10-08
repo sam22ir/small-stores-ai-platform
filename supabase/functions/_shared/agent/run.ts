@@ -16,7 +16,7 @@ type MessageParam = Anthropic.Beta.Messages.BetaMessageParam;
 type ToolResultParam = Anthropic.Beta.Messages.BetaToolResultBlockParam;
 
 export const DEFAULT_MODEL = "claude-sonnet-5-5";
-const MAX_TOOL_ROUNDS = 5;
+const MAX_TOOL_ROUNDS = 6; // search, create_order, one retry, then the reply
 const MAX_TOKENS = 1024;
 // Instagram caps a text message at 1000 bytes (UTF-8), so non-Latin scripts fit less.
 export const MAX_REPLY_BYTES = 950;
