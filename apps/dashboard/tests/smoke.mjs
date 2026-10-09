@@ -326,6 +326,7 @@ try {
   ok("new test chat clears the conversation", !(await page.isDisabled("input[aria-label='Write as a customer…']")) && !(await page.isVisible("text=Black Hoodie in M is available")));
   await page.click("a:has-text('Chats')");
   await page.waitForSelector("text=Customer chats");
+  await page.waitForSelector("text=2 of 3 done");
   ok("checklist progress follows what the owner did (info + tried the assistant)", await page.isVisible("text=2 of 3 done"));
   state.products.push({ id: "p4", name: "Silk Scarf", description: null, price_cents: 150000, active: true, aliases: null, stock_checked_at: new Date().toISOString(), sold_out_until: null, product_variants: [] });
   await page.reload();
