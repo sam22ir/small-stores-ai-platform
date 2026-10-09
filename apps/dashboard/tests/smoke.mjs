@@ -119,7 +119,9 @@ try {
     && (await toggle.textContent()).includes("Paused"));
   state.failStoreWrites = false;
   await toggle.click();
-  ok("pause switch turns the assistant back on", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes('"agent_enabled":true'), 8000) && state.store.agent_enabled === true);
+  // The failed write above also logged agent_enabled:true, so wait for the mock to apply this one.
+  for (let i = 0; i < 50 && state.store.agent_enabled !== true; i++) await new Promise((r) => setTimeout(r, 100));
+  ok("pause switch turns the assistant back on", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes('"agent_enabled":true')) && state.store.agent_enabled === true);
   await page.waitForSelector("aside [data-testid=agent-toggle]:has-text('Assistant on')");
 
   // 2. thread + reply
