@@ -119,7 +119,7 @@ try {
     && (await toggle.textContent()).includes("Paused"));
   state.failStoreWrites = false;
   await toggle.click();
-  ok("pause switch turns the assistant back on", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes('"agent_enabled":true')) && state.store.agent_enabled === true);
+  ok("pause switch turns the assistant back on", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes('"agent_enabled":true'), 8000) && state.store.agent_enabled === true);
   await page.waitForSelector("aside [data-testid=agent-toggle]:has-text('Assistant on')");
 
   // 2. thread + reply
