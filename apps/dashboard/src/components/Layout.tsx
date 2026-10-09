@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import type { ReactNode } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { AnimatePresence, LazyMotion, domAnimation, m } from "motion/react";
+import { Avatar, Button, Switch } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { useConversationsRefresh, useStore } from "../lib/store";
+import { dur, ease, useMotionSafe } from "../lib/motion";
 import { LangSwitch } from "./LangSwitch";
 import { BoxIcon, ChatIcon, GearIcon, LogoutIcon, OrdersIcon, SparkIcon } from "./icons";
-import type { ReactNode } from "react";
 
 const NAV: { to: string; key: TKey; icon: ReactNode }[] = [
   { to: "/inbox", key: "nav.inbox", icon: <ChatIcon /> },
@@ -16,78 +19,97 @@ const NAV: { to: string; key: TKey; icon: ReactNode }[] = [
   { to: "/settings", key: "nav.settings", icon: <GearIcon /> },
 ];
 
-// Pause / resume the assistant. Flips the UI at once and reverts if the write fails.
-function PauseSwitch() {
+// Pause / resume the assistant. The switch flips at once and reverts if the write fails.
+function PauseSwitch({ compact = false }: { compact?: boolean }) {
   const { t } = useI18n();
   const { store, patchStore } = useStore();
-  const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   if (!store) return null;
   const on = store.agent_enabled;
   const storeId = store.id;
 
-  async function toggle() {
-    if (busy) return;
-    const next = !on;
-    setBusy(true); setFailed(false);
+  async function toggle(next: boolean) {
+    // Not blocked while a write is pending: the switch shows the latest choice and the last write wins.
+    setFailed(false);
     patchStore({ agent_enabled: next });
     const { error } = await supabase.from("stores").update({ agent_enabled: next }).eq("id", storeId);
-    setBusy(false);
     if (error) { patchStore({ agent_enabled: on }); setFailed(true); }
   }
 
   return (
     <div className="flex flex-col items-start gap-1 min-w-0">
-      <button type="button" role="switch" aria-checked={on} data-testid="agent-toggle" onClick={() => void toggle()} disabled={busy}
-        className="inline-flex items-center gap-2 ps-2 pe-3.5 rounded-full border text-sm font-semibold whitespace-nowrap disabled:opacity-60"
-        style={{
-          minHeight: 44,
-          borderColor: on ? "var(--brand-border)" : "var(--border)",
-          background: on ? "var(--brand-soft)" : "var(--surface)",
-          color: on ? "var(--brand)" : "var(--muted)",
-        }}>
-        <span aria-hidden="true" className="relative inline-block shrink-0 rounded-full"
-          style={{ width: 36, height: 20, background: on ? "var(--brand)" : "var(--border)" }}>
-          <span className="absolute top-0.5 rounded-full transition-all"
-            style={{
-              width: 16, height: 16, background: "var(--surface)",
-              insetInlineStart: on ? "auto" : 2, insetInlineEnd: on ? 2 : "auto",
-            }} />
-        </span>
-        {on ? t("agent.on") : t("agent.paused")}
-      </button>
-      {failed && <span role="alert" className="error text-xs">{t("agent.failed")}</span>}
+      <Switch
+        isSelected={on}
+        onChange={(next) => void toggle(next)}
+        size={compact ? "sm" : "md"}
+        data-testid="agent-toggle"
+        className={`relative items-center rounded-full border-2 border-ink bg-slip text-sm font-semibold text-ink shadow-ink-sm data-[selected=true]:bg-blue data-[selected=true]:text-slip ${compact ? "min-h-9 w-36 text-xs" : "min-h-11 min-w-40"}`}
+      >
+        <Switch.Control className="ms-1.5">
+          <Switch.Thumb />
+        </Switch.Control>
+        {/* The label fills the whole pill so a click anywhere on it toggles the switch. */}
+        <Switch.Content className={`absolute inset-0 flex cursor-pointer items-center text-start [color:inherit] ${compact ? "ps-9 pe-2" : "ps-12 pe-3"}`}>{on ? t("agent.on") : t("agent.paused")}</Switch.Content>
+      </Switch>
+      <AnimatePresence>
+        {failed && (
+          <m.span key="failed" role="alert" className="text-xs font-semibold text-red"
+            initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            transition={{ duration: dur.short, ease: ease.out }}>
+            {t("agent.failed")}
+          </m.span>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
+// Unread count. Pops whenever the number changes.
 function NeedsBadge({ count, className }: { count: number; className: string }) {
   const { t } = useI18n();
+  const reduced = useMotionSafe();
   if (count <= 0) return null;
+  const label = count > 99 ? "99+" : String(count);
   return (
-    <span data-testid="needs-badge" aria-label={`${t("inbox.needsYou")}: ${count}`}
-      className={`inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[11px] font-bold leading-none ${className}`}
-      style={{ background: "var(--brand)", color: "var(--brand-contrast)" }}>
-      {count > 99 ? "99+" : count}
-    </span>
+    <AnimatePresence mode="popLayout" initial={false}>
+      <m.span key={label} data-testid="needs-badge" aria-label={`${t("inbox.needsYou")}: ${count}`}
+        className={`inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full border-2 border-ink bg-red text-[11px] font-bold leading-none text-slip ${className}`}
+        initial={reduced ? false : { scale: 0.4, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={reduced ? { opacity: 0 } : { scale: 0.4, opacity: 0 }}
+        transition={{ duration: dur.short, ease: ease.stamp }}>
+        {label}
+      </m.span>
+    </AnimatePresence>
   );
 }
 
-// Round store avatar: the first letter of the store name.
-function StoreAvatar({ name, size }: { name?: string; size: number }) {
+// Store avatar: the first letter of the store name.
+function StoreAvatar({ name, size = "md" }: { name?: string; size?: "sm" | "md" }) {
   const initial = (name ?? "").trim().charAt(0).toUpperCase();
   return (
-    <div aria-hidden="true" className="shrink-0 grid place-items-center rounded-full font-semibold"
-      style={{ width: size, height: size, background: "var(--brand)", color: "var(--brand-contrast)", fontSize: size >= 40 ? 16 : 14 }}>
-      {initial}
-    </div>
+    <Avatar size={size} className="shrink-0 border-2 border-ink bg-blue text-slip">
+      <Avatar.Fallback className="bg-blue font-bold text-slip">{initial}</Avatar.Fallback>
+    </Avatar>
   );
+}
+
+// Shared nav item look. The active pill is one element that slides between items (shared layout).
+function navClass(isActive: boolean, extra = "") {
+  return `relative isolate flex items-center gap-3 rounded-wakil px-3 font-semibold text-[15px] no-underline transition-colors duration-150 ${isActive ? "text-slip" : "text-ink hover:bg-ink/5"} ${extra}`;
+}
+
+function ActivePill() {
+  return <m.span layoutId="nav-active" aria-hidden="true" className="absolute inset-0 -z-10 rounded-wakil bg-ink shadow-ink-sm"
+    transition={{ type: "spring", stiffness: 500, damping: 40 }} />;
 }
 
 export function Layout() {
   const { t } = useI18n();
   const { store } = useStore();
   const storeId = store?.id;
+  const location = useLocation();
+  const reduced = useMotionSafe();
   const [needs, setNeeds] = useState(0);
 
   // Chats that are waiting for the owner. Test chats (playground channel) are not customers.
@@ -103,74 +125,95 @@ export function Layout() {
   useEffect(() => { void loadNeeds(); }, [loadNeeds]);
   useConversationsRefresh(storeId, loadNeeds);
 
-  return (
-    <div className="min-h-screen lg:flex">
-      {/* Desktop sidebar (>= 1024px) */}
-      <aside className="hidden lg:flex lg:w-60 lg:shrink-0 lg:flex-col lg:gap-1 lg:sticky lg:top-0 lg:h-screen p-4 border-e divider" style={{ background: "var(--surface)" }}>
-        <div className="flex items-center gap-3 px-2 py-3 min-w-0">
-          <StoreAvatar name={store?.name} size={40} />
-          <div className="min-w-0">
-            <div className="font-semibold truncate" style={{ color: "var(--heading)" }}>{store?.name}</div>
-            <div className="muted text-xs truncate">{t("app.name")}</div>
-          </div>
-        </div>
-        {NAV.map((n) => (
-          <NavLink key={n.to} to={n.to}
-            className="flex items-center gap-3 rounded-xl px-3 font-semibold text-[15px]"
-            style={({ isActive }) => ({
-              minHeight: 44,
-              background: isActive ? "var(--brand-soft)" : undefined,
-              color: isActive ? "var(--brand)" : "var(--heading)",
-            })}>
-            {n.icon}<span className="min-w-0 flex-1 truncate">{t(n.key)}</span>
-            {n.to === "/inbox" && <NeedsBadge count={needs} className="shrink-0" />}
-          </NavLink>
-        ))}
-        <div className="mt-auto flex flex-col items-start gap-3 pt-4">
-          <PauseSwitch />
-          <LangSwitch />
-          <button className="btn btn-small" onClick={() => void supabase.auth.signOut()}>{t("auth.signOut")}</button>
-        </div>
-      </aside>
+  const signOut = () => void supabase.auth.signOut();
+  // Each top-level section fades in as the route changes. The inbox handles its own list-to-chat motion.
+  const section = location.pathname.split("/")[1] ?? "";
 
-      <div className="flex-1 min-w-0">
-        {/* Phone header (< 1024px) */}
-        <header className="lg:hidden flex items-center justify-between gap-2 px-4 border-b divider" style={{ background: "var(--surface)", minHeight: 64 }}>
-          <div className="flex items-center gap-2.5 min-w-0">
-            <StoreAvatar name={store?.name} size={40} />
+  return (
+    <LazyMotion features={domAnimation}>
+      <div className="min-h-dvh overflow-x-clip bg-paper text-ink lg:flex">
+        {/* Desktop sidebar (>= 1024px) */}
+        <aside className="sticky top-4 m-4 hidden h-[calc(100dvh-2rem)] w-64 shrink-0 flex-col gap-1 rounded-wakil-lg border-2 border-ink bg-slip p-4 shadow-ink lg:flex">
+          <div className="flex min-w-0 items-center gap-3 px-1 py-2">
+            <StoreAvatar name={store?.name} />
             <div className="min-w-0">
-              <div className="font-semibold leading-tight truncate" style={{ color: "var(--heading)" }}>{store?.name}</div>
-              <div className="muted text-xs truncate">{t("app.name")}</div>
+              <div className="truncate font-bold text-ink">{store?.name}</div>
+              <div className="truncate text-xs text-soft">{t("app.name")}</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          {/* A div, not a nav: the phone bottom bar is the only <nav> the mobile layout exposes. */}
+          <div role="navigation" className="mt-3 flex flex-col gap-1" aria-label={t("app.name")}>
+            {NAV.map((n) => (
+              <NavLink key={n.to} to={n.to} className={({ isActive }) => navClass(isActive, "min-h-11")}>
+                {({ isActive }) => (
+                  <>
+                    {isActive && <ActivePill />}
+                    <span className="inline-flex shrink-0 [&>svg]:size-5">{n.icon}</span>
+                    <span className="min-w-0 flex-1 truncate">{t(n.key)}</span>
+                    {n.to === "/inbox" && <NeedsBadge count={needs} className="shrink-0" />}
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
+          <div className="mt-auto flex flex-col items-start gap-3 border-t border-ink/15 pt-4">
             <PauseSwitch />
             <LangSwitch />
-            <button className="btn btn-icon" aria-label={t("auth.signOut")} title={t("auth.signOut")}
-              onClick={() => void supabase.auth.signOut()}><LogoutIcon /></button>
+            <Button variant="ghost" size="sm" className="font-semibold text-red" onPress={signOut}>
+              {t("auth.signOut")}
+            </Button>
           </div>
-        </header>
-        <main className="mx-auto max-w-4xl p-4 pb-28 lg:pb-8"><Outlet /></main>
-      </div>
+        </aside>
 
-      {/* Phone bottom tab bar (< 1024px) */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-5 border-t divider safe-bottom" style={{ background: "var(--surface)" }}>
-        {NAV.map((n) => (
-          <NavLink key={n.to} to={n.to}
-            className="flex flex-col items-center justify-center gap-1 py-1.5 px-0.5 min-w-0 text-xs leading-tight"
-            style={({ isActive }) => ({
-              minHeight: 56,
-              fontWeight: isActive ? 600 : 500,
-              color: isActive ? "var(--brand)" : "var(--muted)",
-            })}>
-            <span className="relative block w-6 h-6">
-              {n.icon}
-              {n.to === "/inbox" && <NeedsBadge count={needs} className="absolute -top-1.5 -end-2.5" />}
-            </span>
-            <span className="max-w-full truncate">{t(n.key)}</span>
-          </NavLink>
-        ))}
-      </nav>
-    </div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Phone header (< 1024px) */}
+          <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-2 border-b-2 border-ink bg-slip px-4 py-2 lg:hidden">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <StoreAvatar name={store?.name} size="sm" />
+              <div className="min-w-0">
+                <div className="truncate text-[15px] font-bold leading-tight text-ink">{store?.name}</div>
+                <div className="truncate text-xs text-soft">{t("app.name")}</div>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <PauseSwitch compact />
+              <LangSwitch />
+              <Button isIconOnly variant="ghost" size="sm" aria-label={t("auth.signOut")} onPress={signOut}>
+                <LogoutIcon />
+              </Button>
+            </div>
+          </header>
+
+          <main className="mx-auto w-full min-w-0 max-w-5xl flex-1 px-4 pb-28 pt-4 lg:px-8 lg:pb-10 lg:pt-8">
+            <m.div key={section} className="min-w-0"
+              initial={reduced ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: dur.short, ease: ease.out }}>
+              <Outlet />
+            </m.div>
+          </main>
+        </div>
+
+        {/* Phone bottom tab bar (< 1024px) */}
+        <nav aria-label={t("app.name")} className="safe-bottom fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t-2 border-ink bg-slip lg:hidden">
+          {NAV.map((n) => (
+            <NavLink key={n.to} to={n.to}
+              className={({ isActive }) => `relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-xs leading-tight no-underline transition-colors duration-150 ${isActive ? "font-bold text-blue" : "font-medium text-soft"}`}>
+              {({ isActive }) => (
+                <>
+                  {isActive && <m.span layoutId="tab-active" aria-hidden="true" className="absolute inset-x-3 top-0 h-[3px] rounded-full bg-red"
+                    transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
+                  <span className="relative block h-6 w-6 [&>svg]:size-6">
+                    {n.icon}
+                    {n.to === "/inbox" && <NeedsBadge count={needs} className="absolute -top-1.5 -end-2.5" />}
+                  </span>
+                  <span className="max-w-full truncate">{t(n.key)}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+      </div>
+    </LazyMotion>
   );
 }

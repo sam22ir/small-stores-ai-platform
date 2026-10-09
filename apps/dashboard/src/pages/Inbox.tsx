@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Outlet, useMatch } from "react-router-dom";
+import { AnimatePresence, m } from "motion/react";
+import { Alert, Avatar, Card, Chip, Skeleton, Tabs } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { formatTime } from "../lib/format";
 import { useConversationsRefresh, useStore } from "../lib/store";
+import { dur, ease, useMotionSafe } from "../lib/motion";
 import { SetupChecklist } from "../components/SetupChecklist";
 
 type Status = "human" | "bot" | "closed";
@@ -32,50 +35,94 @@ export const platformKey = (p: string | undefined): TKey =>
 export function InboxEmpty() {
   const { t } = useI18n();
   return (
-    <div className="card flex-1 min-h-[60vh] items-center justify-center p-6 text-center muted hidden lg:flex">
+    <div className="hidden min-h-[60vh] flex-1 items-center justify-center rounded-wakil-lg border-2 border-dashed border-ink/25 p-6 text-center text-soft lg:flex">
       {t("inbox.selectConversation")}
     </div>
   );
 }
 
-function ChatRow({ c, preview, active, showStatus }: { c: Conv; preview?: Preview; active: boolean; showStatus: boolean }) {
-  const { t, lang } = useI18n();
-  const name = c.customers?.display_name || c.customers?.platform_user_id || t("inbox.customer");
-  const chipStyle = c.status === "human"
-    ? { background: "var(--warn-soft)", color: "var(--warn)" }
-    : c.status === "bot"
-      ? { background: "var(--brand-soft)", color: "var(--brand)" }
-      : { background: "var(--surface-2)", color: "var(--heading)" };
+// Loading state: skeleton rows that shimmer until the first list arrives.
+function ListSkeleton() {
   return (
-    <Link to={`/inbox/${c.id}`} aria-current={active ? "page" : undefined}
-      className="flex items-center gap-3 px-4 py-3 no-underline min-h-[56px] border-b last:border-b-0"
-      style={{ color: "inherit", borderColor: "var(--divider)", background: active ? "var(--brand-soft)" : "transparent" }}>
-      <span aria-hidden="true" className="shrink-0 grid place-items-center rounded-full text-sm font-semibold"
-        style={{ width: 36, height: 36, background: "var(--surface-2)", color: "var(--heading)" }}>
-        {name.trim().charAt(0).toUpperCase()}
-      </span>
-      <span className="flex-1 min-w-0">
-        <span className="block font-medium text-[15px] truncate" style={{ color: "var(--text)" }}>{name}</span>
-        <span className="block text-[13px] muted truncate">{preview?.body ?? t("inbox.noMessages")}</span>
-        {c.status === "human" && c.handoff_reason && (
-          <span className="block text-[13px] truncate mt-0.5" style={{ color: "var(--warn)" }}>{c.handoff_reason}</span>
-        )}
-      </span>
-      <span className="shrink-0 flex flex-col items-end gap-1">
-        <span className="text-xs muted">{formatTime(preview?.created_at ?? c.last_customer_message_at, lang)}</span>
-        {showStatus && (
-          <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap" style={chipStyle}>
-            {t(c.status === "human" ? "inbox.needsYou" : c.status === "bot" ? "inbox.assistant" : "inbox.closed")}
-          </span>
-        )}
-      </span>
-    </Link>
+    <div className="flex flex-col gap-2" aria-hidden="true">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex items-center gap-3 rounded-wakil border-2 border-ink/10 bg-slip p-3">
+          <Skeleton className="size-9 shrink-0 rounded-full" />
+          <div className="flex flex-1 flex-col gap-2">
+            <Skeleton className="h-3.5 w-2/5 rounded-full" />
+            <Skeleton className="h-3 w-4/5 rounded-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// A chat row. Rows present on the first load stagger in; a row that arrives later slides in
+// at the top with a short highlight; rows that re-mount (tab switch) appear without motion.
+type Entry = { kind: "none" } | { kind: "stagger"; index: number } | { kind: "new" };
+
+function ChatRow({ c, preview, active, showStatus, entry }: { c: Conv; preview?: Preview; active: boolean; showStatus: boolean; entry: Entry }) {
+  const { t, lang } = useI18n();
+  const reduced = useMotionSafe();
+  const name = c.customers?.display_name || c.customers?.platform_user_id || t("inbox.customer");
+  const initial = name.trim().charAt(0).toUpperCase();
+  const isNew = entry.kind === "new";
+  const animate = !reduced && entry.kind !== "none";
+  const delay = entry.kind === "stagger" ? Math.min(entry.index * 0.045, 0.35) : 0;
+  const chipColor = c.status === "human" ? "warning" : c.status === "bot" ? "accent" : "default";
+  return (
+    <m.div
+      initial={animate ? { opacity: 0, y: isNew ? -14 : 8 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: dur.base, ease: ease.out, delay }}
+      className="relative"
+    >
+      {isNew && (
+        <m.span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-wakil bg-blue/15"
+          initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 1.6, ease: ease.out }} />
+      )}
+      <Link to={`/inbox/${c.id}`} aria-current={active ? "page" : undefined}
+        className={`relative flex min-h-14 items-center gap-3 rounded-wakil px-3 py-2.5 no-underline text-ink transition-colors duration-150 hover:bg-ink/5 ${active ? "bg-blue/10" : ""}`}>
+        <m.span layoutId={`avatar-${c.id}`} className="inline-flex shrink-0">
+          <Avatar size="sm" className="border-2 border-ink bg-slip text-ink" aria-hidden="true">
+            <Avatar.Fallback className="bg-slip font-semibold text-ink">{initial}</Avatar.Fallback>
+          </Avatar>
+        </m.span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-semibold">{name}</span>
+          <span className="block truncate text-[13px] text-soft">{preview?.body ?? t("inbox.noMessages")}</span>
+          {c.status === "human" && c.handoff_reason && (
+            <span className="mt-0.5 block truncate text-[13px] font-semibold text-red">{c.handoff_reason}</span>
+          )}
+        </span>
+        <span className="flex shrink-0 flex-col items-end gap-1">
+          <span className="text-xs text-soft" dir="ltr">{formatTime(preview?.created_at ?? c.last_customer_message_at, lang)}</span>
+          {showStatus && (
+            <Chip size="sm" color={chipColor} variant="soft" className="whitespace-nowrap">
+              <Chip.Label>{t(c.status === "human" ? "inbox.needsYou" : c.status === "bot" ? "inbox.assistant" : "inbox.closed")}</Chip.Label>
+            </Chip>
+          )}
+        </span>
+      </Link>
+    </m.div>
+  );
+}
+
+// Pulsing dot that marks the "Needs you" box as waiting. Only transform and opacity animate.
+function PulseDot() {
+  const reduced = useMotionSafe();
+  return (
+    <m.span aria-hidden="true" className="inline-block size-2 rounded-full bg-red"
+      animate={reduced ? undefined : { scale: [1, 1.6, 1], opacity: [1, 0.45, 1] }}
+      transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }} />
   );
 }
 
 export function Inbox() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { store } = useStore();
+  const reduced = useMotionSafe();
   const match = useMatch("/inbox/:id");
   const open = match !== null;
   const activeId = match?.params.id;
@@ -84,6 +131,9 @@ export function Inbox() {
   const [previews, setPreviews] = useState<Record<string, Preview>>({});
   const [failed, setFailed] = useState(false);
   const [aiProblems, setAiProblems] = useState(0);
+  // Ids already on screen. null until the first list arrives, so the first load can stagger.
+  const seenRef = useRef<Set<string> | null>(null);
+  const seenSnapshot = seenRef.current;
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -115,68 +165,109 @@ export function Inbox() {
   // Refreshes on realtime changes to this store's chats; polls every 60 s (15 s if realtime is down).
   useConversationsRefresh(store?.id, load);
 
+  // Remember what has been shown, after each render, so the next render can tell new rows apart.
+  useEffect(() => {
+    if (convs) seenRef.current = new Set(convs.map((c) => c.id));
+  }, [convs]);
+
+  const entryFor = (id: string, index: number): Entry => {
+    if (reduced) return { kind: "none" };
+    if (seenSnapshot === null) return { kind: "stagger", index };
+    return seenSnapshot.has(id) ? { kind: "none" } : { kind: "new" };
+  };
+
   const counts = (s: Status) => (convs ?? []).filter((c) => c.status === s).length;
   const human = (convs ?? []).filter((c) => c.status === "human");
   // The "Needs you" box already lists those chats, so the Needs-you tab shows the box alone.
   const listRows = tab === "human" ? [] : (convs ?? []).filter((c) => c.status === tab);
   const current = TABS.find((x) => x.status === tab)!;
   const showEmpty = convs !== null && (tab === "human" ? human.length === 0 : listRows.length === 0);
+  const contentKey = activeId ?? "none";
+  const slide = lang === "ar" ? -1 : 1;
 
   return (
-    <div className="flex flex-col lg:flex-row lg:items-start gap-4 min-w-0">
+    <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start">
       <section aria-label={t("inbox.title")}
-        className={`${open ? "hidden lg:flex" : "flex"} flex-col gap-3 min-w-0 lg:w-[380px] lg:shrink-0`}>
-        <h1 className="text-xl font-semibold mt-1 mb-1" style={{ color: "var(--heading)" }}>{t("inbox.title")}</h1>
+        className={`${open ? "hidden lg:flex" : "flex"} min-w-0 flex-col gap-3 lg:sticky lg:top-8 lg:w-[380px] lg:shrink-0`}>
+        <h1 className="mb-1 mt-1 text-2xl font-extrabold text-ink">{t("inbox.title")}</h1>
         <SetupChecklist />
 
         {aiProblems > 0 && (
-          <div className="rounded-xl px-4 py-3 text-sm border" role="status"
-            style={{ background: "var(--warn-soft)", color: "var(--warn)", borderColor: "var(--warn-border)" }}>
-            {t("inbox.aiProblem", { n: aiProblems })}
-          </div>
+          <Alert status="warning" className="border-2 border-ink">
+            <Alert.Content>
+              <Alert.Description role="status">{t("inbox.aiProblem", { n: aiProblems })}</Alert.Description>
+            </Alert.Content>
+          </Alert>
         )}
-        {failed && <p className="error">{t("common.error")} <button className="btn btn-small" onClick={() => void load()}>{t("common.retry")}</button></p>}
-        {!convs && !failed && <p className="muted">{t("common.loading")}</p>}
+        {failed && (
+          <Alert status="danger">
+            <Alert.Content>
+              <Alert.Description>
+                {t("common.error")}{" "}
+                <button type="button" className="font-semibold underline underline-offset-4" onClick={() => void load()}>{t("common.retry")}</button>
+              </Alert.Description>
+            </Alert.Content>
+          </Alert>
+        )}
+        {!convs && !failed && <ListSkeleton />}
 
         {human.length > 0 && (
-          <div className="card overflow-hidden">
-            <div className="flex items-center justify-between gap-2 px-4 h-11 border-b"
-              style={{ background: "var(--warn-soft)", borderColor: "var(--warn-border)" }}>
+          <Card className="overflow-hidden rounded-wakil-lg border-2 border-ink bg-slip p-0 shadow-ink">
+            <div className="flex h-11 items-center justify-between gap-2 border-b-2 border-ink bg-red/10 px-4">
               <div className="flex items-center gap-2">
-                <span aria-hidden="true" className="w-2 h-2 rounded-full" style={{ background: "var(--warn)" }} />
-                <h2 className="m-0 text-sm font-semibold" style={{ color: "var(--warn)" }}>{t("inbox.needsYou")}</h2>
+                <PulseDot />
+                <h2 className="m-0 text-sm font-bold text-red">{t("inbox.needsYou")}</h2>
               </div>
-              <span className="text-[13px] font-medium whitespace-nowrap" style={{ color: "var(--warn)" }}>
-                {t("inbox.waitingCount", { n: human.length })}
-              </span>
+              <span className="whitespace-nowrap text-[13px] font-semibold text-red">{t("inbox.waitingCount", { n: human.length })}</span>
             </div>
-            {human.map((c) => (
-              <ChatRow key={c.id} c={c} preview={previews[c.id]} active={activeId === c.id} showStatus={false} />
-            ))}
-          </div>
+            <div className="flex flex-col p-1.5">
+              <AnimatePresence initial={false}>
+                {human.map((c, i) => (
+                  <ChatRow key={c.id} c={c} preview={previews[c.id]} active={activeId === c.id} showStatus={false} entry={entryFor(c.id, i)} />
+                ))}
+              </AnimatePresence>
+            </div>
+          </Card>
         )}
 
-        <div role="tablist" className="flex flex-wrap gap-2">
-          {TABS.map((x) => (
-            <button key={x.status} role="tab" className="tab" aria-selected={tab === x.status} onClick={() => setTab(x.status)}>
-              {t(x.key)}{convs ? ` (${counts(x.status)})` : ""}
-            </button>
-          ))}
-        </div>
+        <Tabs selectedKey={tab} onSelectionChange={(k) => setTab(k as Status)} className="w-full">
+          <Tabs.ListContainer>
+            <Tabs.List aria-label={t("inbox.title")} className="flex-wrap">
+              {TABS.map((x) => (
+                <Tabs.Tab key={x.status} id={x.status} className="font-semibold">
+                  {t(x.key)}{convs ? ` (${counts(x.status)})` : ""}
+                  <Tabs.Indicator />
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </Tabs.ListContainer>
+        </Tabs>
 
-        {showEmpty && <p className="muted card p-5 m-0">{t(tab === "human" ? "inbox.emptyNeeds" : current.empty)}</p>}
+        {showEmpty && (
+          <Card className="rounded-wakil-lg border-2 border-dashed border-ink/25 bg-transparent p-5 text-soft shadow-none">
+            {t(tab === "human" ? "inbox.emptyNeeds" : current.empty)}
+          </Card>
+        )}
 
         {listRows.length > 0 && (
-          <div className="card overflow-hidden">
-            {listRows.map((c) => (
-              <ChatRow key={c.id} c={c} preview={previews[c.id]} active={activeId === c.id} showStatus />
-            ))}
-          </div>
+          <Card className="overflow-hidden rounded-wakil-lg border-2 border-ink bg-slip p-1.5 shadow-ink">
+            <AnimatePresence initial={false}>
+              {listRows.map((c, i) => (
+                <ChatRow key={c.id} c={c} preview={previews[c.id]} active={activeId === c.id} showStatus entry={entryFor(c.id, i)} />
+              ))}
+            </AnimatePresence>
+          </Card>
         )}
       </section>
 
-      <div className={`${open ? "flex" : "hidden lg:flex"} flex-col flex-1 min-w-0`}>
-        <Outlet />
+      <div className={`${open ? "flex" : "hidden lg:flex"} min-w-0 flex-1 flex-col`}>
+        {/* Opening a chat slides it in from the end side; on wide screens it fades beside the list. */}
+        <m.div key={contentKey} className="flex min-w-0 flex-1 flex-col"
+          initial={reduced || !open ? false : { opacity: 0, x: 24 * slide }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: dur.short, ease: ease.out }}>
+          <Outlet />
+        </m.div>
       </div>
     </div>
   );

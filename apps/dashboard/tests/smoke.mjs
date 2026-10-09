@@ -128,8 +128,8 @@ try {
   await page.waitForSelector("text=I want to order 2 hoodies");
   ok("thread shows customer and assistant messages", await page.isVisible("text=The owner will reply to you personally."));
   await page.fill("textarea", "Hi! Yes we can arrange 2 hoodies.");
-  // "button.btn-primary" picks the Send button, not the quick replies that also start with "Send".
-  await page.click("button.btn-primary:has-text('Send')");
+  // "button[type=submit]" picks the Send button, not the quick replies that also start with "Send".
+  await page.click("button[type=submit]:has-text('Send')");
   await page.waitForSelector("text=Hi! Yes we can arrange 2 hoodies.");
   ok("reply was POSTed as sender=owner, delivery pending", await logged((l) => l.startsWith("POST /rest/v1/messages") && l.includes('"sender":"owner"') && l.includes('"delivery_status":"pending"')));
   ok("the dashboard then asks the server to deliver it", await logged((l) => l.startsWith("POST /functions/v1/deliver-messages") && l.includes('"conversation_id":"c1"')));
@@ -151,7 +151,7 @@ try {
   // 2b. a reply Instagram refuses is flagged, with the reason
   state.deliverMode = "fail";
   await page.fill("textarea", "Second reply that cannot be delivered");
-  await page.click("button.btn-primary:has-text('Send')");
+  await page.click("button[type=submit]:has-text('Send')");
   await page.waitForSelector("text=Not delivered");
   ok("an undelivered reply is flagged with Instagram's reason", await page.isVisible("text=Instagram only allows a reply within 24 hours"));
   state.deliverMode = "ok";
