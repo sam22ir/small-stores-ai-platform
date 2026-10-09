@@ -19,3 +19,15 @@ npm run preview   # serve dist/ locally
 ## Copy
 
 All strings live in `src/i18n.ts`. The page layout is `src/components/Landing.astro`.
+
+## Deploy
+
+Build the static site with the production URLs, then deploy `dist` to the Cloudflare Pages project `wakil` (branch `main`). Log in first with `npx wrangler login` if needed. No secrets are stored in the repo. Wrangler 4.30.0 is pinned because newer wrangler versions redirect Pages commands to Workers.
+
+```bash
+npm ci
+PUBLIC_APP_URL=https://store-assistant-dz.pages.dev PUBLIC_SITE_URL=https://wakil-3x3.pages.dev npm run build
+npx wrangler@4.30.0 pages deploy dist --project-name wakil --branch main --commit-dirty=true
+```
+
+The project's assigned subdomain is `wakil-3x3.pages.dev`. Production URL: https://wakil-3x3.pages.dev/
