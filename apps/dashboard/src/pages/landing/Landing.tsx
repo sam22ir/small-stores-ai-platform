@@ -1,9 +1,9 @@
-import { lazy, Suspense, useRef, useState } from "react";
+import { lazy, Suspense, use, useRef, useState } from "react";
 import { Accordion, Card, Chip } from "@heroui/react";
 import { motion, useInView, useMotionValueEvent, useScroll } from "motion/react";
-import { landing, useI18n } from "../../lib/i18n";
+import { LandingCopy, loadLanding, useI18n, useLandingCopy } from "../../lib/i18n";
 import type { Lang } from "../../lib/i18n";
-import { useAuth } from "../../lib/auth";
+import { useSignedIn } from "./useSignedIn";
 import { dur, ease, useMotionSafe } from "../../lib/motion";
 import { DmBubble } from "../../components/wakil/DmBubble";
 import { OrderSlip } from "../../components/wakil/OrderSlip";
@@ -44,7 +44,7 @@ function TypingDots({ delay = 0.9 }: { delay?: number }) {
 }
 
 function Nav({ locale, signedIn }: { locale: Lang; signedIn: boolean }) {
-  const d = landing[locale];
+  const d = useLandingCopy();
   const { scrollY } = useScroll();
   const [compact, setCompact] = useState(false);
   useMotionValueEvent(scrollY, "change", (v) => setCompact(v > 24));
@@ -111,7 +111,7 @@ function Nav({ locale, signedIn }: { locale: Lang; signedIn: boolean }) {
 }
 
 function Hero({ locale, signedIn }: { locale: Lang; signedIn: boolean }) {
-  const d = landing[locale];
+  const d = useLandingCopy();
   const reduced = useMotionSafe();
   const intro = (delay: number) =>
     reduced ? { initial: false as const } : { initial: { opacity: 0, y: 18 }, animate: { opacity: 1, y: 0 }, transition: { duration: dur.base, ease: ease.out, delay } };
@@ -183,8 +183,8 @@ function Hero({ locale, signedIn }: { locale: Lang; signedIn: boolean }) {
   );
 }
 
-function Chats({ locale }: { locale: Lang }) {
-  const d = landing[locale];
+function Chats() {
+  const d = useLandingCopy();
   return (
     <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6" aria-labelledby="chats-title">
       <Reveal>
@@ -210,8 +210,8 @@ function Chats({ locale }: { locale: Lang }) {
   );
 }
 
-function Steps({ locale }: { locale: Lang }) {
-  const d = landing[locale];
+function Steps() {
+  const d = useLandingCopy();
   const reduced = useMotionSafe();
   return (
     <section className="relative bg-ink text-slip" aria-labelledby="steps-title">
@@ -241,8 +241,8 @@ function Steps({ locale }: { locale: Lang }) {
   );
 }
 
-function Demo({ locale }: { locale: Lang }) {
-  const d = landing[locale];
+function Demo() {
+  const d = useLandingCopy();
   const ref = useRef<HTMLDivElement>(null);
   // Mount the demo (and its code) once the placeholder is within 320px of the viewport.
   const near = useInView(ref, { once: true, margin: "320px 0px 320px 0px" });
@@ -261,8 +261,8 @@ function Demo({ locale }: { locale: Lang }) {
   );
 }
 
-function Features({ locale }: { locale: Lang }) {
-  const d = landing[locale];
+function Features() {
+  const d = useLandingCopy();
   return (
     <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6" aria-labelledby="features-title">
       <Reveal>
@@ -285,7 +285,7 @@ function Features({ locale }: { locale: Lang }) {
 }
 
 function Pricing({ locale }: { locale: Lang }) {
-  const d = landing[locale];
+  const d = useLandingCopy();
   const priceText = (n: number) => {
     const num = Math.round(n).toLocaleString(locale === "ar" ? "en-US" : locale === "fr" ? "fr-FR" : "en-US");
     return d.pricing.price.replace(/\d[\d.,\s  ]*\d|\d/, num);
@@ -317,8 +317,8 @@ function Pricing({ locale }: { locale: Lang }) {
   );
 }
 
-function Faq({ locale }: { locale: Lang }) {
-  const d = landing[locale];
+function Faq() {
+  const d = useLandingCopy();
   return (
     <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6" aria-labelledby="faq-title">
       <Reveal>
@@ -343,8 +343,8 @@ function Faq({ locale }: { locale: Lang }) {
   );
 }
 
-function Footer({ locale }: { locale: Lang }) {
-  const d = landing[locale];
+function Footer() {
+  const d = useLandingCopy();
   return (
     <footer className="border-t border-ink/10 bg-paper">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-soft sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -360,9 +360,8 @@ function Footer({ locale }: { locale: Lang }) {
 }
 
 export function Landing({ locale }: { locale: Lang }) {
-  const { session } = useAuth();
-  const signedIn = Boolean(session);
-  const d = landing[locale];
+  const signedIn = useSignedIn();
+  const d = useLandingCopy();
   const { lang: appLang } = useI18n();
   useLandingHead(locale, appLang);
 
@@ -379,14 +378,20 @@ export function Landing({ locale }: { locale: Lang }) {
       <Nav locale={locale} signedIn={signedIn} />
       <main>
         <Hero locale={locale} signedIn={signedIn} />
-        <Chats locale={locale} />
-        <Steps locale={locale} />
-        <Demo locale={locale} />
-        <Features locale={locale} />
+        <Chats />
+        <Steps />
+        <Demo />
+        <Features />
         <Pricing locale={locale} />
-        <Faq locale={locale} />
+        <Faq />
       </main>
-      <Footer locale={locale} />
+      <Footer />
     </motion.div>
   );
+}
+
+// Route entry: fetches only this locale's landing copy, then renders the page with it.
+export function LandingRoute({ locale }: { locale: Lang }) {
+  const copy = use(loadLanding(locale));
+  return <LandingCopy.Provider value={copy}><Landing locale={locale} /></LandingCopy.Provider>;
 }

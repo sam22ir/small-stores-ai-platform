@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { _dicts, useI18n } from "../lib/i18n";
+import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { useStore } from "../lib/store";
 import { platformKey } from "./Inbox";
@@ -185,7 +185,8 @@ function ChannelsPanel() {
         : { kind: "ok", text: t("channels.okConnected") });
     } else {
       const key = `channels.error.${params.get("reason") ?? ""}` as TKey;
-      setNotice({ kind: "error", text: key in _dicts.en ? t(key) : t("common.error") });
+      const msg = t(key);
+      setNotice({ kind: "error", text: msg === key ? t("common.error") : msg });
     }
     setParams({}, { replace: true });
     void load();
