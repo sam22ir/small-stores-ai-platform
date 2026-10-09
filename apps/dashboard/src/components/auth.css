@@ -10,10 +10,7 @@
   --red: #c2412d;
   --soft: #5c6478;
   --rule: #cfc6b1;
-  --ui: "IBM Plex Sans Arabic", "IBM Plex Sans", system-ui, sans-serif;
-  --display-ar: "Reem Kufi", "IBM Plex Sans Arabic", sans-serif;
-  --display: "Bricolage Grotesque", "IBM Plex Sans Arabic", system-ui, sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-sans: "IBM Plex Sans Arabic", system-ui, sans-serif;
 
   position: relative;
   isolation: isolate;
@@ -22,7 +19,7 @@
   background: var(--paper);
   color: var(--ink);
   color-scheme: light;
-  font-family: var(--ui);
+  font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.6;
 }
@@ -118,20 +115,20 @@
 }
 
 .wk-logo-ar {
-  font-family: var(--display-ar);
+  font-family: var(--font-sans);
   font-weight: 700;
   font-size: 30px;
 }
 
 .wk-logo-latin {
-  font-family: var(--display);
-  font-weight: 800;
+  font-family: var(--font-sans);
+  font-weight: 700;
   font-size: 22px;
   letter-spacing: -0.01em;
 }
 
 .wk-brand-line {
-  font-family: var(--display-ar);
+  font-family: var(--font-sans);
   font-weight: 500;
   font-size: 19px;
   line-height: 1.5;
@@ -160,7 +157,8 @@
   align-items: center;
   gap: 6px;
   min-height: 44px;
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-weight: 500;
   font-size: 13px;
   color: var(--blue);
   text-decoration: underline;
@@ -205,8 +203,8 @@
 }
 
 .wk-title {
-  font-family: var(--display);
-  font-weight: 800;
+  font-family: var(--font-sans);
+  font-weight: 700;
   font-size: 30px;
   line-height: 1.15;
   letter-spacing: -0.01em;
@@ -238,7 +236,7 @@
 .wk-label {
   display: block;
   margin-block-end: 6px;
-  font-family: var(--mono);
+  font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
   line-height: 1.4;
@@ -248,7 +246,7 @@
 }
 
 :lang(ar) .wk-label {
-  font-family: var(--ui);
+  font-family: var(--font-sans);
   font-size: 14px;
   letter-spacing: 0;
   text-transform: none;
@@ -263,7 +261,7 @@
   border-radius: 4px;
   background: #fff;
   color: var(--ink);
-  font: 400 16px/1.4 var(--ui);
+  font: 400 16px/1.4 var(--font-sans);
 }
 
 .wk-input:focus {
@@ -335,7 +333,7 @@
   border: 0;
   background: none;
   color: var(--blue);
-  font: 600 14px/1.4 var(--ui);
+  font: 600 14px/1.4 var(--font-sans);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
@@ -349,7 +347,7 @@
   border-radius: 4px;
   background: var(--red);
   color: #fff;
-  font: 600 16px/1 var(--ui);
+  font: 600 16px/1 var(--font-sans);
   box-shadow: 3px 3px 0 var(--ink);
   cursor: pointer;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
@@ -391,7 +389,8 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 4px 16px;
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-weight: 500;
   font-size: 13px;
   color: var(--soft);
 }
@@ -407,7 +406,8 @@
 
 .wk-dm-caption {
   margin: 0;
-  font-family: var(--mono);
+  font-family: var(--font-sans);
+  font-weight: 500;
   font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -415,7 +415,7 @@
 }
 
 :lang(ar) .wk-dm-caption {
-  font-family: var(--ui);
+  font-family: var(--font-sans);
   letter-spacing: 0;
   text-transform: none;
 }
