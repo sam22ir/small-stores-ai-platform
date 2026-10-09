@@ -43,7 +43,7 @@ export function Login() {
       if (mode === "link") {
         const { error: err } = await supabase.auth.signInWithOtp({
           email: email.trim(),
-          options: { emailRedirectTo: window.location.origin },
+          options: { emailRedirectTo: `${window.location.origin}/login` },
         });
         if (err) setError(friendly(err)); else setNotice(t("auth.linkSent"));
       } else if (mode === "forgot") {

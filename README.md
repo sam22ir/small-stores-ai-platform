@@ -14,6 +14,17 @@ The agent can, for a connected store:
 
 Out of scope for v0: taking payments, creating orders, comment replies, other channels.
 
+## Web site (landing + dashboard)
+
+The landing page (`apps/landing`) and the dashboard (`apps/dashboard`) deploy as one Cloudflare Pages site, `store-assistant-dz`:
+
+```bash
+npm run build:site    # builds both into apps/dashboard/dist
+npx wrangler@4.30.0 pages deploy apps/dashboard/dist --project-name store-assistant-dz --branch main
+```
+
+The landing is served at `/`, `/fr/` and `/en/`. Dashboard routes are rewritten to the dashboard shell by `apps/dashboard/public/_redirects`. See [apps/landing/README.md](apps/landing/README.md).
+
 ## Docs
 
 - [Project plan and decisions](docs/project-plan.md)
