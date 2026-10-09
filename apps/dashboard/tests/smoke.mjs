@@ -166,6 +166,7 @@ try {
   ok("stock + saves immediately", await logged((l) => l.startsWith("PATCH /rest/v1/product_variants") && l.includes('"stock_quantity":4')));
   await page.screenshot({ path: OUT + "04-catalog.png" });
   await page.fill("input[type=search]", "wallet");
+  await page.waitForSelector("li:has-text('Black Hoodie')", { state: "detached" }); // the row animates out
   ok("search filters products", !(await page.isVisible("text=Black Hoodie")) && await page.isVisible("text=Leather Wallet"));
   await page.fill("input[type=search]", "");
 
@@ -178,7 +179,7 @@ try {
   ok("banner disappears once checked", !(await page.isVisible("text=have had no stock update")));
   await page.click("li:has-text('Black Hoodie') >> button:has-text('Sold out today')");
   ok("'sold out today' sets sold_out_until without touching stock", await logged((l) => l.startsWith("PATCH /rest/v1/products") && /"sold_out_until":"20\d\d-/.test(l) && !l.includes("stock_quantity")));
-  ok("product shows the sold-out badge", await page.isVisible("li:has-text('Black Hoodie') >> .badge:has-text('Sold out today')"));
+  ok("product shows the sold-out badge", await page.isVisible("li:has-text('Black Hoodie') >> text=Sold out today"));
   await page.screenshot({ path: OUT + "04b-sold-out.png" });
   await page.click("li:has-text('Black Hoodie') >> button:has-text('Back in stock')");
   ok("'back in stock' clears sold_out_until", await logged((l) => l.startsWith("PATCH /rest/v1/products") && l.includes('"sold_out_until":null')));
@@ -189,7 +190,7 @@ try {
   await page.fill("[role=dialog] textarea", "name, price, stock, option\nBlack Hoodie, 4500, 5, M\nBlack Hoodie, 4500, 30, L\nSilk Scarf, 1500, 8, \n, 100, 1, x");
   ok("import preview counts products and options and flags unreadable lines", await page.isVisible("text=2 product(s), 3 option(s) found") && await page.isVisible("text=1 line(s) can't be read"));
   await page.screenshot({ path: OUT + "04c-import.png" });
-  await page.click("[role=dialog] button.btn-primary:has-text('Import')");
+  await page.click("[role=dialog] button:has-text('Import')");
   await page.waitForSelector("text=Done: 1 added, 1 updated.");
   ok("import updates existing stock by product and option", await logged((l) => l.startsWith("PATCH /rest/v1/product_variants") && l.includes('"stock_quantity":5')) && await logged((l) => l.startsWith("PATCH /rest/v1/product_variants") && l.includes('"stock_quantity":30')));
   ok("import creates new products with their price in cents", await logged((l) => l.startsWith("POST /rest/v1/products") && l.includes('"name":"Silk Scarf"') && l.includes('"price_cents":150000')));
@@ -198,16 +199,16 @@ try {
   // 4. product editor validation + save
   await page.click("button:has-text('Add product')");
   await page.waitForSelector("[role=dialog]");
-  await page.click("[role=dialog] button.btn-primary");
+  await page.click("[role=dialog] button[type=submit]");
   ok("empty name is rejected with a message", await page.isVisible("text=Enter a product name."));
   await page.fill("#pname", "Linen Shirt");
   await page.fill("#pprice", "abc");
-  await page.click("[role=dialog] button.btn-primary");
+  await page.click("[role=dialog] button[type=submit]");
   ok("bad price is rejected", await page.isVisible("text=Enter a valid price."));
   await page.fill("#palias", "linen, kittan");
   await page.fill("#pprice", "3 800");
   await page.screenshot({ path: OUT + "05-editor.png" });
-  await page.click("[role=dialog] button.btn-primary");
+  await page.click("[role=dialog] button[type=submit]");
   await page.waitForSelector("[role=dialog]", { state: "detached" });
   ok("valid product is inserted (price 380000 cents) with its variant", await logged((l) => l.startsWith("POST /rest/v1/products") && l.includes('"price_cents":380000') && l.includes('"aliases":"linen, kittan"')) && state.log.some((l) => l.startsWith("POST /rest/v1/product_variants")));
 

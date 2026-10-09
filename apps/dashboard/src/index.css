@@ -30,6 +30,8 @@
 @import "@heroui/styles/components/meter.css" layer(components);
 @import "@heroui/styles/components/switch.css" layer(components);
 @import "@heroui/styles/components/textarea.css" layer(components);
+@import "@heroui/styles/components/modal.css" layer(components);
+@import "@heroui/styles/components/close-button.css" layer(components);
 @import "@heroui/styles/utilities";
 @import "@heroui/styles/variants";
 @import "./styles/theme.css";
@@ -153,9 +155,5 @@ textarea.input { min-height: 120px; resize: vertical; }
 .tab { min-height: 36px; padding: .4rem .9rem; border-radius: 999px; font-weight: 600; font-size: .875rem; border: 1px solid var(--border); background: var(--surface); color: var(--heading); cursor: pointer; }
 .tab[aria-selected="true"] { background: var(--brand); border-color: var(--brand); color: var(--brand-contrast); }
 
-.modal-backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / .4); display: flex; align-items: flex-end; justify-content: center; z-index: 50; }
-@media (min-width: 640px) { .modal-backdrop { align-items: center; } }
-.modal { background: var(--surface); width: 100%; max-width: 640px; max-height: 92vh; overflow: auto; border-radius: 12px 12px 0 0; border: 1px solid var(--border); }
-@media (min-width: 640px) { .modal { border-radius: 12px; } }
 
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }

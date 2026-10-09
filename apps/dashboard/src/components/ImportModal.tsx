@@ -1,7 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { AnimatePresence, m } from "motion/react";
+import { Alert, Button, TextArea } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import { groupRows, parseImport } from "../lib/importer";
+import { dur, ease, useMotionSafe } from "../lib/motion";
+import { CountUp } from "./wakil/CountUp";
 import { Modal } from "./Modal";
 
 type ExistingProduct = { id: string; name: string; product_variants: { id: string; label: string }[] };
@@ -15,6 +19,8 @@ export function ImportModal({ storeId, existing, onClose, onDone }: {
   onDone: () => Promise<void>;
 }) {
   const { t } = useI18n();
+  const reduced = useMotionSafe();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,22 +97,50 @@ export function ImportModal({ storeId, existing, onClose, onDone }: {
     setBusy(false);
   }
 
+  const total = result ? result.added + result.updated : 0;
+
   return (
     <Modal title={t("import.title")} onClose={onClose}>
       <div className="flex flex-col gap-4">
-        <p className="muted text-sm m-0">{t("import.help")}</p>
-        <textarea className="input text-sm" style={{ minHeight: 160 }} dir="ltr" value={text} aria-label={t("import.title")}
-          onChange={(e) => setText(e.target.value)} placeholder={t("import.placeholder")} />
-        <label className="btn btn-small self-start cursor-pointer">
+        <p className="m-0 text-sm text-soft">{t("import.help")}</p>
+        <TextArea
+          value={text}
+          rows={6}
+          dir="ltr"
+          aria-label={t("import.title")}
+          placeholder={t("import.placeholder")}
+          onChange={(e) => setText(e.target.value)}
+          className="w-full font-mono text-sm"
+        />
+        <input ref={fileRef} type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" className="sr-only" tabIndex={-1}
+          onChange={(e) => void onFile(e.target.files?.[0])} />
+        <Button variant="outline" size="sm" className="self-start" onPress={() => fileRef.current?.click()}>
           {t("import.upload")}
-          <input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" className="sr-only" onChange={(e) => void onFile(e.target.files?.[0])} />
-        </label>
+        </Button>
 
         {text.trim() && (
-          <div className="rounded-xl p-3 text-sm" style={{ background: "var(--surface-2)" }} aria-live="polite">
-            <div className="font-semibold">{t("import.preview", { products: groups.length, options: optionCount })}</div>
+          <div className="flex flex-col gap-2 rounded-wakil border-2 border-ink/15 bg-surface-secondary p-3 text-sm" aria-live="polite">
+            <div className="font-bold text-ink">{t("import.preview", { products: groups.length, options: optionCount })}</div>
+            <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+              <AnimatePresence initial={false}>
+                {groups.map((g, i) => (
+                  <m.li
+                    key={g.name}
+                    layout={!reduced}
+                    initial={reduced ? false : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduced ? undefined : { opacity: 0, height: 0 }}
+                    transition={{ duration: dur.short, ease: ease.out, delay: reduced ? 0 : Math.min(i * 0.04, 0.3) }}
+                    className="flex items-center justify-between gap-2 rounded-wakil-sm bg-slip px-2.5 py-1.5"
+                  >
+                    <span className="min-w-0 truncate font-semibold text-ink">{g.name}</span>
+                    <span className="shrink-0 text-xs text-soft tabular-nums">{g.options.length}</span>
+                  </m.li>
+                ))}
+              </AnimatePresence>
+            </ul>
             {parsed.errors.length > 0 && (
-              <div className="mt-1" style={{ color: "var(--warn)" }}>
+              <div className="text-red">
                 {t("import.errors", { n: parsed.errors.length, lines: parsed.errors.slice(0, 10).map((e) => e.line).join(", ") })}
               </div>
             )}
@@ -114,16 +148,23 @@ export function ImportModal({ storeId, existing, onClose, onDone }: {
         )}
 
         {result && (
-          <div className="rounded-xl p-3 text-sm" style={{ background: "var(--ok-bg)", color: "var(--ok-text)" }} role="status">
-            {t("import.done", { added: result.added, updated: result.updated })}
-            {result.noPrice > 0 && <div>{t("import.noPrice", { n: result.noPrice })}</div>}
-          </div>
+          <m.div
+            role="status"
+            initial={reduced ? false : { opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: dur.short, ease: ease.out }}
+            className="flex flex-col gap-1 rounded-wakil border-2 border-ink bg-slip p-3 text-sm text-ink shadow-ink-sm"
+          >
+            <CountUp to={total} className="text-[28px] font-extrabold leading-none text-ink" />
+            <span>{t("import.done", { added: result.added, updated: result.updated })}</span>
+            {result.noPrice > 0 && <span className="text-soft">{t("import.noPrice", { n: result.noPrice })}</span>}
+          </m.div>
         )}
-        {error && <p className="error m-0" role="alert">{error}</p>}
+        {error && <Alert status="danger"><Alert.Content><Alert.Description role="alert">{error}</Alert.Description></Alert.Content></Alert>}
 
         <div className="flex justify-end gap-2">
-          <button className="btn" onClick={onClose}>{t("common.cancel")}</button>
-          <button className="btn btn-primary" disabled={busy || groups.length === 0 || !!result} onClick={() => void run()}>{t("import.run")}</button>
+          <Button variant="outline" onPress={onClose}>{t("common.cancel")}</Button>
+          <Button variant="primary" isDisabled={busy || groups.length === 0 || !!result} onPress={() => void run()}>{t("import.run")}</Button>
         </div>
       </div>
     </Modal>

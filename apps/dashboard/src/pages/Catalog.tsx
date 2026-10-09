@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import type { FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import type { FormEvent, ReactNode } from "react";
+import { AnimatePresence, m } from "motion/react";
+import { Alert, Button, Chip, Input, Label, Skeleton, Switch, TextArea, TextField } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import { useStore } from "../lib/store";
+import { dur, ease, useMotionSafe } from "../lib/motion";
 import { Modal } from "../components/Modal";
 import { ImportModal } from "../components/ImportModal";
 import { useSetupData } from "../lib/setup";
+import { RouteButton } from "../components/wakil/RouteLink";
 import { LOW_STOCK, STALE_DAYS, centsToInput, formatAgo, formatMoney, parsePrice, parseStock } from "../lib/format";
 
 type Variant = { id: string; label: string; price_cents: number | null; stock_quantity: number; sku: string | null; updated_at: string };
@@ -36,8 +40,83 @@ function toDraft(p?: Product, defaultLabel = "Default"): Draft {
   };
 }
 
+// Small pop-in for status chips ("Sold out today", stock badges).
+function Pop({ children }: { children: ReactNode }) {
+  const reduced = useMotionSafe();
+  return (
+    <m.span
+      className="inline-flex"
+      initial={reduced ? false : { scale: 0.6, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: dur.short, ease: ease.stamp }}
+    >
+      {children}
+    </m.span>
+  );
+}
+
+// Loading state for the product list.
+function ListSkeleton() {
+  return (
+    <div className="grid gap-3 lg:grid-cols-2" aria-hidden="true">
+      {[0, 1].map((i) => (
+        <div key={i} className="flex flex-col gap-3 rounded-wakil-lg border-2 border-ink/10 bg-slip p-4">
+          <Skeleton className="h-4 w-2/5 rounded-full" />
+          <Skeleton className="h-3 w-1/4 rounded-full" />
+          <Skeleton className="h-12 w-full rounded-wakil" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Stock number with a tick when it changes and a check that flashes after a saved change.
+function StockStepper({ v, onStep, t }: { v: Variant; onStep: (delta: number) => Promise<boolean>; t: (k: "catalog.decrease" | "catalog.increase") => string }) {
+  const reduced = useMotionSafe();
+  const [saved, setSaved] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  async function step(delta: number) {
+    const ok = await onStep(delta);
+    if (!ok) return;
+    setSaved(true);
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setSaved(false), 1200);
+  }
+
+  return (
+    <div className="flex items-center gap-2 shrink-0">
+      <Button isIconOnly variant="outline" size="sm" className="rounded-full" aria-label={t("catalog.decrease")} onPress={() => void step(-1)}>−</Button>
+      <span className="relative min-w-10 text-center" aria-live="polite">
+        <AnimatePresence initial={false} mode="popLayout">
+          <m.span
+            key={v.stock_quantity}
+            className="block font-semibold text-[15px] tabular-nums"
+            initial={reduced ? false : { y: -8, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={reduced ? undefined : { y: 8, opacity: 0, position: "absolute", inset: 0 }}
+            transition={{ duration: dur.micro, ease: ease.out }}
+          >
+            {v.stock_quantity}
+          </m.span>
+        </AnimatePresence>
+      </span>
+      <AnimatePresence>
+        {saved && (
+          <m.span key="saved" aria-hidden="true" className="text-success text-sm font-bold"
+            initial={reduced ? false : { scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: dur.short, ease: ease.stamp }}>✓</m.span>
+        )}
+      </AnimatePresence>
+      <Button isIconOnly variant="outline" size="sm" className="rounded-full" aria-label={t("catalog.increase")} onPress={() => void step(1)}>+</Button>
+    </div>
+  );
+}
+
 export function Catalog() {
   const { t, lang } = useI18n();
+  const reduced = useMotionSafe();
   const { store } = useStore();
   const currency = store!.currency;
   const [products, setProducts] = useState<Product[] | null>(null);
@@ -66,13 +145,14 @@ export function Catalog() {
     return (products ?? []).filter((p) => !q || p.name.toLowerCase().includes(q));
   }, [products, query]);
 
-  async function adjustStock(p: Product, v: Variant, delta: number) {
+  async function adjustStock(p: Product, v: Variant, delta: number): Promise<boolean> {
     const next = Math.max(0, v.stock_quantity + delta);
-    if (next === v.stock_quantity) return;
+    if (next === v.stock_quantity) return false;
     // Optimistic: show the new number now, roll back if the save fails.
     setProducts((all) => all && all.map((x) => x.id !== p.id ? x : { ...x, product_variants: x.product_variants.map((y) => y.id === v.id ? { ...y, stock_quantity: next, updated_at: new Date().toISOString() } : y) }));
     const { error } = await supabase.from("product_variants").update({ stock_quantity: next }).eq("id", v.id);
-    if (error) await load();
+    if (error) { await load(); return false; }
+    return true;
   }
 
   async function toggleActive(p: Product) {
@@ -104,93 +184,116 @@ export function Catalog() {
 
   const staleIds = (products ?? []).filter(isStale).map((p) => p.id);
 
-  const stockBadge = (n: number) =>
-    n <= 0 ? <span className="badge badge-bad">{t("catalog.out")}</span>
-      : n <= LOW_STOCK ? <span className="badge badge-warn">{t("catalog.low", { n })}</span>
-        : <span className="badge badge-ok">{t("catalog.units", { n })}</span>;
+  const stockChip = (n: number) =>
+    n <= 0 ? <Chip size="sm" variant="soft" color="danger"><Chip.Label>{t("catalog.out")}</Chip.Label></Chip>
+      : n <= LOW_STOCK ? <Chip size="sm" variant="soft" color="warning"><Chip.Label>{t("catalog.low", { n })}</Chip.Label></Chip>
+        : <Chip size="sm" variant="soft" color="success"><Chip.Label>{t("catalog.units", { n })}</Chip.Label></Chip>;
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 mt-1">
-        <h1 className="text-[20px] font-semibold m-0" style={{ color: "var(--heading)" }}>{t("catalog.title")}</h1>
-        <div className="flex gap-2 shrink-0">
-          <button className="btn btn-small" onClick={() => setImporting(true)}>{t("catalog.import")}</button>
-          <button className="btn btn-small btn-primary" onClick={() => setEditing({})}>+ {t("catalog.add")}</button>
+    <m.div
+      initial={reduced ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: dur.base, ease: ease.out }}
+    >
+      <div className="mb-4 mt-1 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="m-0 text-[22px] font-extrabold text-ink">{t("catalog.title")}</h1>
+        <div className="flex shrink-0 gap-2">
+          <Button size="sm" variant="outline" onPress={() => setImporting(true)}>{t("catalog.import")}</Button>
+          <Button size="sm" variant="primary" onPress={() => setEditing({})}>+ {t("catalog.add")}</Button>
         </div>
       </div>
-      {products && products.length > 0 && setup && !setup.tested && (
-        <div className="card px-4 py-3 mb-3 flex items-center justify-between gap-3 flex-wrap" style={{ background: "var(--brand-soft)", borderColor: "var(--brand-border)" }} role="status">
-          <span className="text-sm font-semibold" style={{ color: "var(--heading)" }}>{t("catalog.tryNudge")}</span>
-          <Link to="/assistant" className="btn btn-small btn-primary no-underline">{t("catalog.tryNow")}</Link>
-        </div>
-      )}
-      {staleIds.length > 0 && (
-        <div className="card px-4 py-3 mb-3 flex items-center justify-between gap-3 flex-wrap" style={{ background: "var(--warn-soft)", borderColor: "var(--warn-border)", color: "var(--warn)" }} role="status">
-          <span className="text-sm">{t("catalog.staleBanner", { n: staleIds.length })}</span>
-          <button className="btn btn-small" onClick={() => void markChecked(staleIds)}>{t("catalog.markAllChecked")}</button>
-        </div>
-      )}
-      <input className="input mb-4" type="search" value={query} onChange={(e) => setQuery(e.target.value)}
-        placeholder={t("catalog.search")} aria-label={t("catalog.search")} />
+      <div className="flex flex-col gap-3">
+        {products && products.length > 0 && setup && !setup.tested && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-wakil-lg border-2 border-ink bg-blue/10 px-4 py-3 shadow-ink-sm" role="status">
+            <span className="text-sm font-bold text-ink">{t("catalog.tryNudge")}</span>
+            <RouteButton to="/assistant" size="sm" variant="primary">{t("catalog.tryNow")}</RouteButton>
+          </div>
+        )}
+        {staleIds.length > 0 && (
+          <Alert status="warning" className="border-2 border-ink">
+            <Alert.Content>
+              <Alert.Description className="flex flex-wrap items-center justify-between gap-3">
+                <span>{t("catalog.staleBanner", { n: staleIds.length })}</span>
+                <Button size="sm" variant="outline" onPress={() => void markChecked(staleIds)}>{t("catalog.markAllChecked")}</Button>
+              </Alert.Description>
+            </Alert.Content>
+          </Alert>
+        )}
+        <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+          placeholder={t("catalog.search")} aria-label={t("catalog.search")} className="w-full" />
+      </div>
 
-      {failed && <p className="error">{t("common.error")} <button className="btn btn-small" onClick={() => void load()}>{t("common.retry")}</button></p>}
-      {!products && !failed && <p className="muted">{t("common.loading")}</p>}
-      {products && products.length === 0 && (
-        <div className="card p-6 text-center">
-          <p className="m-0 font-semibold" style={{ color: "var(--heading)" }}>{t("catalog.empty")}</p>
-        </div>
-      )}
-      {products && products.length > 0 && shown.length === 0 && <p className="muted">{t("catalog.noMatch")}</p>}
+      <div className="mt-4">
+        {failed && <Alert status="danger"><Alert.Content><Alert.Description role="alert">{t("common.error")} <Button size="sm" variant="outline" onPress={() => void load()}>{t("common.retry")}</Button></Alert.Description></Alert.Content></Alert>}
+        {!products && !failed && <ListSkeleton />}
+        {products && products.length === 0 && (
+          <div className="rounded-wakil-lg border-2 border-ink bg-slip p-6 text-center">
+            <p className="m-0 font-bold text-ink">{t("catalog.empty")}</p>
+          </div>
+        )}
+        {products && products.length > 0 && shown.length === 0 && <p className="text-soft">{t("catalog.noMatch")}</p>}
 
-      <ul className="list-none p-0 m-0 grid gap-3 lg:grid-cols-2">
-        {shown.map((p) => (
-          <li key={p.id} className="card p-4 flex flex-col gap-3" style={p.active ? undefined : { opacity: 0.65 }}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="font-semibold text-[15px]" style={{ color: "var(--heading)" }}>{p.name}</div>
-                {p.aliases && <div className="text-[13px] muted truncate">{p.aliases}</div>}
-                <div className="text-[15px] font-semibold mt-1">{formatMoney(p.price_cents, currency, lang)}{!p.active && <span className="muted font-normal text-[13px]"> · {t("catalog.hidden")}</span>}</div>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <button className="btn btn-small" onClick={() => setEditing({ product: p })}>{t("common.edit")}</button>
-                <button className="btn btn-small btn-danger" onClick={() => void remove(p)}>{t("common.delete")}</button>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap text-xs">
-              <span className="badge badge-muted">{t("catalog.updated", { when: formatAgo(new Date(lastTouched(p)).toISOString(), lang) })}</span>
-              {isStale(p) && <span className="badge badge-warn">{t("catalog.stale")}</span>}
-              {isSoldOut(p) && <span className="badge badge-muted">{t("catalog.soldOutBadge")}</span>}
-            </div>
-            <ul className="list-none p-0 m-0 flex flex-col gap-2">
-              {p.product_variants.map((v) => (
-                <li key={v.id} className="flex items-center justify-between gap-2 rounded-xl px-3 py-2" style={{ background: "var(--bg)", border: "1px solid var(--divider)" }}>
+        <ul className="m-0 grid list-none gap-3 p-0 lg:grid-cols-2">
+          <AnimatePresence initial={false}>
+            {shown.map((p) => (
+              <m.li
+                key={p.id}
+                layout={!reduced}
+                initial={reduced ? false : { opacity: 0, y: 10 }}
+                animate={{ opacity: p.active ? 1 : 0.65, y: 0 }}
+                exit={reduced ? undefined : { opacity: 0, scale: 0.96 }}
+                transition={{ duration: dur.short, ease: ease.out }}
+                className="flex flex-col gap-3 rounded-wakil-lg border-2 border-ink bg-slip p-4 shadow-ink-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <span className="font-semibold text-[15px]">{v.label}</span>
-                    {v.price_cents !== null && <span className="muted text-[13px]"> · {formatMoney(v.price_cents, currency, lang)}</span>}
-                    <div className="mt-1">{stockBadge(v.stock_quantity)}</div>
+                    <div className="text-[15px] font-extrabold text-ink">{p.name}</div>
+                    {p.aliases && <div className="truncate text-[13px] text-soft">{p.aliases}</div>}
+                    <div className="mt-1 text-[15px] font-bold">{formatMoney(p.price_cents, currency, lang)}{!p.active && <span className="text-[13px] font-normal text-soft"> · {t("catalog.hidden")}</span>}</div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button className="btn btn-icon" style={{ borderRadius: 999 }} aria-label={t("catalog.decrease")} onClick={() => void adjustStock(p, v, -1)}>−</button>
-                    <span className="min-w-10 text-center font-semibold text-[15px] tabular-nums" aria-live="polite">{v.stock_quantity}</span>
-                    <button className="btn btn-icon" style={{ borderRadius: 999 }} aria-label={t("catalog.increase")} onClick={() => void adjustStock(p, v, 1)}>+</button>
+                  <div className="flex shrink-0 gap-2">
+                    <Button size="sm" variant="outline" onPress={() => setEditing({ product: p })}>{t("common.edit")}</Button>
+                    <Button size="sm" variant="ghost" className="text-red" onPress={() => void remove(p)}>{t("common.delete")}</Button>
                   </div>
-                </li>
-              ))}
-            </ul>
-            <div className="flex items-center justify-between gap-2 flex-wrap pt-3" style={{ borderTop: "1px solid var(--divider)" }}>
-              <label className="flex items-center gap-2 text-[13px] muted">
-                <input type="checkbox" checked={p.active} onChange={() => void toggleActive(p)} /> {t("catalog.active")}
-              </label>
-              <div className="flex gap-2 flex-wrap">
-                {isStale(p) && <button className="btn btn-small" onClick={() => void markChecked([p.id])}>{t("catalog.markChecked")}</button>}
-                <button className="btn btn-small" onClick={() => void toggleSoldOut(p)}>
-                  {isSoldOut(p) ? t("catalog.backInStock") : t("catalog.soldOutToday")}
-                </button>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <Chip size="sm" variant="soft" color="default"><Chip.Label>{t("catalog.updated", { when: formatAgo(new Date(lastTouched(p)).toISOString(), lang) })}</Chip.Label></Chip>
+                  {isStale(p) && <Chip size="sm" variant="soft" color="warning"><Chip.Label>{t("catalog.stale")}</Chip.Label></Chip>}
+                  <AnimatePresence>
+                    {isSoldOut(p) && (
+                      <Pop key="sold"><Chip size="sm" variant="soft" color="danger"><Chip.Label>{t("catalog.soldOutBadge")}</Chip.Label></Chip></Pop>
+                    )}
+                  </AnimatePresence>
+                </div>
+                <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                  {p.product_variants.map((v) => (
+                    <li key={v.id} className="flex items-center justify-between gap-2 rounded-wakil border-2 border-ink/15 bg-paper px-3 py-2">
+                      <div className="min-w-0">
+                        <span className="text-[15px] font-bold">{v.label}</span>
+                        {v.price_cents !== null && <span className="text-[13px] text-soft"> · {formatMoney(v.price_cents, currency, lang)}</span>}
+                        <div className="mt-1">{stockChip(v.stock_quantity)}</div>
+                      </div>
+                      <StockStepper v={v} t={t} onStep={(delta) => adjustStock(p, v, delta)} />
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink/10 pt-3">
+                  <Switch isSelected={p.active} onChange={() => void toggleActive(p)} size="sm">
+                    <Switch.Control><Switch.Thumb /></Switch.Control>
+                    <Switch.Content className="text-[13px] text-soft">{t("catalog.active")}</Switch.Content>
+                  </Switch>
+                  <div className="flex flex-wrap gap-2">
+                    {isStale(p) && <Button size="sm" variant="outline" onPress={() => void markChecked([p.id])}>{t("catalog.markChecked")}</Button>}
+                    <Button size="sm" variant="outline" onPress={() => void toggleSoldOut(p)}>
+                      {isSoldOut(p) ? t("catalog.backInStock") : t("catalog.soldOutToday")}
+                    </Button>
+                  </div>
+                </div>
+              </m.li>
+            ))}
+          </AnimatePresence>
+        </ul>
+      </div>
 
       {importing && (
         <ImportModal storeId={store!.id} existing={products ?? []} onClose={() => { setImporting(false); if (params.has("import")) setParams({}, { replace: true }); }} onDone={load} />
@@ -204,7 +307,7 @@ export function Catalog() {
           onSaved={async () => { setEditing(null); await load(); }}
         />
       )}
-    </div>
+    </m.div>
   );
 }
 
@@ -212,6 +315,7 @@ function ProductEditor({ product, currency, storeId, onClose, onSaved }: {
   product?: Product; currency: string; storeId: string; onClose: () => void; onSaved: () => Promise<void>;
 }) {
   const { t } = useI18n();
+  const reduced = useMotionSafe();
   const [draft, setDraft] = useState<Draft>(() => toDraft(product, t("catalog.defaultOption")));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -273,64 +377,75 @@ function ProductEditor({ product, currency, storeId, onClose, onSaved }: {
   return (
     <Modal title={product ? t("catalog.editTitle") : t("catalog.newTitle")} onClose={onClose}>
       <form onSubmit={save} className="flex flex-col gap-4">
-        <div>
-          <label className="label" htmlFor="pname">{t("catalog.name")}</label>
-          <input id="pname" className="input" value={draft.name} maxLength={120} autoFocus onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-        </div>
-        <div>
-          <label className="label" htmlFor="pdesc">{t("catalog.description")}</label>
-          <textarea id="pdesc" className="input" style={{ minHeight: 72 }} maxLength={500} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
-        </div>
-        <div>
-          <label className="label" htmlFor="palias">{t("catalog.aliases")}</label>
-          <input id="palias" className="input" maxLength={300} value={draft.aliases} onChange={(e) => setDraft({ ...draft, aliases: e.target.value })} />
-          <p className="muted text-sm mt-1 mb-0">{t("catalog.aliasesHelp")}</p>
-        </div>
-        <div>
-          <label className="label" htmlFor="pprice">{t("catalog.price")} ({currency})</label>
-          <input id="pprice" className="input" inputMode="decimal" value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value })} dir="ltr" />
-        </div>
+        <TextField value={draft.name} onChange={(v) => setDraft({ ...draft, name: v })} className="w-full">
+          <Label>{t("catalog.name")}</Label>
+          <Input id="pname" maxLength={120} autoFocus />
+        </TextField>
+        <TextField value={draft.description} onChange={(v) => setDraft({ ...draft, description: v })} className="w-full">
+          <Label>{t("catalog.description")}</Label>
+          <TextArea id="pdesc" maxLength={500} rows={3} />
+        </TextField>
+        <TextField value={draft.aliases} onChange={(v) => setDraft({ ...draft, aliases: v })} className="w-full">
+          <Label>{t("catalog.aliases")}</Label>
+          <Input id="palias" maxLength={300} />
+          <span className="text-sm text-soft">{t("catalog.aliasesHelp")}</span>
+        </TextField>
+        <TextField value={draft.price} onChange={(v) => setDraft({ ...draft, price: v })} className="w-full">
+          <Label>{t("catalog.price")} ({currency})</Label>
+          <Input id="pprice" inputMode="decimal" dir="ltr" />
+        </TextField>
 
-        <div>
-          <div className="label">{t("catalog.variants")}</div>
-          <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
+          <div className="text-sm font-bold text-ink">{t("catalog.variants")}</div>
+          <AnimatePresence initial={false}>
             {draft.variants.map((v) => (
-              <div key={v.key} className="rounded-xl p-3 grid gap-2 grid-cols-2" style={{ background: "var(--bg)" }}>
-                <div className="col-span-2">
-                  <label className="label" htmlFor={`l-${v.key}`}>{t("catalog.variantLabel")}</label>
-                  <input id={`l-${v.key}`} className="input" value={v.label} maxLength={60} onChange={(e) => setVariant(v.key, { label: e.target.value })} />
+              <m.div
+                key={v.key}
+                layout={!reduced}
+                initial={reduced ? false : { opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={reduced ? undefined : { opacity: 0, height: 0 }}
+                transition={{ duration: dur.short, ease: ease.out }}
+                className="overflow-hidden"
+              >
+                <div className="grid grid-cols-2 gap-2 rounded-wakil border-2 border-ink/15 bg-paper p-3">
+                  <TextField value={v.label} onChange={(val) => setVariant(v.key, { label: val })} className="col-span-2">
+                    <Label>{t("catalog.variantLabel")}</Label>
+                    <Input id={`l-${v.key}`} maxLength={60} />
+                  </TextField>
+                  <TextField value={v.stock} onChange={(val) => setVariant(v.key, { stock: val })}>
+                    <Label>{t("catalog.stock")}</Label>
+                    <Input id={`s-${v.key}`} inputMode="numeric" dir="ltr" />
+                  </TextField>
+                  <TextField value={v.price} onChange={(val) => setVariant(v.key, { price: val })}>
+                    <Label>{t("catalog.priceOverride")}</Label>
+                    <Input id={`p-${v.key}`} inputMode="decimal" dir="ltr" />
+                  </TextField>
+                  {draft.variants.length > 1 && (
+                    <Button size="sm" variant="ghost" className="col-span-2 text-red"
+                      onPress={() => setDraft((d) => ({ ...d, variants: d.variants.filter((x) => x.key !== v.key) }))}>
+                      {t("catalog.removeVariant")}
+                    </Button>
+                  )}
                 </div>
-                <div>
-                  <label className="label" htmlFor={`s-${v.key}`}>{t("catalog.stock")}</label>
-                  <input id={`s-${v.key}`} className="input" inputMode="numeric" value={v.stock} onChange={(e) => setVariant(v.key, { stock: e.target.value })} dir="ltr" />
-                </div>
-                <div>
-                  <label className="label" htmlFor={`p-${v.key}`}>{t("catalog.priceOverride")}</label>
-                  <input id={`p-${v.key}`} className="input" inputMode="decimal" value={v.price} onChange={(e) => setVariant(v.key, { price: e.target.value })} dir="ltr" />
-                </div>
-                {draft.variants.length > 1 && (
-                  <button type="button" className="btn btn-small btn-danger col-span-2"
-                    onClick={() => setDraft((d) => ({ ...d, variants: d.variants.filter((x) => x.key !== v.key) }))}>
-                    {t("catalog.removeVariant")}
-                  </button>
-                )}
-              </div>
+              </m.div>
             ))}
-          </div>
-          <button type="button" className="btn btn-small mt-3"
-            onClick={() => setDraft((d) => ({ ...d, variants: [...d.variants, { key: newKey(), label: "", stock: "0", price: "" }] }))}>
+          </AnimatePresence>
+          <Button size="sm" variant="outline" className="self-start"
+            onPress={() => setDraft((d) => ({ ...d, variants: [...d.variants, { key: newKey(), label: "", stock: "0", price: "" }] }))}>
             + {t("catalog.addVariant")}
-          </button>
+          </Button>
         </div>
 
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> {t("catalog.active")}
-        </label>
+        <Switch isSelected={draft.active} onChange={(next) => setDraft({ ...draft, active: next })}>
+          <Switch.Control><Switch.Thumb /></Switch.Control>
+          <Switch.Content>{t("catalog.active")}</Switch.Content>
+        </Switch>
 
-        {error && <p className="error m-0" role="alert">{error}</p>}
+        {error && <Alert status="danger"><Alert.Content><Alert.Description role="alert">{error}</Alert.Description></Alert.Content></Alert>}
         <div className="flex justify-end gap-2">
-          <button type="button" className="btn" onClick={onClose}>{t("common.cancel")}</button>
-          <button className="btn btn-primary" disabled={busy}>{t("common.save")}</button>
+          <Button variant="outline" onPress={onClose}>{t("common.cancel")}</Button>
+          <Button type="submit" variant="primary" isDisabled={busy}>{t("common.save")}</Button>
         </div>
       </form>
     </Modal>

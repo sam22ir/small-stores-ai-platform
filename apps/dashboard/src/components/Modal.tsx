@@ -1,22 +1,35 @@
-import { useEffect } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { Modal as HeroModal } from "@heroui/react";
+import { dur, useMotionSafe } from "../lib/motion";
 
+// Shared dialog. HeroUI Modal handles focus trap, Escape and the backdrop; the parent unmounts it
+// only after the exit animation (open flips to false first, then onClose runs).
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const reduced = useMotionSafe();
+  const [open, setOpen] = useState(true);
+  const timer = useRef<number | undefined>(undefined);
+
+  const dismiss = useCallback((next: boolean) => {
+    if (next) return;
+    setOpen(false);
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(onClose, reduced ? 0 : dur.short * 1000);
+  }, [onClose, reduced]);
 
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 border-b divider" style={{ background: "var(--surface)", minHeight: 60 }}>
-          <h2 className="text-lg font-semibold m-0" style={{ color: "var(--heading)" }}>{title}</h2>
-          <button className="btn btn-icon" style={{ background: "var(--surface-2)", border: 0 }} onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        <div className="p-5">{children}</div>
-      </div>
-    </div>
+    <HeroModal isOpen={open} onOpenChange={dismiss}>
+      <HeroModal.Backdrop className="bg-ink/45 backdrop-blur-[2px]">
+        <HeroModal.Container>
+          <HeroModal.Dialog aria-label={title} className="rounded-wakil-lg border-2 border-ink bg-slip shadow-ink sm:max-w-[640px]">
+            <HeroModal.CloseTrigger aria-label="Close" />
+            <HeroModal.Header className="ps-10 pe-10">
+              <HeroModal.Heading className="text-lg font-extrabold text-ink">{title}</HeroModal.Heading>
+            </HeroModal.Header>
+            <HeroModal.Body>{children}</HeroModal.Body>
+          </HeroModal.Dialog>
+        </HeroModal.Container>
+      </HeroModal.Backdrop>
+    </HeroModal>
   );
 }
