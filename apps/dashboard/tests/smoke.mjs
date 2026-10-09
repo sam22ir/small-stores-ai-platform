@@ -42,6 +42,9 @@ try {
   // 1. login + inbox
   let { page, ctx, errors } = await newPage({ locale: "en-US" });
   await page.goto("http://127.0.0.1:4173/");
+  await page.waitForSelector("h1");
+  ok("public landing page renders at /", (await page.locator("a[href='/login']").count()) > 0);
+  await page.goto("http://127.0.0.1:4173/inbox");
   await page.waitForURL(/\/login/);
   ok("redirects anonymous user to /login", true);
   await page.screenshot({ path: OUT + "01-login.png" });
