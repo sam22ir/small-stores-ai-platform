@@ -128,8 +128,8 @@ try {
   await page.waitForSelector("text=I want to order 2 hoodies");
   ok("thread shows customer and assistant messages", await page.isVisible("text=The owner will reply to you personally."));
   await page.fill("textarea", "Hi! Yes we can arrange 2 hoodies.");
-  // "button.btn-primary" picks the Send button, not the quick replies that also start with "Send".
-  await page.click("button.btn-primary:has-text('Send')");
+  // "button[type=submit]" picks the Send button, not the quick replies that also start with "Send".
+  await page.click("button[type=submit]:has-text('Send')");
   await page.waitForSelector("text=Hi! Yes we can arrange 2 hoodies.");
   ok("reply was POSTed as sender=owner, delivery pending", await logged((l) => l.startsWith("POST /rest/v1/messages") && l.includes('"sender":"owner"') && l.includes('"delivery_status":"pending"')));
   ok("the dashboard then asks the server to deliver it", await logged((l) => l.startsWith("POST /functions/v1/deliver-messages") && l.includes('"conversation_id":"c1"')));
@@ -151,7 +151,7 @@ try {
   // 2b. a reply Instagram refuses is flagged, with the reason
   state.deliverMode = "fail";
   await page.fill("textarea", "Second reply that cannot be delivered");
-  await page.click("button.btn-primary:has-text('Send')");
+  await page.click("button[type=submit]:has-text('Send')");
   await page.waitForSelector("text=Not delivered");
   ok("an undelivered reply is flagged with Instagram's reason", await page.isVisible("text=Instagram only allows a reply within 24 hours"));
   state.deliverMode = "ok";
@@ -321,9 +321,12 @@ try {
   ok("handoff disables the input until a new test chat", await page.isDisabled("input[aria-label='Write as a customer…']"));
   await page.screenshot({ path: OUT + "06c-assistant.png", fullPage: true });
   await page.click("button:has-text('New test chat')");
+  // Messages leave with an exit animation, so wait for them to detach instead of checking once.
+  await page.waitForSelector("text=Black Hoodie in M is available", { state: "detached" });
   ok("new test chat clears the conversation", !(await page.isDisabled("input[aria-label='Write as a customer…']")) && !(await page.isVisible("text=Black Hoodie in M is available")));
   await page.click("a:has-text('Chats')");
   await page.waitForSelector("text=Customer chats");
+  await page.waitForSelector("text=2 of 3 done");
   ok("checklist progress follows what the owner did (info + tried the assistant)", await page.isVisible("text=2 of 3 done"));
   state.products.push({ id: "p4", name: "Silk Scarf", description: null, price_cents: 150000, active: true, aliases: null, stock_checked_at: new Date().toISOString(), sold_out_until: null, product_variants: [] });
   await page.reload();

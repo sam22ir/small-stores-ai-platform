@@ -25,6 +25,11 @@
 @import "@heroui/styles/components/error-message.css" layer(components);
 @import "@heroui/styles/components/alert.css" layer(components);
 @import "@heroui/styles/components/spinner.css" layer(components);
+@import "@heroui/styles/components/avatar.css" layer(components);
+@import "@heroui/styles/components/skeleton.css" layer(components);
+@import "@heroui/styles/components/meter.css" layer(components);
+@import "@heroui/styles/components/switch.css" layer(components);
+@import "@heroui/styles/components/textarea.css" layer(components);
 @import "@heroui/styles/utilities";
 @import "@heroui/styles/variants";
 @import "./styles/theme.css";
