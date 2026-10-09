@@ -5,6 +5,7 @@ import { StoreProvider, useStore } from "./lib/store";
 import { configured } from "./lib/supabase";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
+import { SignUp } from "./pages/SignUp";
 import { ResetPassword } from "./pages/ResetPassword";
 import { Onboarding } from "./pages/Onboarding";
 import { Inbox, InboxEmpty } from "./pages/Inbox";
@@ -59,6 +60,7 @@ export function App() {
             {/* Signed-out visitors are sent to /login by the Protected guard; signed-in users land on the inbox. */}
             <Route path="/" element={<Navigate to="/inbox" replace />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<SignUp />} />
             {/* Outside Protected: the recovery link lands here, and the guard must not send it to /login first. */}
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/privacy" element={<Privacy />} />

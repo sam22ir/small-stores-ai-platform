@@ -13,7 +13,7 @@ npm run preview   # serve dist/ locally
 
 ## Environment
 
-- `PUBLIC_APP_URL` - the Wakil dashboard origin. Used for the "Start free" and "Log in" links and the legal links. Defaults to `http://localhost:5173`. See `.env.example`.
+- `PUBLIC_APP_URL` - the Wakil dashboard origin. Used for the "Start free" (`/signup`) and "Log in" (`/login`) links and the legal links. Defaults to `http://localhost:5173`. See `.env.example`.
 - `PUBLIC_SITE_URL` - the landing site's own public origin, used for canonical and hreflang links. Defaults to `http://localhost:4321`.
 
 ## Copy
