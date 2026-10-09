@@ -30,7 +30,7 @@ export function Login() {
   const [notice, setNotice] = useState<string | null>(null);
   const [invalidCreds, setInvalidCreds] = useState(false);
 
-  if (!loading && session) return <Navigate to="/" replace />;
+  if (!loading && session) return <Navigate to="/inbox" replace />;
 
   function switchTo(next: Mode) {
     setMode(next); setError(null); setNotice(null); setInvalidCreds(false);
