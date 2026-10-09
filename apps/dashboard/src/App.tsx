@@ -4,7 +4,6 @@ import { I18nProvider, useI18n } from "./lib/i18n";
 import { StoreProvider, useStore } from "./lib/store";
 import { configured } from "./lib/supabase";
 import { Layout } from "./components/Layout";
-import { Landing } from "./pages/Landing";
 import { Login } from "./pages/Login";
 import { ResetPassword } from "./pages/ResetPassword";
 import { Onboarding } from "./pages/Onboarding";
@@ -57,7 +56,8 @@ export function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Landing />} />
+            {/* Signed-out visitors are sent to /login by the Protected guard; signed-in users land on the inbox. */}
+            <Route path="/" element={<Navigate to="/inbox" replace />} />
             <Route path="/login" element={<Login />} />
             {/* Outside Protected: the recovery link lands here, and the guard must not send it to /login first. */}
             <Route path="/reset-password" element={<ResetPassword />} />
