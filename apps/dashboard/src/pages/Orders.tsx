@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, m } from "motion/react";
+import { Alert, Button, Chip, toast } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { useStore } from "../lib/store";
 import { formatMoney, formatTime } from "../lib/format";
 import { buildOrderMessage, whatsappUrl } from "../lib/orderMessage";
+import { dur, ease, useMotionSafe } from "../lib/motion";
 
 type Status = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 type Order = {
@@ -29,13 +32,13 @@ const STATUS_KEY: Record<Status, TKey> = {
   delivered: "orders.status.delivered",
   cancelled: "orders.status.cancelled",
 };
-// Status pill colours per direction D: pending = warn, confirmed/shipped = brand, delivered = neutral, cancelled = danger.
-const STATUS_PILL: Record<Status, string> = {
-  pending: "bg-(--warn-soft) text-(--warn)",
-  confirmed: "bg-(--brand-soft) text-(--brand)",
-  shipped: "bg-(--brand-soft) text-(--brand)",
-  delivered: "bg-(--surface-2) text-(--heading)",
-  cancelled: "bg-(--danger-soft) text-(--danger)",
+// Status chip colours: new = warning, confirmed/shipped = accent, delivered = default, cancelled = danger.
+const STATUS_COLOR: Record<Status, "warning" | "accent" | "default" | "danger"> = {
+  pending: "warning",
+  confirmed: "accent",
+  shipped: "accent",
+  delivered: "default",
+  cancelled: "danger",
 };
 // The next step an owner can take from each status (cancelling is offered separately).
 const NEXT: Partial<Record<Status, { to: Status; key: TKey }>> = {
@@ -44,8 +47,25 @@ const NEXT: Partial<Record<Status, { to: Status; key: TKey }>> = {
   shipped: { to: "delivered", key: "orders.deliver" },
 };
 
+// The status chip pops in each time the status changes, so the move reads as a change.
+function StatusChip({ status, label }: { status: Status; label: string }) {
+  const reduced = useMotionSafe();
+  return (
+    <m.span
+      key={status}
+      className="inline-flex shrink-0"
+      initial={reduced ? false : { scale: 0.7, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: dur.short, ease: ease.stamp }}
+    >
+      <Chip size="sm" variant="soft" color={STATUS_COLOR[status]}><Chip.Label>{label}</Chip.Label></Chip>
+    </m.span>
+  );
+}
+
 export function Orders() {
   const { t, lang } = useI18n();
+  const reduced = useMotionSafe();
   const { store } = useStore();
   const currency = store!.currency;
   const [tab, setTab] = useState<Status>("pending");
@@ -91,8 +111,11 @@ export function Orders() {
   async function move(o: Order, to: Status) {
     if (to === "cancelled" && !window.confirm(t("orders.confirmCancel"))) return;
     setBusy(o.id); setError(false);
+    // Optimistic: the card leaves this tab and its chip changes at once; a failure puts it back.
+    setOrders((all) => all && all.map((x) => (x.id === o.id ? { ...x, status: to } : x)));
     const { error: err } = await supabase.rpc("set_order_status", { p_order_id: o.id, p_status: to });
-    if (err) setError(true);
+    if (err) { setError(true); toast.danger(t("common.error")); }
+    else toast.success(t("common.saved"));
     await load();
     setBusy(null);
   }
@@ -101,66 +124,88 @@ export function Orders() {
   const visible = (orders ?? []).filter((o) => o.status === tab);
 
   return (
-    <div>
-      <h1 className="text-xl font-semibold mt-1 mb-4 text-(--heading)">{t("orders.title")}</h1>
-      <div role="tablist" className="flex flex-wrap gap-2 mb-4">
+    <m.div
+      initial={reduced ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: dur.base, ease: ease.out }}
+    >
+      <h1 className="mb-4 mt-1 text-[22px] font-extrabold text-ink">{t("orders.title")}</h1>
+      <div role="tablist" className="mb-4 flex flex-wrap gap-2">
         {TABS.map((s) => (
-          <button key={s} role="tab" className="tab" aria-selected={tab === s} onClick={() => setTab(s)}>
+          <button
+            key={s}
+            role="tab"
+            aria-selected={tab === s}
+            onClick={() => setTab(s)}
+            className={`relative min-h-10 rounded-full border-2 px-3.5 text-sm font-bold transition-colors ${tab === s ? "border-ink bg-ink text-slip" : "border-ink/20 bg-slip text-ink hover:border-ink"}`}
+          >
             {t(STATUS_KEY[s])}{orders ? ` (${count(s)})` : ""}
           </button>
         ))}
       </div>
 
-      {failed && <p className="error">{t("common.error")} <button className="btn btn-small" onClick={() => void load()}>{t("common.retry")}</button></p>}
-      {error && <p className="error" role="alert">{t("common.error")}</p>}
-      {!orders && !failed && <p className="muted">{t("common.loading")}</p>}
-      {orders && orders.length === 0 && <p className="muted card p-8 text-center">{t("orders.emptyAll")}</p>}
-      {orders && orders.length > 0 && visible.length === 0 && <p className="muted card p-8 text-center">{t("orders.empty")}</p>}
+      {failed && <Alert status="danger" className="mb-3"><Alert.Content><Alert.Description>{t("common.error")} <Button size="sm" variant="outline" onPress={() => void load()}>{t("common.retry")}</Button></Alert.Description></Alert.Content></Alert>}
+      {error && <Alert status="danger" className="mb-3"><Alert.Content><Alert.Description role="alert">{t("common.error")}</Alert.Description></Alert.Content></Alert>}
+      {!orders && !failed && <p className="text-soft">{t("common.loading")}</p>}
+      {orders && orders.length === 0 && <p className="rounded-wakil-lg border-2 border-ink bg-slip p-8 text-center text-soft">{t("orders.emptyAll")}</p>}
+      {orders && orders.length > 0 && visible.length === 0 && <p className="rounded-wakil-lg border-2 border-ink bg-slip p-8 text-center text-soft">{t("orders.empty")}</p>}
 
-      <ul className="list-none p-0 m-0 grid gap-3 lg:grid-cols-2">
-        {visible.map((o) => {
-          const next = NEXT[o.status];
-          const wa = whatsappUrl(o.phone, messageFor(o));
-          return (
-            <li key={o.id} className="card p-4 flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="font-semibold text-(--heading) truncate">{o.customer_name}</div>
-                  <div className="muted text-xs mt-0.5">{formatTime(o.created_at, lang)}</div>
+      <ul className="m-0 grid list-none gap-3 p-0 lg:grid-cols-2">
+        <AnimatePresence initial={false}>
+          {visible.map((o) => {
+            const next = NEXT[o.status];
+            const wa = whatsappUrl(o.phone, messageFor(o));
+            return (
+              <m.li
+                key={o.id}
+                layout={!reduced}
+                initial={reduced ? false : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduced ? undefined : { opacity: 0, scale: 0.97 }}
+                transition={{ duration: dur.short, ease: ease.out }}
+                className="flex flex-col gap-3 rounded-wakil-lg border-2 border-ink bg-slip p-4 shadow-ink-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-extrabold text-ink">{o.customer_name}</div>
+                    <div className="mt-0.5 text-xs text-soft">{formatTime(o.created_at, lang)}</div>
+                  </div>
+                  <AnimatePresence mode="wait" initial={false}>
+                    <StatusChip key={o.status} status={o.status} label={t(STATUS_KEY[o.status])} />
+                  </AnimatePresence>
                 </div>
-                <span className={`badge shrink-0 ${STATUS_PILL[o.status]}`}>{t(STATUS_KEY[o.status])}</span>
-              </div>
-              <div className="text-sm muted">{o.wilaya} · {o.address}</div>
-              <ul className="list-none p-0 m-0 text-sm flex flex-col gap-1">
-                {o.order_items.map((i) => (
-                  <li key={i.id} className="flex justify-between gap-3">
-                    <span>{i.quantity} × {i.name}{i.variant_label ? ` (${i.variant_label})` : ""}</span>
-                    <span className="muted shrink-0">{formatMoney(i.unit_price_cents * i.quantity, currency, lang)}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="text-sm border-t divider pt-3 flex flex-col gap-1">
-                <div className="flex justify-between"><span className="muted">{t("orders.subtotal")}</span><span>{formatMoney(o.subtotal_cents, currency, lang)}</span></div>
-                <div className="flex justify-between"><span className="muted">{t("orders.delivery")}</span><span>{formatMoney(o.delivery_fee_cents, currency, lang)}</span></div>
-                <div className="flex justify-between font-bold text-(--heading) pt-1"><span>{t("orders.total")}</span><span>{formatMoney(o.total_cents, currency, lang)}</span></div>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {next && <button className="btn btn-primary btn-small" disabled={busy === o.id} onClick={() => void move(o, next.to)}>{t(next.key)}</button>}
-                <a className="btn btn-small" href={`tel:${o.phone}`} dir="ltr">{t("orders.call")} {o.phone}</a>
-                {wa && (
-                  <a className="btn btn-small" href={wa} target="_blank" rel="noopener noreferrer">{t("orders.whatsapp")}</a>
-                )}
-                <button className="btn btn-small" onClick={() => void copyMessage(o)}>
-                  {copiedId === o.id ? t("orders.copied") : t("orders.copyMessage")}
-                </button>
-                {(next || o.status === "shipped" || o.status === "confirmed" || o.status === "pending") && (
-                  <button className="btn btn-small text-(--danger)" disabled={busy === o.id} onClick={() => void move(o, "cancelled")}>{t("orders.cancel")}</button>
-                )}
-              </div>
-            </li>
-          );
-        })}
+                <div className="text-sm text-soft">{o.wilaya} · {o.address}</div>
+                <ul className="m-0 flex list-none flex-col gap-1 p-0 text-sm">
+                  {o.order_items.map((i) => (
+                    <li key={i.id} className="flex justify-between gap-3">
+                      <span>{i.quantity} × {i.name}{i.variant_label ? ` (${i.variant_label})` : ""}</span>
+                      <span className="shrink-0 text-soft">{formatMoney(i.unit_price_cents * i.quantity, currency, lang)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex flex-col gap-1 border-t border-ink/10 pt-3 text-sm">
+                  <div className="flex justify-between"><span className="text-soft">{t("orders.subtotal")}</span><span>{formatMoney(o.subtotal_cents, currency, lang)}</span></div>
+                  <div className="flex justify-between"><span className="text-soft">{t("orders.delivery")}</span><span>{formatMoney(o.delivery_fee_cents, currency, lang)}</span></div>
+                  <div className="flex justify-between pt-1 font-extrabold text-ink"><span>{t("orders.total")}</span><span>{formatMoney(o.total_cents, currency, lang)}</span></div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {next && <Button size="sm" variant="primary" isDisabled={busy === o.id} onPress={() => void move(o, next.to)}>{t(next.key)}</Button>}
+                  <Button size="sm" variant="outline" render={(p: object) => <a {...p} href={`tel:${o.phone}`} dir="ltr" />}>{t("orders.call")} {o.phone}</Button>
+                  {wa && (
+                    <Button size="sm" variant="outline" render={(p: object) => <a {...p} href={wa} target="_blank" rel="noopener noreferrer" />}>{t("orders.whatsapp")}</Button>
+                  )}
+                  <Button size="sm" variant="outline" onPress={() => void copyMessage(o)}>
+                    {copiedId === o.id ? `✓ ${t("orders.copied")}` : t("orders.copyMessage")}
+                  </Button>
+                  {(next || o.status === "shipped" || o.status === "confirmed" || o.status === "pending") && (
+                    <Button size="sm" variant="ghost" className="text-red" isDisabled={busy === o.id} onPress={() => void move(o, "cancelled")}>{t("orders.cancel")}</Button>
+                  )}
+                </div>
+              </m.li>
+            );
+          })}
+        </AnimatePresence>
       </ul>
-    </div>
+    </m.div>
   );
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { AnimatePresence, LazyMotion, domAnimation, m } from "motion/react";
-import { Avatar, Button, Switch } from "@heroui/react";
+import { Avatar, Button, Switch, Toast } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
@@ -131,6 +131,7 @@ export function Layout() {
 
   return (
     <LazyMotion features={domAnimation}>
+      <Toast.Provider placement="bottom end" />
       <div className="min-h-dvh overflow-x-clip bg-paper text-ink lg:flex">
         {/* Desktop sidebar (>= 1024px) */}
         <aside className="sticky top-4 m-4 hidden h-[calc(100dvh-2rem)] w-64 shrink-0 flex-col gap-1 rounded-wakil-lg border-2 border-ink bg-slip p-4 shadow-ink lg:flex">
