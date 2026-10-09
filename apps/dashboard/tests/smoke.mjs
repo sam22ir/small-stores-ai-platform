@@ -321,6 +321,8 @@ try {
   ok("handoff disables the input until a new test chat", await page.isDisabled("input[aria-label='Write as a customer…']"));
   await page.screenshot({ path: OUT + "06c-assistant.png", fullPage: true });
   await page.click("button:has-text('New test chat')");
+  // Messages leave with an exit animation, so wait for them to detach instead of checking once.
+  await page.waitForSelector("text=Black Hoodie in M is available", { state: "detached" });
   ok("new test chat clears the conversation", !(await page.isDisabled("input[aria-label='Write as a customer…']")) && !(await page.isVisible("text=Black Hoodie in M is available")));
   await page.click("a:has-text('Chats')");
   await page.waitForSelector("text=Customer chats");
