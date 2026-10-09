@@ -95,7 +95,7 @@ export function ImportModal({ storeId, existing, onClose, onDone }: {
     <Modal title={t("import.title")} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <p className="muted text-sm m-0">{t("import.help")}</p>
-        <textarea className="input font-mono text-sm" style={{ minHeight: 160 }} dir="ltr" value={text} aria-label={t("import.title")}
+        <textarea className="input text-sm" style={{ minHeight: 160 }} dir="ltr" value={text} aria-label={t("import.title")}
           onChange={(e) => setText(e.target.value)} placeholder={t("import.placeholder")} />
         <label className="btn btn-small self-start cursor-pointer">
           {t("import.upload")}
