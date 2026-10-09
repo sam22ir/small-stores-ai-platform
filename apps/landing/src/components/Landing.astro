@@ -1,0 +1,165 @@
+---
+import '../styles/landing.css';
+import { APP_URL, dict, localePaths, locales, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = dict[locale];
+const appUrl = APP_URL.replace(/\/$/, '');
+const loginUrl = `${appUrl}/login`;
+const signupUrl = `${appUrl}/signup`;
+const siteOrigin = Astro.site ? Astro.site.toString().replace(/\/$/, '') : '';
+const pageUrl = `${siteOrigin}${localePaths[locale]}`;
+const langNames: Record<Locale, string> = { ar: 'العربية', fr: 'Français', en: 'English' };
+---
+
+<!doctype html>
+<html lang={t.htmlLang} dir={t.dir}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{t.title}</title>
+    <meta name="description" content={t.description} />
+    <link rel="canonical" href={pageUrl} />
+    {locales.map((l) => (
+      <link rel="alternate" hreflang={l} href={`${siteOrigin}${localePaths[l]}`} />
+    ))}
+    <link rel="alternate" hreflang="x-default" href={`${siteOrigin}/`} />
+    <meta property="og:title" content={t.title} />
+    <meta property="og:description" content={t.description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content={t.ogLocale} />
+    <meta property="og:url" content={`${appUrl}${localePaths[locale]}`} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;600&family=Reem+Kufi:wght@500;700&display=swap"
+    />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="nav">
+        <a class="logo" href={localePaths[locale]} lang="ar">وكيل <span class="logo-latin">{t.nav.logoName}</span></a>
+        <div class="nav-links">
+          <ul class="lang" aria-label={t.nav.langLabel}>
+            {locales.map((l) => (
+              <li>
+                <a
+                  href={localePaths[l]}
+                  hreflang={l}
+                  lang={l}
+                  aria-current={l === locale ? 'page' : undefined}
+                >{langNames[l]}</a>
+              </li>
+            ))}
+          </ul>
+          <a class="nav-login" href={loginUrl}>{t.nav.logIn}</a>
+          <a class="btn btn-primary btn-sm" href={signupUrl}>{t.nav.startFree}</a>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          {t.hero.kicker && <p class="ar-kicker" lang="ar" dir="rtl">{t.hero.kicker}</p>}
+          <h1 id="hero-title">{t.hero.h1}</h1>
+          <p class="lede">{t.hero.lede}</p>
+          <div class="ctas">
+            <a class="btn btn-primary" href={signupUrl}>{t.hero.cta}</a>
+            <small>{t.hero.ctaNote}</small>
+          </div>
+        </div>
+
+        <figure class="slip-wrap">
+          <figcaption class="slip-caption">{t.hero.slipCaption}</figcaption>
+          <div class="slip">
+            <p class="slip-title" lang="ar">{t.slip.title}</p>
+            <p class="slip-sub">{t.slip.sub}</p>
+            <div class="row"><span>{t.slip.client}</span><span>Amina B.</span></div>
+            <div class="row"><span>{t.slip.phone}</span><span dir="ltr">0555 •• •• 21</span></div>
+            <div class="row"><span>{t.slip.wilaya}</span><span>{t.slip.wilayaValue}</span></div>
+            <div class="row"><span>{t.slip.item}</span><span>{t.slip.itemValue}</span></div>
+            <div class="row"><span>{t.slip.delivery}</span><span>400 DA</span></div>
+            <div class="row total"><span>{t.slip.total}</span><span>3,600 DA</span></div>
+            <span class="stamp">{t.slip.stamp}</span>
+            <p class="slip-trail">{t.slip.trail}</p>
+          </div>
+        </figure>
+      </section>
+
+      <section class="chats" aria-labelledby="chats-title">
+        <div class="section-head">
+          <h2 id="chats-title">{t.chats.heading}</h2>
+          <p>{t.chats.intro}</p>
+        </div>
+        <ul class="chat-list">
+          {t.chats.items.map((c) => (
+            <li class="chat-slip">
+              <p class="bubble bubble-in" lang={c.customerLang} dir={c.customerLang === 'ar' ? 'rtl' : 'ltr'}>
+                {c.customer}
+              </p>
+              <p class="bubble bubble-out" lang={c.replyLang} dir={c.replyLang === 'ar' ? 'rtl' : 'ltr'}>
+                <span class="who">Wakil</span>
+                {c.reply}
+              </p>
+              {c.tag && <p class="chat-tag">{c.tag}</p>}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section class="band" aria-labelledby="steps-title">
+        <div class="band-inner">
+          <h2 id="steps-title">{t.steps.heading}</h2>
+          <ol class="steps">
+            {t.steps.items.map((s) => (
+              <li>
+                <em>{s.k}</em>
+                <h3>{s.title}</h3>
+                <p>{s.text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section class="features" aria-labelledby="features-title">
+        <h2 id="features-title">{t.features.heading}</h2>
+        <ul class="feature-list">
+          {t.features.items.map((f) => <li>{f}</li>)}
+        </ul>
+      </section>
+
+      <section class="pricing" aria-labelledby="pricing-title">
+        <h2 id="pricing-title">{t.pricing.heading}</h2>
+        <p class="price"><span class="amount">{t.pricing.price}</span> <span class="per">{t.pricing.per}</span></p>
+        <p class="pricing-text">{t.pricing.text}</p>
+        <a class="btn btn-primary" href={signupUrl}>{t.pricing.cta}</a>
+      </section>
+
+      <section class="faq" aria-labelledby="faq-title">
+        <h2 id="faq-title">{t.faq.heading}</h2>
+        {t.faq.items.map((item) => (
+          <details>
+            <summary>{item.q}</summary>
+            <p>{item.a}</p>
+          </details>
+        ))}
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <nav class="footer-links" aria-label="Legal">
+        <a href={`${appUrl}/privacy`}>{t.footer.privacy}</a>
+        <a href={`${appUrl}/terms`}>{t.footer.terms}</a>
+        <a href={`${appUrl}/data-deletion`}>{t.footer.dataDeletion}</a>
+      </nav>
+      <p>{t.footer.copyright}</p>
+    </footer>
+  </body>
+</html>

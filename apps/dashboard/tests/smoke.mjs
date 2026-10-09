@@ -42,8 +42,8 @@ try {
   // 1. login + inbox
   let { page, ctx, errors } = await newPage({ locale: "en-US" });
   await page.goto("http://127.0.0.1:4173/");
-  await page.waitForSelector("h1");
-  ok("public landing page renders at /", (await page.locator("a[href='/login']").count()) > 0);
+  await page.waitForURL(/\/login/);
+  ok("anonymous visitor at / is sent to /login", true);
   await page.goto("http://127.0.0.1:4173/inbox");
   await page.waitForURL(/\/login/);
   ok("redirects anonymous user to /login", true);
@@ -426,6 +426,36 @@ try {
     await page.click("button.btn-primary");
     ok("reset-password sets the password and confirms", await page.waitForSelector("text=Your password is saved", { timeout: 3000 }).then(() => true, () => false));
     ok("reset-password sends PUT /auth/v1/user with the new password", await logged((l) => l.startsWith("PUT /auth/v1/user") && l.includes("newpassword1")));
+    await ctx.close();
+  }
+  // 11. sign-up page: renders, validates, links to login, and posts to Supabase auth
+  {
+    ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
+    await page.goto("http://127.0.0.1:4173/signup");
+    await page.waitForSelector("#confirm-password", { timeout: 5000 });
+    ok("sign-up page renders for anonymous visitors", await page.isVisible("button.btn-primary:has-text('Create account')"));
+    await page.fill("#email", "new-owner@example.com");
+    await page.fill("#password", "password123");
+    await page.fill("#confirm-password", "password124");
+    await page.click("button.btn-primary");
+    ok("mismatched passwords show an inline message", await page.waitForSelector("#confirm-error:has-text(\"don't match\")", { timeout: 3000 }).then(() => true, () => false));
+    ok("mismatched passwords do not call Supabase", !(await logged((l) => l.startsWith("POST /auth/v1/signup"), 300)));
+    await page.fill("#confirm-password", "password123");
+    await page.click("button.btn-primary");
+    ok("valid sign-up without a session asks the owner to check their email", await page.waitForSelector("text=Check your email", { timeout: 3000 }).then(() => true, () => false));
+    ok("sign-up posts the address to /auth/v1/signup", await logged((l) => l.startsWith("POST /auth/v1/signup") && l.includes("new-owner@example.com")));
+    await page.screenshot({ path: OUT + "11-signup.png" });
+    await page.goto("http://127.0.0.1:4173/signup");
+    await page.waitForSelector("#confirm-password", { timeout: 5000 });
+    await page.click("a:has-text('Already have an account')");
+    await page.waitForURL(/\/login/);
+    ok("'Already have an account' links to login", /\/login/.test(page.url()));
+    await page.goto("http://127.0.0.1:4173/login");
+    await page.waitForSelector("#email", { timeout: 5000 });
+    await page.click("a:has-text('New here')");
+    await page.waitForURL(/\/signup/);
+    ok("login links to sign-up", /\/signup/.test(page.url()));
+    ok("sign-up page has no store-name field (onboarding asks for it)", (await page.locator("#name").count()) === 0);
     await ctx.close();
   }
 } catch (e) {

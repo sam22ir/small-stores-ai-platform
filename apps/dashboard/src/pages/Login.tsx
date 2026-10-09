@@ -6,7 +6,7 @@ import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { LangSwitch } from "../components/LangSwitch";
 
-type Mode = "in" | "up" | "link" | "forgot";
+type Mode = "in" | "link" | "forgot";
 
 // Wrong email or password. Accounts created by email link have no password yet.
 function isInvalidCredentials(err: { code?: string; message: string }) {
@@ -52,16 +52,12 @@ export function Login() {
         });
         // Same message whether or not the account exists.
         if (err) setError(friendly(err)); else setNotice(t("auth.forgotSent"));
-      } else if (mode === "in") {
+      } else {
         const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (err) {
           setError(friendly(err));
           setInvalidCreds(isInvalidCredentials(err));
         }
-      } else {
-        const { data, error: err } = await supabase.auth.signUp({ email: email.trim(), password });
-        if (err) setError(friendly(err));
-        else if (!data.session) setNotice(t("auth.checkEmail"));
       }
     } catch {
       setError(t("common.error"));
@@ -129,7 +125,7 @@ export function Login() {
               <button className="btn btn-primary w-full" disabled={busy || !configured}>
                 {mode === "link" ? t("auth.sendLink")
                   : mode === "forgot" ? t("auth.sendReset")
-                  : mode === "in" ? t("auth.signIn") : t("auth.signUp")}
+                  : t("auth.signIn")}
               </button>
             </form>
             <div className="flex flex-col items-center gap-1 mt-4">
@@ -144,10 +140,9 @@ export function Login() {
                     {mode === "link" ? t("auth.passwordMode") : t("auth.linkMode")}
                   </button>
                   {mode !== "link" && (
-                    <button type="button" className={textButton}
-                      onClick={() => switchTo(mode === "in" ? "up" : "in")}>
-                      {mode === "in" ? t("auth.noAccount") : t("auth.haveAccount")}
-                    </button>
+                    <Link to="/signup" className={textButton + " inline-flex items-center justify-center no-underline"}>
+                      {t("auth.noAccount")}
+                    </Link>
                   )}
                 </>
               )}
