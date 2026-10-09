@@ -9,7 +9,7 @@ function Page({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[var(--bg)] px-4 py-10">
       <main className="mx-auto max-w-[65ch] text-[15px] leading-relaxed text-[var(--text)]">
-        <Link to="/" className="muted text-sm no-underline">← {legal.product}</Link>
+        <Link to="/inbox" className="muted text-sm no-underline">← {legal.product}</Link>
         <h1 className="text-2xl font-semibold text-[var(--heading)] mt-4 mb-1">{title}</h1>
         <p className="muted text-[13px] mt-0 mb-8">Last updated: {legal.updated}</p>
         <div className="legal flex flex-col gap-3">{children}</div>

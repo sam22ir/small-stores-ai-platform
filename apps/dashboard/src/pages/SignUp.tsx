@@ -54,7 +54,7 @@ export function SignUp() {
       const { data, error: err } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { emailRedirectTo: window.location.origin },
+        options: { emailRedirectTo: `${window.location.origin}/login` },
       });
       if (err) {
         setError(isAlreadyRegistered(err) ? t("auth.emailTaken") : isRateLimited(err) ? t("auth.rateLimited") : err.message);

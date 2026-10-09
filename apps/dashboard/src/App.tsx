@@ -80,7 +80,7 @@ export function App() {
                 <Route path="/settings" element={<Settings />} />
               </Route>
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/inbox" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

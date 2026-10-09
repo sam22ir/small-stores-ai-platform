@@ -4,7 +4,7 @@ const CACHE = "shell-v1";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/"])));
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/app"])));
 });
 
 self.addEventListener("activate", (event) => {
@@ -20,7 +20,7 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
 
   if (req.mode === "navigate") {
-    event.respondWith(fetch(req).catch(() => caches.match("/")));
+    event.respondWith(fetch(req).catch(() => caches.match("/app")));
     return;
   }
   // Built assets have hashed names, so cache-first is safe.

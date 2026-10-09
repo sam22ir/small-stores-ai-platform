@@ -11,8 +11,10 @@ export const localePaths: Record<Locale, string> = {
   en: '/en/',
 };
 
+// An empty PUBLIC_APP_URL means the dashboard is on the same origin, so links become
+// relative paths (/login, /signup, /privacy). Only an unset variable falls back to local dev.
 export const APP_URL: string =
-  (import.meta.env.PUBLIC_APP_URL as string | undefined) || 'http://localhost:5173';
+  (import.meta.env.PUBLIC_APP_URL as string | undefined) ?? 'http://localhost:5173';
 
 export interface Chat {
   customer: string;
