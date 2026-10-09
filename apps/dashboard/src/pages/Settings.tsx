@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { AnimatePresence, m } from "motion/react";
+import { Alert, Button, Input, Label, ListBox, Select, Switch, TextArea, TextField, toast } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import { useStore } from "../lib/store";
+import { dur, ease, useMotionSafe } from "../lib/motion";
 import { centsToInput, formatMoney, parsePrice } from "../lib/format";
 import { WILAYAS } from "../lib/wilayas";
 import { FaqEditor } from "../components/FaqEditor";
@@ -12,35 +15,48 @@ import { CURRENCIES } from "./Onboarding";
 
 const ZONES = ["Africa/Algiers", "Africa/Casablanca", "Africa/Tunis", "Europe/Paris", "UTC"];
 
-const SECTION_TITLE = "text-[15px] font-semibold text-[var(--heading)] m-0";
+const CARD = "flex flex-col gap-4 rounded-wakil-lg border-2 border-ink bg-slip p-5 shadow-ink-sm";
+const SECTION_TITLE = "m-0 text-[15px] font-extrabold text-ink";
 
-// Pill switch. The checkbox stays inside the label so the whole row is the click target.
+// Inline "saved" check that pops in beside a save button.
+function SavedCheck({ show, label }: { show: boolean; label: string }) {
+  const reduced = useMotionSafe();
+  return (
+    <AnimatePresence>
+      {show && (
+        <m.span key="ok" role="status" className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-slip px-3 py-1 text-sm font-bold text-ink"
+          initial={reduced ? false : { scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }}
+          transition={{ duration: dur.short, ease: ease.stamp }}>
+          <span aria-hidden="true" className="text-success">✓</span>{label}
+        </m.span>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// Store-level switch row: label and help text, switch on the end.
 function Toggle({ checked, onChange, label, help }: { checked: boolean; onChange: (v: boolean) => void; label: string; help: string }) {
   return (
-    <label className="flex items-start justify-between gap-4 cursor-pointer">
-      <span className="min-w-0">
-        <span className="block font-semibold text-[15px] text-[var(--heading)]">{label}</span>
-        <span className="block muted text-[13px] mt-1">{help}</span>
+    <Switch isSelected={checked} onChange={onChange} className="flex w-full items-start justify-between gap-4">
+      <span className="min-w-0 flex-1">
+        <Switch.Content className="block text-[15px] font-bold text-ink">{label}</Switch.Content>
+        <span className="mt-1 block text-[13px] text-soft">{help}</span>
       </span>
-      <span className="relative inline-block h-6 w-11 shrink-0 mt-0.5">
-        {/* The real checkbox sits on top of the track (transparent) so it is the click target. */}
-        <input type="checkbox" className="peer absolute inset-0 z-10 m-0 h-full w-full cursor-pointer opacity-0" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-        <span aria-hidden="true" className="pointer-events-none block h-full w-full rounded-full bg-[var(--border)] transition-colors peer-checked:bg-[var(--brand)] peer-focus-visible:[outline:2px_solid_var(--brand)] peer-focus-visible:outline-offset-2" />
-        <span aria-hidden="true" className="pointer-events-none absolute top-0.5 start-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5 rtl:peer-checked:-translate-x-5" />
-      </span>
-    </label>
+      <Switch.Control><Switch.Thumb /></Switch.Control>
+    </Switch>
   );
 }
 
 export function Settings() {
   const { t } = useI18n();
+  const reduced = useMotionSafe();
   const { store, refresh } = useStore();
   const s = store!;
   const [name, setName] = useState(s.name);
   const [currency, setCurrency] = useState(s.currency);
   const [timezone, setTimezone] = useState(s.timezone);
   const [info, setInfo] = useState<InfoFields>(() => fieldsFromStore(s.business_info_fields, s.business_info));
-  // null = the owner has not touched this checkbox here, so it follows the store
+  // null = the owner has not touched this switch here, so it follows the store
   // (the header pause switch can change agent_enabled while this page is open).
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const agentOn = enabled ?? s.agent_enabled;
@@ -61,71 +77,100 @@ export function Settings() {
       orders_enabled: ordersOn,
       ...(enabled === null ? {} : { agent_enabled: enabled }),
     }).eq("id", s.id);
-    if (err) setError(t("common.error"));
-    else { setEnabled(null); setSaved(true); await refresh(); }
+    if (err) { setError(t("common.error")); toast.danger(t("common.error")); }
+    else { setEnabled(null); setSaved(true); toast.success(t("common.saved")); await refresh(); }
     setBusy(false);
   }
 
   return (
-    <div className="mx-auto max-w-[760px] flex flex-col gap-4">
-      <h1 className="text-[20px] font-semibold text-[var(--heading)] mt-1 mb-0">{t("settings.title")}</h1>
+    <m.div
+      className="mx-auto flex max-w-[760px] flex-col gap-4"
+      initial={reduced ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: dur.base, ease: ease.out }}
+    >
+      <h1 className="mb-0 mt-1 text-[22px] font-extrabold text-ink">{t("settings.title")}</h1>
       <form onSubmit={save} className="flex flex-col gap-4">
-        <section className="card p-5 flex flex-col gap-4" aria-labelledby="sec-store">
+        <section className={CARD} aria-labelledby="sec-store">
           <h2 id="sec-store" className={SECTION_TITLE}>{t("settings.sec.store")}</h2>
-          <div>
-            <label className="label" htmlFor="sname">{t("settings.name")}</label>
-            <input id="sname" className="input" required maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
+          <TextField value={name} onChange={setName} isRequired maxLength={100} className="w-full">
+            <Label>{t("settings.name")}</Label>
+            <Input id="sname" />
+          </TextField>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="label" htmlFor="scur">{t("settings.currency")}</label>
-              <select id="scur" className="input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                {currencies.map((c) => <option key={c}>{c}</option>)}
-              </select>
+            <div className="flex flex-col gap-1.5">
+              <Label>{t("settings.currency")}</Label>
+              <Select aria-label={t("settings.currency")} selectedKey={currency} onSelectionChange={(k) => setCurrency(String(k))} className="w-full">
+                <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    {currencies.map((c) => <ListBox.Item key={c} id={c} textValue={c}>{c}<ListBox.ItemIndicator /></ListBox.Item>)}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
             </div>
-            <div>
-              <label className="label" htmlFor="stz">{t("settings.timezone")}</label>
-              <select id="stz" className="input" value={timezone} onChange={(e) => setTimezone(e.target.value)}>
-                {zones.map((z) => <option key={z}>{z}</option>)}
-              </select>
+            <div className="flex flex-col gap-1.5">
+              <Label>{t("settings.timezone")}</Label>
+              <Select aria-label={t("settings.timezone")} selectedKey={timezone} onSelectionChange={(k) => setTimezone(String(k))} className="w-full">
+                <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    {zones.map((z) => <ListBox.Item key={z} id={z} textValue={z}>{z}<ListBox.ItemIndicator /></ListBox.Item>)}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
             </div>
           </div>
         </section>
 
-        <section className="card p-5 flex flex-col gap-4" aria-labelledby="sec-info">
+        <section className={CARD} aria-labelledby="sec-info">
           <div>
             <h2 id="sec-info" className={SECTION_TITLE}>{t("settings.info")}</h2>
-            <p className="muted text-[13px] mt-1 mb-0">{t("settings.infoHelp")}</p>
+            <p className="mb-0 mt-1 text-[13px] text-soft">{t("settings.infoHelp")}</p>
           </div>
           {INFO_KEYS.map((k) => (
-            <div key={k}>
-              <label className="label" htmlFor={`info-${k}`}>{t(`settings.f.${k}`)}</label>
-              <textarea id={`info-${k}`} className="input" style={{ minHeight: k === "other" ? 100 : 64 }}
-                maxLength={k === "other" ? MAX_OTHER : MAX_FIELD} value={info[k]} placeholder={t(`settings.f.${k}Ph`)}
-                onChange={(e) => setInfo((f) => ({ ...f, [k as InfoKey]: e.target.value }))} />
-            </div>
+            <TextField key={k} value={info[k]} className="w-full"
+              onChange={(v) => setInfo((f) => ({ ...f, [k as InfoKey]: v }))} maxLength={k === "other" ? MAX_OTHER : MAX_FIELD}>
+              <Label>{t(`settings.f.${k}`)}</Label>
+              <TextArea id={`info-${k}`} rows={k === "other" ? 4 : 2} placeholder={t(`settings.f.${k}Ph`)} />
+            </TextField>
           ))}
         </section>
 
-        <section className="card p-5 flex flex-col gap-4" aria-labelledby="sec-assistant">
+        <section className={CARD} aria-labelledby="sec-assistant">
           <h2 id="sec-assistant" className={SECTION_TITLE}>{t("assistant.title")}</h2>
           <Toggle checked={agentOn} onChange={(v) => setEnabled(v)} label={t("settings.agent")} help={t("settings.agentHelp")} />
-          <div className="border-t border-[var(--divider)] pt-4">
+          <div className="border-t border-ink/10 pt-4">
             <Toggle checked={ordersOn} onChange={(v) => setOrdersOn(v)} label={t("settings.orders")} help={t("settings.ordersHelp")} />
+            {/* Taking orders reveals the delivery-fee section below, with a height animation. */}
+            <AnimatePresence initial={false}>
+              {ordersOn && (
+                <m.div
+                  key="fees-hint"
+                  initial={reduced ? false : { height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={reduced ? undefined : { height: 0, opacity: 0 }}
+                  transition={{ duration: dur.short, ease: ease.out }}
+                  className="overflow-hidden"
+                >
+                  <p className="mb-0 mt-3 rounded-wakil border-2 border-ink/15 bg-paper p-3 text-[13px] text-soft">{t("fees.help")}</p>
+                </m.div>
+              )}
+            </AnimatePresence>
           </div>
         </section>
 
-        {error && <p className="error m-0" role="alert">{error}</p>}
-        <div className="flex items-center gap-3 flex-wrap">
-          <button className="btn btn-primary" disabled={busy}>{t("common.save")}</button>
-          {saved && <span className="badge badge-ok" role="status">{t("common.saved")}</span>}
+        {error && <Alert status="danger"><Alert.Content><Alert.Description role="alert">{error}</Alert.Description></Alert.Content></Alert>}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" variant="primary" isDisabled={busy}>{t("common.save")}</Button>
+          <SavedCheck show={saved} label={t("common.saved")} />
         </div>
       </form>
       <PasswordCard />
       <FaqEditor storeId={s.id} />
       <DeliveryFees storeId={s.id} currency={s.currency} />
       {TELEGRAM_BOT && <TelegramAlerts storeId={s.id} />}
-    </div>
+    </m.div>
   );
 }
 
@@ -145,32 +190,30 @@ function PasswordCard() {
     if (password !== confirm) { setError(t("auth.passwordMismatch")); return; }
     setBusy(true); setError(null);
     const { error: err } = await supabase.auth.updateUser({ password });
-    if (err) setError(t("common.error"));
-    else { setPassword(""); setConfirm(""); setSaved(true); }
+    if (err) { setError(t("common.error")); toast.danger(t("common.error")); }
+    else { setPassword(""); setConfirm(""); setSaved(true); toast.success(t("settings.pw.saved")); }
     setBusy(false);
   }
 
   return (
-    <section className="card p-5 flex flex-col gap-4" aria-labelledby="sec-password">
+    <section className={CARD} aria-labelledby="sec-password">
       <div>
         <h2 id="sec-password" className={SECTION_TITLE}>{t("settings.pw.title")}</h2>
-        <p className="muted text-[13px] mt-1 mb-0">{t("settings.pw.help")}</p>
+        <p className="mb-0 mt-1 text-[13px] text-soft">{t("settings.pw.help")}</p>
       </div>
       <form onSubmit={save} className="flex flex-col gap-4">
-        <div>
-          <label className="label" htmlFor="pw-new">{t("auth.newPassword")}</label>
-          <input id="pw-new" className="input" type="password" required minLength={8} autoComplete="new-password"
-            value={password} onChange={(e) => setPassword(e.target.value)} dir="ltr" />
-        </div>
-        <div>
-          <label className="label" htmlFor="pw-confirm">{t("auth.confirmPassword")}</label>
-          <input id="pw-confirm" className="input" type="password" required minLength={8} autoComplete="new-password"
-            value={confirm} onChange={(e) => setConfirm(e.target.value)} dir="ltr" />
-        </div>
-        {error && <p className="error m-0" role="alert">{error}</p>}
-        <div className="flex items-center gap-3 flex-wrap">
-          <button className="btn btn-primary" disabled={busy}>{t("settings.pw.save")}</button>
-          {saved && <span className="badge badge-ok" role="status">{t("settings.pw.saved")}</span>}
+        <TextField value={password} onChange={setPassword} isRequired minLength={8} className="w-full">
+          <Label>{t("auth.newPassword")}</Label>
+          <Input id="pw-new" type="password" autoComplete="new-password" dir="ltr" />
+        </TextField>
+        <TextField value={confirm} onChange={setConfirm} isRequired minLength={8} className="w-full">
+          <Label>{t("auth.confirmPassword")}</Label>
+          <Input id="pw-confirm" type="password" autoComplete="new-password" dir="ltr" />
+        </TextField>
+        {error && <Alert status="danger"><Alert.Content><Alert.Description role="alert">{error}</Alert.Description></Alert.Content></Alert>}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" variant="primary" isDisabled={busy}>{t("settings.pw.save")}</Button>
+          <SavedCheck show={saved} label={t("settings.pw.saved")} />
         </div>
       </form>
     </section>
@@ -200,37 +243,37 @@ function TelegramAlerts({ storeId }: { storeId: string }) {
   async function disconnect() {
     setBusy(true); setError(null);
     const { error: err } = await supabase.rpc("telegram_unlink", { p_store_id: storeId });
-    if (err) { setError(t("common.error")); setBusy(false); return; }
+    if (err) { setError(t("common.error")); toast.danger(t("common.error")); setBusy(false); return; }
     await refresh();
   }
 
   return (
-    <section className="card p-5 flex flex-col gap-4">
+    <section className={CARD}>
       <div>
         <h2 className={SECTION_TITLE}>{t("settings.tg.title")}</h2>
-        <p className="muted text-[13px] mt-1 mb-0">{t("settings.tg.help")}</p>
+        <p className="mb-0 mt-1 text-[13px] text-soft">{t("settings.tg.help")}</p>
       </div>
-      {error && <p className="error m-0" role="alert">{error}</p>}
+      {error && <Alert status="danger"><Alert.Content><Alert.Description role="alert">{error}</Alert.Description></Alert.Content></Alert>}
       {connected === true && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="badge badge-ok">{t("settings.tg.connected")}</span>
-          <button className="btn btn-small" disabled={busy} onClick={() => void disconnect()}>{t("settings.tg.disconnect")}</button>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="rounded-full border-2 border-ink bg-slip px-3 py-1 text-sm font-bold text-ink">{t("settings.tg.connected")}</span>
+          <Button size="sm" variant="outline" isDisabled={busy} onPress={() => void disconnect()}>{t("settings.tg.disconnect")}</Button>
         </div>
       )}
       {connected === false && (
         <>
-          <span className="badge badge-muted w-fit">{t("settings.tg.notConnected")}</span>
-          <p className="muted text-[13px] m-0">{t("settings.tg.open")}</p>
+          <span className="w-fit rounded-full bg-surface-secondary px-3 py-1 text-sm font-semibold text-ink">{t("settings.tg.notConnected")}</span>
+          <p className="m-0 text-[13px] text-soft">{t("settings.tg.open")}</p>
           <div>
-            <button className="btn btn-primary" disabled={busy || !code}
-              onClick={() => window.open(`https://t.me/${TELEGRAM_BOT}?start=${code}`, "_blank", "noopener")}>
+            <Button variant="primary" isDisabled={busy || !code}
+              onPress={() => window.open(`https://t.me/${TELEGRAM_BOT}?start=${code}`, "_blank", "noopener")}>
               {t("settings.tg.connect")}
-            </button>
+            </Button>
           </div>
         </>
       )}
       <div>
-        <button className="btn btn-small" disabled={busy} onClick={() => void refresh()}>{t("settings.tg.refresh")}</button>
+        <Button size="sm" variant="outline" isDisabled={busy} onPress={() => void refresh()}>{t("settings.tg.refresh")}</Button>
       </div>
     </section>
   );
@@ -240,6 +283,7 @@ type Fee = { id: string; wilaya: string; fee_cents: number };
 
 function DeliveryFees({ storeId, currency }: { storeId: string; currency: string }) {
   const { t, lang } = useI18n();
+  const reduced = useMotionSafe();
   const [fees, setFees] = useState<Fee[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [wilaya, setWilaya] = useState("");
@@ -256,6 +300,8 @@ function DeliveryFees({ storeId, currency }: { storeId: string; currency: string
 
   const taken = new Set((fees ?? []).map((f) => f.wilaya.trim().toLowerCase()));
 
+  function fail(msg: string) { setError(msg); toast.danger(msg); }
+
   async function add(e: FormEvent) {
     e.preventDefault();
     const name = wilaya.trim();
@@ -264,8 +310,8 @@ function DeliveryFees({ storeId, currency }: { storeId: string; currency: string
     if (cents === null) { setError(t("fees.errFee")); return; }
     setBusy(true); setError(null);
     const { error: err } = await supabase.from("delivery_fees").insert({ store_id: storeId, wilaya: name, fee_cents: cents });
-    if (err) setError(t("common.error"));
-    else { setWilaya(""); await load(); }
+    if (err) fail(t("common.error"));
+    else { setWilaya(""); toast.success(t("common.saved")); await load(); }
     setBusy(false);
   }
 
@@ -277,62 +323,73 @@ function DeliveryFees({ storeId, currency }: { storeId: string; currency: string
     if (rows.length === 0) return;
     setBusy(true); setError(null);
     const { error: err } = await supabase.from("delivery_fees").insert(rows);
-    if (err) setError(t("common.error"));
+    if (err) fail(t("common.error")); else toast.success(t("common.saved"));
     await load();
     setBusy(false);
   }
 
   async function update(f: Fee, value: string) {
     const cents = parsePrice(value);
-    if (cents === null) { setError(t("fees.errFee")); await load(); return; }
+    if (cents === null) { fail(t("fees.errFee")); await load(); return; }
     if (cents === f.fee_cents) return;
     setError(null);
     const { error: err } = await supabase.from("delivery_fees").update({ fee_cents: cents }).eq("id", f.id);
-    if (err) setError(t("common.error"));
+    if (err) fail(t("common.error")); else toast.success(t("common.saved"));
     await load();
   }
 
   async function remove(f: Fee) {
     setError(null);
     const { error: err } = await supabase.from("delivery_fees").delete().eq("id", f.id);
-    if (err) setError(t("common.error"));
+    if (err) fail(t("common.error"));
+    else setFees((all) => all && all.filter((x) => x.id !== f.id));
     await load();
   }
 
   return (
-    <section className="card p-5 flex flex-col gap-4">
+    <section className={CARD}>
       <div>
         <h2 className={SECTION_TITLE}>{t("fees.title")}</h2>
-        <p className="muted text-[13px] mt-1 mb-0">{t("fees.help")}</p>
+        <p className="mb-0 mt-1 text-[13px] text-soft">{t("fees.help")}</p>
       </div>
 
-      <form onSubmit={add} className="flex gap-2 flex-wrap items-end">
-        <div className="grow basis-40">
-          <label className="label" htmlFor="fw">{t("fees.wilaya")}</label>
-          <input id="fw" className="input" list="wilayas" value={wilaya} maxLength={60} onChange={(e) => setWilaya(e.target.value)} />
-          <datalist id="wilayas">{WILAYAS.filter((w) => !taken.has(w.toLowerCase())).map((w) => <option key={w} value={w} />)}</datalist>
-        </div>
-        <div className="basis-32">
-          <label className="label" htmlFor="ff">{t("fees.defaultFee")} ({currency})</label>
-          <input id="ff" className="input" inputMode="decimal" value={fee} onChange={(e) => setFee(e.target.value)} />
-        </div>
-        <button className="btn btn-primary" disabled={busy}>{t("fees.add")}</button>
-        <button type="button" className="btn" disabled={busy} onClick={() => void addAll()}>{t("fees.addAll")}</button>
+      <form onSubmit={add} className="flex flex-wrap items-end gap-2">
+        <TextField value={wilaya} onChange={setWilaya} maxLength={60} className="min-w-40 grow">
+          <Label>{t("fees.wilaya")}</Label>
+          <Input id="fw" list="wilayas" />
+        </TextField>
+        <datalist id="wilayas">{WILAYAS.filter((w) => !taken.has(w.toLowerCase())).map((w) => <option key={w} value={w} />)}</datalist>
+        <TextField value={fee} onChange={setFee} className="w-32">
+          <Label>{t("fees.defaultFee")} ({currency})</Label>
+          <Input id="ff" inputMode="decimal" />
+        </TextField>
+        <Button type="submit" variant="primary" isDisabled={busy}>{t("fees.add")}</Button>
+        <Button variant="outline" isDisabled={busy} onPress={() => void addAll()}>{t("fees.addAll")}</Button>
       </form>
-      {error && <p className="error m-0" role="alert">{error}</p>}
-      {failed && <p className="error m-0">{t("common.error")}</p>}
-      {fees && fees.length === 0 && <p className="muted text-[13px] m-0">{t("fees.empty")}</p>}
+      {error && <Alert status="danger"><Alert.Content><Alert.Description role="alert">{error}</Alert.Description></Alert.Content></Alert>}
+      {failed && <Alert status="danger"><Alert.Content><Alert.Description>{t("common.error")}</Alert.Description></Alert.Content></Alert>}
+      {fees && fees.length === 0 && <p className="m-0 text-[13px] text-soft">{t("fees.empty")}</p>}
 
-      <ul className="list-none p-0 m-0 flex flex-col border-t border-[var(--divider)]">
-        {(fees ?? []).map((f) => (
-          <li key={f.id} className="flex items-center gap-3 py-2 border-b border-[var(--divider)] last:border-b-0">
-            <span className="grow font-semibold text-[15px] text-[var(--heading)]">{f.wilaya}</span>
-            <input className="input" style={{ width: 110 }} inputMode="decimal" defaultValue={centsToInput(f.fee_cents)} key={`${f.id}-${f.fee_cents}`}
-              aria-label={`${t("fees.fee")} ${f.wilaya} (${formatMoney(f.fee_cents, currency, lang)})`}
-              onBlur={(e) => void update(f, e.target.value)} />
-            <button className="btn btn-small" onClick={() => void remove(f)}>{t("fees.remove")}</button>
-          </li>
-        ))}
+      <ul className="m-0 flex list-none flex-col border-t border-ink/10 p-0">
+        <AnimatePresence initial={false}>
+          {(fees ?? []).map((f) => (
+            <m.li
+              key={f.id}
+              layout={!reduced}
+              initial={reduced ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={reduced ? undefined : { opacity: 0, height: 0 }}
+              transition={{ duration: dur.short, ease: ease.out }}
+              className="flex items-center gap-3 border-b border-ink/10 py-2 last:border-b-0"
+            >
+              <span className="grow text-[15px] font-bold text-ink">{f.wilaya}</span>
+              <Input className="w-28" inputMode="decimal" defaultValue={centsToInput(f.fee_cents)} key={`${f.id}-${f.fee_cents}`}
+                aria-label={`${t("fees.fee")} ${f.wilaya} (${formatMoney(f.fee_cents, currency, lang)})`}
+                onBlur={(e) => void update(f, e.target.value)} />
+              <Button size="sm" variant="ghost" className="text-red" onPress={() => void remove(f)}>{t("fees.remove")}</Button>
+            </m.li>
+          ))}
+        </AnimatePresence>
       </ul>
     </section>
   );

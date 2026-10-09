@@ -32,6 +32,7 @@
 @import "@heroui/styles/components/textarea.css" layer(components);
 @import "@heroui/styles/components/modal.css" layer(components);
 @import "@heroui/styles/components/close-button.css" layer(components);
+@import "@heroui/styles/components/toast.css" layer(components);
 @import "@heroui/styles/utilities";
 @import "@heroui/styles/variants";
 @import "./styles/theme.css";

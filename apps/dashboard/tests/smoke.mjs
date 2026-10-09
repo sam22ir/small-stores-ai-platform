@@ -143,7 +143,7 @@ try {
     (await page.inputValue("#faq-q")) === "I want to order 2 hoodies" && (await page.inputValue("#faq-a")) === "Hi! Yes we can arrange 2 hoodies.");
   await page.fill("#faq-a", "Yes, we can arrange 2 hoodies. Delivery is 3-5 days.");
   await page.screenshot({ path: OUT + "03b-save-faq.png" });
-  await page.click("[role=dialog] button.btn-primary");
+  await page.click("[role=dialog] button[type=submit]");
   await page.waitForSelector("text=Saved to your answers");
   ok("FAQ entry is stored with the question, the edited answer and the chat id", await logged((l) => l.startsWith("POST /rest/v1/faq_entries") && l.includes('"question":"I want to order 2 hoodies"') && l.includes("3-5 days") && l.includes('"conversation_id":"c1"')));
   await page.screenshot({ path: OUT + "03-thread.png" });
@@ -221,7 +221,7 @@ try {
   await page.fill("#info-hours", "Every day 10:00-18:00");
   await page.fill("#info-delivery", "3-5 days");
   await page.fill("#info-other", "Gift wrapping available.");
-  await page.check("label:has-text('Take orders in chats') input");
+  await page.click("text=Take orders in chats");
   await page.click("button:has-text('Save')");
   await page.waitForSelector("text=Saved");
   ok("settings save sends only allowed columns", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes("business_info") && !l.includes('"id"')));
@@ -241,11 +241,11 @@ try {
   await page.waitForSelector("text=Answers the assistant knows");
   ok("existing and just-saved answers are listed", await page.isVisible("li:has-text('Do you gift wrap?')") && await page.isVisible("li:has-text('3-5 days')"));
   await page.click("button:has-text('Add an answer')");
-  await page.click("[role=dialog] button.btn-primary");
+  await page.click("[role=dialog] button[type=submit]");
   ok("empty question is rejected", await page.isVisible("text=Write the question."));
   await page.fill("#faq-q", "Can I pay by card?");
   await page.fill("#faq-a", "Cash on delivery only.");
-  await page.click("[role=dialog] button.btn-primary");
+  await page.click("[role=dialog] button[type=submit]");
   await page.waitForSelector("li:has-text('Can I pay by card?')");
   ok("manually added answer is stored", await logged((l) => l.startsWith("POST /rest/v1/faq_entries") && l.includes("Cash on delivery only.") && l.includes('"conversation_id":null')));
   page.once("dialog", (d) => void d.accept());
@@ -256,10 +256,10 @@ try {
   await page.waitForSelector("text=Delivery fees");
   ok("existing delivery fee is listed", await page.isVisible("li:has-text('Alger')"));
   await page.fill("#fw", "Oran");
-  await page.click("form:has(#fw) button.btn-primary");
+  await page.click("form:has(#fw) button[type=submit]");
   ok("adding a fee without an amount is rejected", await page.isVisible("text=Enter a valid fee."));
   await page.fill("#ff", "600");
-  await page.click("form:has(#fw) button.btn-primary");
+  await page.click("form:has(#fw) button[type=submit]");
   ok("fee is inserted in cents", await logged((l) => l.startsWith("POST /rest/v1/delivery_fees") && l.includes('"wilaya":"Oran"') && l.includes('"fee_cents":60000')));
   await page.click("button:has-text('Add all 58 wilayas')");
   ok("bulk add skips wilayas that already exist", await logged((l) => l.startsWith("POST /rest/v1/delivery_fees") && l.includes('"wilaya":"Adrar"') && !l.includes('"wilaya":"Oran"')));

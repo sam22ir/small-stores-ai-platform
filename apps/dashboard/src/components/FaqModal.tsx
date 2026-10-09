@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { Alert, Button, Label, TextArea, TextField } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import { Modal } from "./Modal";
@@ -39,18 +40,18 @@ export function FaqModal({ storeId, entry, initialQuestion = "", initialAnswer =
   return (
     <Modal title={entry ? t("faq.edit") : t("faq.add")} onClose={onClose}>
       <form onSubmit={save} className="flex flex-col gap-4">
-        <div>
-          <label className="label" htmlFor="faq-q">{t("faq.question")}</label>
-          <textarea id="faq-q" className="input" style={{ minHeight: 64 }} maxLength={300} value={question} onChange={(e) => setQuestion(e.target.value)} autoFocus />
-        </div>
-        <div>
-          <label className="label" htmlFor="faq-a">{t("faq.answer")}</label>
-          <textarea id="faq-a" className="input" style={{ minHeight: 110 }} maxLength={1500} value={answer} onChange={(e) => setAnswer(e.target.value)} />
-        </div>
-        {error && <p className="error m-0" role="alert">{error}</p>}
+        <TextField value={question} onChange={setQuestion} maxLength={300} autoFocus className="w-full">
+          <Label>{t("faq.question")}</Label>
+          <TextArea id="faq-q" rows={2} />
+        </TextField>
+        <TextField value={answer} onChange={setAnswer} maxLength={1500} className="w-full">
+          <Label>{t("faq.answer")}</Label>
+          <TextArea id="faq-a" rows={4} />
+        </TextField>
+        {error && <Alert status="danger"><Alert.Content><Alert.Description role="alert">{error}</Alert.Description></Alert.Content></Alert>}
         <div className="flex justify-end gap-2">
-          <button type="button" className="btn" onClick={onClose}>{t("common.cancel")}</button>
-          <button className="btn btn-primary" disabled={busy}>{t("common.save")}</button>
+          <Button variant="outline" onPress={onClose}>{t("common.cancel")}</Button>
+          <Button type="submit" variant="primary" isDisabled={busy}>{t("common.save")}</Button>
         </div>
       </form>
     </Modal>
