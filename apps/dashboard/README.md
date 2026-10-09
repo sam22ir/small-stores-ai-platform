@@ -35,7 +35,7 @@ The first account you create gets the "Set up your store" screen, which calls th
 ## Deploy on Cloudflare Pages (free)
 
 1. Cloudflare dashboard → Workers & Pages → Create → Pages → connect the GitHub repository.
-2. Settings: **Root directory** `apps/dashboard`, **Build command** `npm run build`, **Build output directory** `dist`.
+2. Settings: **Root directory** `apps/dashboard`, **Build command** `npm run build`, **Build output directory** `dist`. The landing page (`/`, `/fr`, `/en`) is part of this same app. Manual deploy: `npm run build && npx wrangler@4.30.0 pages deploy dist --project-name store-assistant-dz --branch main`.
 3. Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (same as `.env.example`) and `NODE_VERSION` = `22`. For the public legal pages also set `VITE_LEGAL_OPERATOR` (your legal name exactly as on your business registration), `VITE_LEGAL_EMAIL` (contact email), and optionally `VITE_LEGAL_PRODUCT` and `VITE_LEGAL_LOCATION`. Until they are set the pages show a visible placeholder. These are build-time values: redeploy after changing them.
 4. `public/_redirects` makes deep links work and `public/_headers` sets security headers, including a content-security-policy that only allows this origin and `*.supabase.co`. If you add another API host, add it to `connect-src` there.
 

@@ -4,16 +4,18 @@ import { chromium } from "playwright-core";
 import { spawn } from "node:child_process";
 import { start, state, pushConversationChange } from "./mock.mjs";
 
+// TEST_PORT lets several checkouts run the smoke test at once.
+const PORT = Number(process.env.TEST_PORT || 4173);
 const ROOT = new URL("../", import.meta.url).pathname;
 const OUT = ROOT + ".test-shots/";
 import fs from "node:fs"; fs.mkdirSync(OUT, { recursive: true });
 
 const mock = await start();
-const preview = spawn("npx", ["vite", "preview", "--outDir", ".test-dist", "--host", "127.0.0.1", "--port", "4173", "--strictPort"],
+const preview = spawn("npx", ["vite", "preview", "--outDir", ".test-dist", "--host", "127.0.0.1", "--port", String(PORT), "--strictPort"],
   { cwd: ROOT, stdio: "ignore" });
 // Wait for the preview server instead of guessing how long `npx vite preview` takes to start.
 for (let i = 0; i < 120; i++) {
-  try { if ((await fetch("http://127.0.0.1:4173/")).ok) break; } catch { /* not up yet */ }
+  try { if ((await fetch(`http://127.0.0.1:${PORT}/`)).ok) break; } catch { /* not up yet */ }
   await new Promise((r) => setTimeout(r, 250));
 }
 
@@ -41,10 +43,17 @@ async function newPage(opts = {}) {
 try {
   // 1. login + inbox
   let { page, ctx, errors } = await newPage({ locale: "en-US" });
-  await page.goto("http://127.0.0.1:4173/");
-  await page.waitForURL(/\/login/);
-  ok("anonymous visitor at / is sent to /login", true);
-  await page.goto("http://127.0.0.1:4173/inbox");
+  await page.goto(`http://127.0.0.1:${PORT}/`);
+  await page.waitForSelector("#hero-title");
+  ok("anonymous visitor at / sees the landing page", (await page.locator("#hero-title").count()) === 1);
+  ok("the root landing is Arabic and right-to-left", (await page.getAttribute("html", "dir")) === "rtl" && (await page.getAttribute("html", "lang")) === "ar");
+  await page.goto(`http://127.0.0.1:${PORT}/fr`);
+  await page.waitForSelector("#hero-title");
+  ok("/fr is French and left-to-right", (await page.getAttribute("html", "lang")) === "fr" && (await page.getAttribute("html", "dir")) === "ltr");
+  await page.goto(`http://127.0.0.1:${PORT}/nope`);
+  await page.waitForSelector("text=Page not found");
+  ok("unknown paths show the not-found page", await page.isVisible("a:has-text('Back to home')"));
+  await page.goto(`http://127.0.0.1:${PORT}/inbox`);
   await page.waitForURL(/\/login/);
   ok("redirects anonymous user to /login", true);
   await page.screenshot({ path: OUT + "01-login.png" });
@@ -280,7 +289,7 @@ try {
   await page.click("li:has-text('@fennec_vision_') >> button:has-text('Disconnect')");
   await page.waitForSelector("li:has-text('@fennec_vision_') >> text=Disconnected");
   ok("Disconnect asks first, then calls the server with the channel id", await logged((l) => l.startsWith("POST /functions/v1/instagram-connect") && l.includes('"action":"disconnect"') && l.includes('"channel_id":"ch-ig"')));
-  await page.goto("http://127.0.0.1:4173/assistant?instagram=error&reason=already_connected");
+  await page.goto(`http://127.0.0.1:${PORT}/assistant?instagram=error&reason=already_connected`);
   await page.waitForSelector("[role=alert]:has-text('already connected to another store')");
   ok("a failed connection explains why", !/instagram=/.test(page.url()));
   state.startStatus = 503;
@@ -344,19 +353,20 @@ try {
     ["/terms", "Terms of service", "cash-on-delivery"],
     ["/data-deletion", "Data deletion", "Delete my data"],
   ]) {
-    await page.goto("http://127.0.0.1:4173" + path);
+    await page.goto(`http://127.0.0.1:${PORT}` + path);
     await page.waitForSelector(`h1:has-text('${heading}')`);
     ok(`${path} is public and readable`, !/\/login/.test(page.url()) && (await page.textContent("main")).includes(text));
   }
   ok("legal pages link to each other", await page.isVisible("nav[aria-label=Legal] >> text=Privacy policy"));
-  await page.goto("http://127.0.0.1:4173/login");
+  await page.goto(`http://127.0.0.1:${PORT}/login`);
+  await page.waitForSelector("nav[aria-label=Legal]");
   ok("the sign-in page links to them", await page.isVisible("nav[aria-label=Legal] >> text=Data deletion"));
   ok("no runtime errors on public pages", errors.length === 0);
   await ctx.close();
 
   // 7. mobile layout
   ({ page, ctx, errors } = await newPage({ viewport: { width: 390, height: 780 }, locale: "fr-FR", isMobile: true, hasTouch: true }));
-  await page.goto("http://127.0.0.1:4173/login");
+  await page.goto(`http://127.0.0.1:${PORT}/login`);
   await page.fill("#email", "owner@example.com"); await page.fill("#password", "password123");
   await page.click("button.btn-primary");
   await page.waitForURL(/\/inbox/);
@@ -391,10 +401,11 @@ try {
   // 8. first-time user: no store -> onboarding -> create_store
   state.hasStore = false;
   ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
-  await page.goto("http://127.0.0.1:4173/login");
+  await page.goto(`http://127.0.0.1:${PORT}/login`);
   await page.fill("#email", "new@example.com"); await page.fill("#password", "password123");
   await page.click("button.btn-primary");
   await page.waitForURL(/\/onboarding/);
+  await page.waitForSelector("text=Set up your store");
   ok("user without a store is sent to onboarding", await page.isVisible("text=Set up your store"));
   await page.fill("#name", "My Shop");
   await page.screenshot({ path: OUT + "11-onboarding.png" });
@@ -406,7 +417,7 @@ try {
   // 9. forgot password: the link action shows the neutral confirmation and calls recover
   state.hasStore = true;
   ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
-  await page.goto("http://127.0.0.1:4173/login");
+  await page.goto(`http://127.0.0.1:${PORT}/login`);
   await page.click("button:has-text('Forgot password?')");
   await page.fill("#email", "owner@example.com");
   await page.click("button.btn-primary");
@@ -419,7 +430,7 @@ try {
     const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
     const token = `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: "user-1", role: "authenticated", exp: 4102444800, aud: "authenticated" })}.sig`;
     ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
-    await page.goto(`http://127.0.0.1:4173/reset-password#access_token=${token}&refresh_token=r&expires_in=3600&token_type=bearer&type=recovery`);
+    await page.goto(`http://127.0.0.1:${PORT}/reset-password#access_token=${token}&refresh_token=r&expires_in=3600&token_type=bearer&type=recovery`);
     await page.waitForSelector("#new-password", { timeout: 5000 });
     await page.fill("#new-password", "newpassword1");
     await page.fill("#confirm-password", "newpassword1");
@@ -431,7 +442,7 @@ try {
   // 11. sign-up page: renders, validates, links to login, and posts to Supabase auth
   {
     ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
-    await page.goto("http://127.0.0.1:4173/signup");
+    await page.goto(`http://127.0.0.1:${PORT}/signup`);
     await page.waitForSelector("#confirm-password", { timeout: 5000 });
     ok("sign-up page renders for anonymous visitors", await page.isVisible("button.btn-primary:has-text('Create account')"));
     await page.fill("#email", "new-owner@example.com");
@@ -445,12 +456,12 @@ try {
     ok("valid sign-up without a session asks the owner to check their email", await page.waitForSelector("text=Check your email", { timeout: 3000 }).then(() => true, () => false));
     ok("sign-up posts the address to /auth/v1/signup", await logged((l) => l.startsWith("POST /auth/v1/signup") && l.includes("new-owner@example.com")));
     await page.screenshot({ path: OUT + "11-signup.png" });
-    await page.goto("http://127.0.0.1:4173/signup");
+    await page.goto(`http://127.0.0.1:${PORT}/signup`);
     await page.waitForSelector("#confirm-password", { timeout: 5000 });
     await page.click("a:has-text('Already have an account')");
     await page.waitForURL(/\/login/);
     ok("'Already have an account' links to login", /\/login/.test(page.url()));
-    await page.goto("http://127.0.0.1:4173/login");
+    await page.goto(`http://127.0.0.1:${PORT}/login`);
     await page.waitForSelector("#email", { timeout: 5000 });
     await page.click("a:has-text('New here')");
     await page.waitForURL(/\/signup/);

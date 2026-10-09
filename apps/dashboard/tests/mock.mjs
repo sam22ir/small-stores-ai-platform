@@ -183,7 +183,7 @@ export function start(port = 54321) {
           // would send the owner back to, and registers the channel the callback would have saved.
           if (!state.channels.some((c) => c.platform === "instagram")) state.channels.push({ id: "ch-ig", platform: "instagram", display_name: "@fennec_vision_", status: "active" });
           else state.channels.find((c) => c.platform === "instagram").status = "active";
-          return send(200, { url: "http://127.0.0.1:4173/assistant?instagram=connected" });
+          return send(200, { url: `http://127.0.0.1:${process.env.TEST_PORT || 4173}/assistant?instagram=connected` });
         }
         if (action === "disconnect") {
           const c = state.channels.find((x) => x.id === channel_id);

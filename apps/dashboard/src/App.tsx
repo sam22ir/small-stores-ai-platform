@@ -1,20 +1,35 @@
+import { lazy, Suspense } from "react";
+import type { ComponentType } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { I18nProvider, useI18n } from "./lib/i18n";
 import { StoreProvider, useStore } from "./lib/store";
 import { configured } from "./lib/supabase";
-import { Layout } from "./components/Layout";
-import { Login } from "./pages/Login";
-import { SignUp } from "./pages/SignUp";
-import { ResetPassword } from "./pages/ResetPassword";
-import { Onboarding } from "./pages/Onboarding";
-import { Inbox, InboxEmpty } from "./pages/Inbox";
-import { Thread } from "./pages/Thread";
-import { Catalog } from "./pages/Catalog";
-import { Settings } from "./pages/Settings";
-import { Orders } from "./pages/Orders";
-import { Assistant } from "./pages/Assistant";
-import { DataDeletion, Privacy, Terms } from "./pages/Legal";
+import { Landing } from "./pages/landing/Landing";
+import { NotFound } from "./pages/NotFound";
+
+// Every route is its own chunk, so the public landing page never loads dashboard code.
+function page<K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) {
+  return lazy(async () => ({ default: (await load())[name] }));
+}
+
+const Layout = page(() => import("./components/Layout"), "Layout");
+const Login = page(() => import("./pages/Login"), "Login");
+const SignUp = page(() => import("./pages/SignUp"), "SignUp");
+const ResetPassword = page(() => import("./pages/ResetPassword"), "ResetPassword");
+const Onboarding = page(() => import("./pages/Onboarding"), "Onboarding");
+const Inbox = page(() => import("./pages/Inbox"), "Inbox");
+const InboxEmpty = page(() => import("./pages/Inbox"), "InboxEmpty");
+const Thread = page(() => import("./pages/Thread"), "Thread");
+const Catalog = page(() => import("./pages/Catalog"), "Catalog");
+const Settings = page(() => import("./pages/Settings"), "Settings");
+const Orders = page(() => import("./pages/Orders"), "Orders");
+const Assistant = page(() => import("./pages/Assistant"), "Assistant");
+const Legal = {
+  Privacy: page(() => import("./pages/Legal"), "Privacy"),
+  Terms: page(() => import("./pages/Legal"), "Terms"),
+  DataDeletion: page(() => import("./pages/Legal"), "DataDeletion"),
+};
 
 function Centered({ children }: { children: React.ReactNode }) {
   return <div className="min-h-screen grid place-items-center p-6 text-center">{children}</div>;
@@ -56,32 +71,36 @@ export function App() {
     <I18nProvider>
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            {/* Signed-out visitors are sent to /login by the Protected guard; signed-in users land on the inbox. */}
-            <Route path="/" element={<Navigate to="/inbox" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<SignUp />} />
-            {/* Outside Protected: the recovery link lands here, and the guard must not send it to /login first. */}
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/data-deletion" element={<DataDeletion />} />
-            <Route element={<Protected />}>
-              <Route path="/onboarding" element={<Onboarding />} />
-              <Route element={<WithStore />}>
-                <Route path="/inbox" element={<Inbox />}>
-                  <Route index element={<InboxEmpty />} />
-                  <Route path=":id" element={<Thread />} />
+          <Suspense fallback={<Centered><p className="muted">…</p></Centered>}>
+            <Routes>
+              {/* Public landing page: Arabic at the root, French and English under their own paths. */}
+              <Route path="/" element={<Landing locale="ar" />} />
+              <Route path="/fr" element={<Landing locale="fr" />} />
+              <Route path="/en" element={<Landing locale="en" />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<SignUp />} />
+              {/* Outside Protected: the recovery link lands here, and the guard must not send it to /login first. */}
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/privacy" element={<Legal.Privacy />} />
+              <Route path="/terms" element={<Legal.Terms />} />
+              <Route path="/data-deletion" element={<Legal.DataDeletion />} />
+              <Route element={<Protected />}>
+                <Route path="/onboarding" element={<Onboarding />} />
+                <Route element={<WithStore />}>
+                  <Route path="/inbox" element={<Inbox />}>
+                    <Route index element={<InboxEmpty />} />
+                    <Route path=":id" element={<Thread />} />
+                  </Route>
+                  <Route path="/catalog" element={<Catalog />} />
+                  <Route path="/orders" element={<Orders />} />
+                  <Route path="/assistant" element={<Assistant />} />
+                  <Route path="/channels" element={<Navigate to="/assistant" replace />} />
+                  <Route path="/settings" element={<Settings />} />
                 </Route>
-                <Route path="/catalog" element={<Catalog />} />
-                <Route path="/orders" element={<Orders />} />
-                <Route path="/assistant" element={<Assistant />} />
-                <Route path="/channels" element={<Navigate to="/assistant" replace />} />
-                <Route path="/settings" element={<Settings />} />
               </Route>
-            </Route>
-            <Route path="*" element={<Navigate to="/inbox" replace />} />
-          </Routes>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </AuthProvider>
     </I18nProvider>
