@@ -4,16 +4,17 @@ import { useI18n } from "../lib/i18n";
 import { LangSwitch } from "./LangSwitch";
 import "./auth.css";
 
-const DEFAULT_LANDING_URL = "https://wakil-3x3.pages.dev";
+// The landing is served from the same Pages site as the dashboard, so "/" is the default.
+const DEFAULT_LANDING_URL = "/";
 
-// Landing site URL from the build env, falling back to the public site.
+// Landing site URL from the build env, falling back to the same-origin landing.
 function landingUrl(): { href: string; host: string } {
   const raw = (import.meta.env.VITE_LANDING_URL as string | undefined)?.trim() || DEFAULT_LANDING_URL;
   try {
-    const url = new URL(raw);
-    return { href: url.href, host: url.host };
+    const url = new URL(raw, window.location.href);
+    return { href: raw, host: url.host };
   } catch {
-    return { href: DEFAULT_LANDING_URL, host: "wakil-3x3.pages.dev" };
+    return { href: DEFAULT_LANDING_URL, host: window.location.host };
   }
 }
 
