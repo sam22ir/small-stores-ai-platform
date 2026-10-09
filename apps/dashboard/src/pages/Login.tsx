@@ -1,10 +1,13 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
+import { AnimatePresence, motion } from "motion/react";
+import { Button, Input, Label, TextField } from "@heroui/react";
 import { supabase, configured } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
-import { AuthLayout } from "../components/AuthLayout";
+import { dur, ease, useMotionSafe } from "../lib/motion";
+import { AuthLayout, FormAlert, PasswordField, SubmitButton, useShake } from "../components/AuthLayout";
 
 type Mode = "in" | "link" | "forgot";
 
@@ -19,7 +22,8 @@ function isRateLimited(err: { code?: string; message: string }) {
 }
 
 export function Login() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const reduced = useMotionSafe();
   const friendly = (err: { code?: string; message: string }) => (isRateLimited(err) ? t("auth.rateLimited") : err.message);
   const { session, loading } = useAuth();
   const [mode, setMode] = useState<Mode>("in");
@@ -29,8 +33,12 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [invalidCreds, setInvalidCreds] = useState(false);
+  const { scope, shake } = useShake();
 
   if (!loading && session) return <Navigate to="/inbox" replace />;
+
+  // Mode switches slide the form sideways; the direction flips for Arabic.
+  const slide = lang === "ar" ? -1 : 1;
 
   function switchTo(next: Mode) {
     setMode(next); setError(null); setNotice(null); setInvalidCreds(false);
@@ -57,10 +65,12 @@ export function Login() {
         if (err) {
           setError(friendly(err));
           setInvalidCreds(isInvalidCredentials(err));
+          shake();
         }
       }
     } catch {
       setError(t("common.error"));
+      shake();
     } finally {
       setBusy(false);
     }
@@ -69,18 +79,20 @@ export function Login() {
   const title = mode === "forgot" ? t("auth.forgot") : t("auth.signIn");
 
   const footer = (
-    <div className="wk-foot">
+    <div className="flex flex-col gap-1">
       {mode === "forgot" ? (
-        <button type="button" className="wk-text" onClick={() => switchTo("in")}>
+        <Button variant="ghost" className="justify-start px-0 text-blue" onPress={() => switchTo("in")}>
           {t("auth.backToSignIn")}
-        </button>
+        </Button>
       ) : (
         <>
-          <button type="button" className="wk-text" onClick={() => switchTo(mode === "link" ? "in" : "link")}>
+          <Button variant="ghost" className="justify-start px-0 text-blue" onPress={() => switchTo(mode === "link" ? "in" : "link")}>
             {mode === "link" ? t("auth.passwordMode") : t("auth.linkMode")}
-          </button>
+          </Button>
           {mode !== "link" && (
-            <Link to="/signup" className="wk-text">{t("auth.noAccount")}</Link>
+            <Link to="/signup" className="rounded-wakil-sm px-0 py-2 text-sm font-semibold text-blue underline-offset-4 hover:underline">
+              {t("auth.noAccount")}
+            </Link>
           )}
         </>
       )}
@@ -89,49 +101,71 @@ export function Login() {
 
   return (
     <AuthLayout title={title} subtitle={t("auth.subtitle")} footer={footer}>
-      {!configured && <p className="wk-error" role="alert">{t("setup.missing")}</p>}
-      <form onSubmit={submit} className="wk-form">
-        <div className="wk-field">
-          <label className="wk-label" htmlFor="email">{t("auth.email")}</label>
-          <input id="email" className="wk-input" type="email" autoComplete="email" required
-            value={email} onChange={(e) => setEmail(e.target.value)} dir="ltr" />
-        </div>
-        {mode === "link" && <p className="wk-help">{t("auth.linkHelp")}</p>}
-        {mode === "forgot" && <p className="wk-help">{t("auth.forgotHelp")}</p>}
-        {mode !== "link" && mode !== "forgot" && <div className="wk-field">
-          <label className="wk-label" htmlFor="password">{t("auth.password")}</label>
-          <input id="password" className="wk-input" type="password" required minLength={8}
-            autoComplete={mode === "in" ? "current-password" : "new-password"}
-            value={password} onChange={(e) => setPassword(e.target.value)} dir="ltr" />
-          {mode === "in" && (
-            <div className="wk-row-end">
-              <button type="button" className="wk-text" onClick={() => switchTo("forgot")}>
-                {t("auth.forgot")}
-              </button>
-            </div>
-          )}
-        </div>}
-        {error && <p className="wk-error" role="alert">{error}</p>}
-        {invalidCreds && (
-          <div className="wk-hint">
-            <p>{t("auth.joinedHint")}</p>
-            <div className="wk-hint-actions">
-              <button type="button" className="wk-text" onClick={() => switchTo("forgot")}>
-                {t("auth.setPassword")}
-              </button>
-              <button type="button" className="wk-text" onClick={() => switchTo("link")}>
-                {t("auth.linkMode")}
-              </button>
-            </div>
-          </div>
-        )}
-        {notice && <p className="wk-notice" role="status">{notice}</p>}
-        <button className="btn btn-primary wk-submit" disabled={busy || !configured}>
-          {mode === "link" ? t("auth.sendLink")
-            : mode === "forgot" ? t("auth.sendReset")
-            : t("auth.signIn")}
-        </button>
-      </form>
+      {!configured && <FormAlert tone="danger">{t("setup.missing")}</FormAlert>}
+      <div ref={scope}>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.form
+            key={mode}
+            onSubmit={submit}
+            className="flex flex-col gap-4"
+            initial={reduced ? false : { opacity: 0, x: 16 * slide }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -16 * slide }}
+            transition={{ duration: dur.short, ease: ease.out }}
+          >
+            <TextField type="email" name="email" isRequired validationBehavior="aria" value={email} onChange={setEmail} className="w-full">
+              <Label>{t("auth.email")}</Label>
+              <Input id="email" autoComplete="email" dir="ltr" className="w-full transition-shadow duration-200" />
+            </TextField>
+
+            {mode === "link" && <p className="-mt-2 text-sm text-soft">{t("auth.linkHelp")}</p>}
+            {mode === "forgot" && <p className="-mt-2 text-sm text-soft">{t("auth.forgotHelp")}</p>}
+
+            {mode === "in" && (
+              <PasswordField
+                id="password"
+                label={t("auth.password")}
+                value={password}
+                onChange={setPassword}
+                autoComplete="current-password"
+                minLength={8}
+                required
+                footer={
+                  <div className="flex justify-end">
+                    <Button variant="ghost" size="sm" className="text-blue" onPress={() => switchTo("forgot")}>
+                      {t("auth.forgot")}
+                    </Button>
+                  </div>
+                }
+              />
+            )}
+
+            <AnimatePresence>
+              {error && <FormAlert key="error" tone="danger">{error}</FormAlert>}
+            </AnimatePresence>
+
+            {invalidCreds && (
+              <div className="rounded-wakil border border-ink/15 bg-paper p-4 text-sm text-soft">
+                <p>{t("auth.joinedHint")}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" variant="secondary" onPress={() => switchTo("forgot")}>{t("auth.setPassword")}</Button>
+                  <Button size="sm" variant="ghost" onPress={() => switchTo("link")}>{t("auth.linkMode")}</Button>
+                </div>
+              </div>
+            )}
+
+            <AnimatePresence>
+              {notice && <FormAlert key="notice" tone="success">{notice}</FormAlert>}
+            </AnimatePresence>
+
+            <SubmitButton busy={busy} disabled={!configured}>
+              {mode === "link" ? t("auth.sendLink")
+                : mode === "forgot" ? t("auth.sendReset")
+                : t("auth.signIn")}
+            </SubmitButton>
+          </motion.form>
+        </AnimatePresence>
+      </div>
     </AuthLayout>
   );
 }
