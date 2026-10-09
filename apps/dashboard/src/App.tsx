@@ -42,7 +42,7 @@ export function App() {
   return (
     <BrowserRouter>
       <I18nProvider>
-        <Suspense fallback={<Centered><p className="muted">…</p></Centered>}>
+        <Suspense fallback={<Centered><p className="text-soft">…</p></Centered>}>
           <Routes>
             {/* Public landing page: Arabic at the root, French and English under their own paths. */}
             <Route path="/" element={<LandingRoute locale="ar" />} />

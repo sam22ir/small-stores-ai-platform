@@ -1,29 +1,37 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { m } from "motion/react";
 import { legal } from "../lib/legal";
+import { dur, ease, useMotionSafe } from "../lib/motion";
 
 // Public pages (no sign-in): Meta requires a privacy policy, terms and a way to delete data
 // before an app can go live. English only; these are reviewed by Meta and by store owners.
 
 function Page({ title, children }: { title: string; children: ReactNode }) {
+  const reduced = useMotionSafe();
   return (
-    <div className="min-h-screen bg-[var(--bg)] px-4 py-10">
-      <main className="mx-auto max-w-[65ch] text-[15px] leading-relaxed text-[var(--text)]">
-        <Link to="/inbox" className="muted text-sm no-underline">← {legal.product}</Link>
-        <h1 className="text-2xl font-semibold text-[var(--heading)] mt-4 mb-1">{title}</h1>
-        <p className="muted text-[13px] mt-0 mb-8">Last updated: {legal.updated}</p>
-        <div className="legal flex flex-col gap-3">{children}</div>
-        <nav className="muted text-sm mt-12 pt-6 border-t border-[var(--divider)] flex gap-4 flex-wrap" aria-label="Legal">
+    <div className="min-h-screen bg-paper px-4 py-10">
+      <m.main
+        className="mx-auto max-w-[65ch] text-[15px] leading-relaxed text-ink"
+        initial={reduced ? false : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: dur.base, ease: ease.out }}
+      >
+        <Link to="/inbox" className="rounded-wakil-sm text-sm text-soft no-underline underline-offset-4 hover:underline">← {legal.product}</Link>
+        <h1 className="mb-1 mt-4 text-2xl font-extrabold text-ink">{title}</h1>
+        <p className="mb-8 mt-0 text-[13px] text-soft">Last updated: {legal.updated}</p>
+        <div className="flex flex-col gap-3">{children}</div>
+        <nav className="mt-12 flex flex-wrap gap-4 border-t border-ink/10 pt-6 text-sm text-soft" aria-label="Legal">
           <Link to="/privacy">Privacy policy</Link>
           <Link to="/terms">Terms of service</Link>
           <Link to="/data-deletion">Data deletion</Link>
         </nav>
-      </main>
+      </m.main>
     </div>
   );
 }
 
-const H = ({ children }: { children: ReactNode }) => <h2 className="text-[17px] font-semibold text-[var(--heading)] mt-6 mb-0">{children}</h2>;
+const H = ({ children }: { children: ReactNode }) => <h2 className="mb-0 mt-6 text-[17px] font-bold text-ink">{children}</h2>;
 const Mail = () => <a href={`mailto:${legal.email}`}>{legal.email}</a>;
 
 export function Privacy() {

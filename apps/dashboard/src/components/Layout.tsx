@@ -196,7 +196,7 @@ export function Layout() {
         </div>
 
         {/* Phone bottom tab bar (< 1024px) */}
-        <nav aria-label={t("app.name")} className="safe-bottom fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t-2 border-ink bg-slip lg:hidden">
+        <nav aria-label={t("app.name")} className="pb-[env(safe-area-inset-bottom)] fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t-2 border-ink bg-slip lg:hidden">
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to}
               className={({ isActive }) => `relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-xs leading-tight no-underline transition-colors duration-150 ${isActive ? "font-bold text-blue" : "font-medium text-soft"}`}>

@@ -289,6 +289,7 @@ try {
   await page.click("button:has-text('Connect Instagram')");
   await page.waitForSelector("text=Instagram is connected.");
   ok("Connect asks the server for Instagram's approval page for this store", await logged((l) => l.startsWith("POST /functions/v1/instagram-connect") && l.includes('"action":"start"') && l.includes('"store_id":"s1"')));
+  await page.waitForSelector("li:has-text('@fennec_vision_') >> text=Connected", { timeout: 5000 }).catch(() => {});
   ok("coming back from Instagram shows the connected account and clears the URL", await page.isVisible("li:has-text('@fennec_vision_') >> text=Connected") && !/instagram=/.test(page.url()));
   page.once("dialog", (d) => d.accept());
   await page.click("li:has-text('@fennec_vision_') >> button:has-text('Disconnect')");
@@ -417,7 +418,7 @@ try {
   ok("user without a store is sent to onboarding", await page.isVisible("text=Set up your store"));
   await page.fill("#name", "My Shop");
   await page.screenshot({ path: OUT + "11-onboarding.png" });
-  await page.click("button.btn-primary");
+  await page.click("button[type=submit]");
   await page.waitForURL(/\/inbox/);
   ok("create_store RPC called with name and DZD", await logged((l) => l.includes("/rest/v1/rpc/create_store") && l.includes('"p_name":"My Shop"') && l.includes('"p_currency":"DZD"')));
   await ctx.close();
@@ -442,7 +443,7 @@ try {
     await page.waitForSelector("#new-password", { timeout: 5000 });
     await page.fill("#new-password", "newpassword1");
     await page.fill("#confirm-password", "newpassword1");
-    await page.click("button.btn-primary");
+    await page.click("button[type=submit]");
     ok("reset-password sets the password and confirms", await page.waitForSelector("text=Your password is saved", { timeout: 3000 }).then(() => true, () => false));
     ok("reset-password sends PUT /auth/v1/user with the new password", await logged((l) => l.startsWith("PUT /auth/v1/user") && l.includes("newpassword1")));
     await ctx.close();
