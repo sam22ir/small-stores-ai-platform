@@ -1,5 +1,6 @@
+import { use } from "react";
 import { motion } from "motion/react";
-import { landing, useI18n } from "../lib/i18n";
+import { loadLanding, useI18n } from "../lib/i18n";
 import { LOCALE_PATHS } from "./landing/useLandingHead";
 import { Logo } from "../components/wakil/Logo";
 import { RouteButton } from "../components/wakil/RouteLink";
@@ -9,7 +10,7 @@ import { dur, ease, useMotionSafe } from "../lib/motion";
 // Catch-all page for unknown URLs. Trilingual through the app language.
 export function NotFound() {
   const { lang } = useI18n();
-  const d = landing[lang];
+  const d = use(loadLanding(lang));
   const reduced = useMotionSafe();
   return (
     <div dir={d.dir} lang={d.htmlLang} className="relative grid min-h-screen place-items-center overflow-hidden bg-paper px-4 text-center text-ink">

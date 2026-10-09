@@ -7,7 +7,7 @@ import { DmBubble } from "../../components/wakil/DmBubble";
 import { CountUp } from "../../components/wakil/CountUp";
 import { ZelligeBackground } from "../../components/wakil/ZelligeBackground";
 import { ease, useMotionSafe } from "../../lib/motion";
-import type { LandingDict } from "../../lib/i18n";
+import type { LandingDict } from "../../lib/locales/landing/types";
 
 const WILAYAS = [
   { name: "Alger", fee: 350 },

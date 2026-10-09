@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { applyDocumentLang, landing } from "../../lib/i18n";
+import { applyDocumentLang, useLandingCopy } from "../../lib/i18n";
 import type { Lang } from "../../lib/i18n";
 
 // Path for each landing locale. Arabic is the default at the root.
@@ -39,8 +39,8 @@ function setLink(rel: string, href: string, hreflang?: string) {
 // When the visitor leaves for the login or dashboard pages, the title and the app's own
 // language on <html> are put back.
 export function useLandingHead(locale: Lang, appLang: Lang) {
+  const d = useLandingCopy();
   useEffect(() => {
-    const d = landing[locale];
     const origin = window.location.origin;
     const url = `${origin}${LOCALE_PATHS[locale]}`;
     const prevTitle = document.title;

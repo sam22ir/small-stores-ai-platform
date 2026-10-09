@@ -59,14 +59,16 @@ try {
   await page.screenshot({ path: OUT + "01-login.png" });
   await page.fill("#email", "owner@example.com");
   await page.click("button:has-text('Sign in with an email link instead')");
+  // The mode switch animates the old form out first, so wait for the field to leave the page.
+  await page.waitForSelector("#password", { state: "detached", timeout: 3000 }).catch(() => {});
   ok("link mode hides the password field", (await page.locator("#password").count()) === 0);
-  await page.click("button.btn-primary");
+  await page.click("[data-testid=auth-submit]");
   await page.waitForSelector("text=we sent you a sign-in link");
   ok("email-link sign-in calls the OTP endpoint with the address", await logged((l) => l.startsWith("POST /auth/v1/otp") && l.includes("owner@example.com")));
   await page.screenshot({ path: OUT + "01b-login-link.png" });
   await page.click("button:has-text('Use a password instead')");
   await page.fill("#password", "password123");
-  await page.click("button.btn-primary");
+  await page.click("[data-testid=auth-submit]");
   await page.waitForURL(/\/inbox/);
   await page.waitForSelector("text=Customer chats");
   ok("sign-in lands on the inbox", true);
@@ -368,7 +370,7 @@ try {
   ({ page, ctx, errors } = await newPage({ viewport: { width: 390, height: 780 }, locale: "fr-FR", isMobile: true, hasTouch: true }));
   await page.goto(`http://127.0.0.1:${PORT}/login`);
   await page.fill("#email", "owner@example.com"); await page.fill("#password", "password123");
-  await page.click("button.btn-primary");
+  await page.click("[data-testid=auth-submit]");
   await page.waitForURL(/\/inbox/);
   await page.waitForSelector("text=Discussions clients");
   ok("French is picked from the browser locale", await page.isVisible("text=Discussions clients"));
@@ -403,7 +405,7 @@ try {
   ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
   await page.goto(`http://127.0.0.1:${PORT}/login`);
   await page.fill("#email", "new@example.com"); await page.fill("#password", "password123");
-  await page.click("button.btn-primary");
+  await page.click("[data-testid=auth-submit]");
   await page.waitForURL(/\/onboarding/);
   await page.waitForSelector("text=Set up your store");
   ok("user without a store is sent to onboarding", await page.isVisible("text=Set up your store"));
@@ -420,7 +422,7 @@ try {
   await page.goto(`http://127.0.0.1:${PORT}/login`);
   await page.click("button:has-text('Forgot password?')");
   await page.fill("#email", "owner@example.com");
-  await page.click("button.btn-primary");
+  await page.click("[data-testid=auth-submit]");
   ok("forgot password shows the neutral confirmation", await page.waitForSelector("text=If an account exists for this email", { timeout: 3000 }).then(() => true, () => false));
   ok("forgot password calls /auth/v1/recover", await logged((l) => l.startsWith("POST /auth/v1/recover")));
   await ctx.close();
@@ -444,15 +446,15 @@ try {
     ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
     await page.goto(`http://127.0.0.1:${PORT}/signup`);
     await page.waitForSelector("#confirm-password", { timeout: 5000 });
-    ok("sign-up page renders for anonymous visitors", await page.isVisible("button.btn-primary:has-text('Create account')"));
+    ok("sign-up page renders for anonymous visitors", await page.isVisible("[data-testid=auth-submit]:has-text('Create account')"));
     await page.fill("#email", "new-owner@example.com");
     await page.fill("#password", "password123");
     await page.fill("#confirm-password", "password124");
-    await page.click("button.btn-primary");
+    await page.click("[data-testid=auth-submit]");
     ok("mismatched passwords show an inline message", await page.waitForSelector("#confirm-error:has-text(\"don't match\")", { timeout: 3000 }).then(() => true, () => false));
     ok("mismatched passwords do not call Supabase", !(await logged((l) => l.startsWith("POST /auth/v1/signup"), 300)));
     await page.fill("#confirm-password", "password123");
-    await page.click("button.btn-primary");
+    await page.click("[data-testid=auth-submit]");
     ok("valid sign-up without a session asks the owner to check their email", await page.waitForSelector("text=Check your email", { timeout: 3000 }).then(() => true, () => false));
     ok("sign-up posts the address to /auth/v1/signup", await logged((l) => l.startsWith("POST /auth/v1/signup") && l.includes("new-owner@example.com")));
     await page.screenshot({ path: OUT + "11-signup.png" });
@@ -467,6 +469,21 @@ try {
     await page.waitForURL(/\/signup/);
     ok("login links to sign-up", /\/signup/.test(page.url()));
     ok("sign-up page has no store-name field (onboarding asks for it)", (await page.locator("#name").count()) === 0);
+    await ctx.close();
+  }
+  // 12. signed-in visitor: the landing offers "Go to inbox", which opens the inbox
+  {
+    ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
+    await page.goto(`http://127.0.0.1:${PORT}/login`);
+    await page.fill("#email", "owner@example.com"); await page.fill("#password", "password123");
+    await page.click("[data-testid=auth-submit]");
+    await page.waitForURL(/\/inbox/);
+    await page.goto(`http://127.0.0.1:${PORT}/en`);
+    const goInbox = page.locator("a:has-text('Go to inbox')").first();
+    await goInbox.waitFor({ timeout: 8000 }).catch(() => {});
+    ok("signed-in visitor on the landing sees 'Go to inbox'", (await goInbox.count()) > 0);
+    await goInbox.click();
+    ok("'Go to inbox' navigates to /inbox", await page.waitForURL(/\/inbox/, { timeout: 5000 }).then(() => true, () => false));
     await ctx.close();
   }
 } catch (e) {

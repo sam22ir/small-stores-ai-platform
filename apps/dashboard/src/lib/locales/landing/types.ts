@@ -1,0 +1,39 @@
+export interface LandingChat {
+  customer: string;
+  customerLang?: string;
+  reply: string;
+  replyLang?: string;
+  tag?: string;
+}
+
+export interface LandingDict {
+  htmlLang: string;
+  dir: "rtl" | "ltr";
+  title: string;
+  description: string;
+  ogLocale: string;
+  nav: { logIn: string; startFree: string; langLabel: string; goInbox: string };
+  hero: { kicker: string; h1: string; lede: string; cta: string; ctaNote: string; slipCaption: string };
+  slip: {
+    title: string;
+    sub: string;
+    client: string;
+    phone: string;
+    wilaya: string;
+    wilayaValue: string;
+    item: string;
+    itemValue: string;
+    delivery: string;
+    total: string;
+    stamp: string;
+    trail: string;
+  };
+  demo: { heading: string; intro: string; tabs: string[]; wilaya: string; note: string; typing: string };
+  chats: { heading: string; intro: string; items: LandingChat[] };
+  steps: { heading: string; items: { k: string; title: string; text: string }[] };
+  features: { heading: string; items: string[] };
+  pricing: { heading: string; price: string; per: string; text: string; cta: string };
+  faq: { heading: string; items: { q: string; a: string }[] };
+  footer: { privacy: string; terms: string; dataDeletion: string; copyright: string };
+  notFound: { title: string; text: string; home: string; login: string };
+}
