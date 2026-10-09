@@ -12,10 +12,14 @@
     "test:ui": "node tests/run.mjs"
   },
   "dependencies": {
+    "@heroui/react": "^3.2.6",
+    "@heroui/styles": "^3.2.6",
     "@supabase/supabase-js": "^2.117.2",
+    "motion": "^14.0.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-router-dom": "^7.18.4"
+    "react-router-dom": "^7.18.4",
+    "tailwind-variants": "^3.3.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

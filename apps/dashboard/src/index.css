@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "@heroui/styles";
+@import "./styles/theme.css";
 
 /* The only font in the app: IBM Plex Sans Arabic, self-hosted from /public/fonts. */
 @font-face {
@@ -33,10 +35,6 @@
   font-display: swap;
 }
 
-@theme {
-  --font-sans: "IBM Plex Sans Arabic", system-ui, sans-serif;
-}
-
 /* Direction D tokens. Light is the default; dark follows the system (or data-theme="dark").
    Legacy names (--warn-bg, --ok-text, ...) stay so existing pages keep working. */
 :root {
@@ -66,49 +64,6 @@
   --bad-bg: var(--danger-soft);
   --bad-text: var(--danger);
   color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0F1211;
-    --surface: #171B1A;
-    --surface-2: #1F2423;
-    --text: #ECEFEE;
-    --muted: #A2AAA7;
-    --heading: #DCE3EA;
-    --border: #2A302E;
-    --divider: #222826;
-    --brand: #2FA57D;
-    --brand-contrast: #06140F;
-    --brand-soft: #12302A;
-    --brand-border: #1D4A3D;
-    --warn: #F0A35A;
-    --warn-soft: #2A1E10;
-    --warn-border: #4A3418;
-    --danger: #F97066;
-    --danger-soft: #2E1514;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0F1211;
-  --surface: #171B1A;
-  --surface-2: #1F2423;
-  --text: #ECEFEE;
-  --muted: #A2AAA7;
-  --heading: #DCE3EA;
-  --border: #2A302E;
-  --divider: #222826;
-  --brand: #2FA57D;
-  --brand-contrast: #06140F;
-  --brand-soft: #12302A;
-  --brand-border: #1D4A3D;
-  --warn: #F0A35A;
-  --warn-soft: #2A1E10;
-  --warn-border: #4A3418;
-  --danger: #F97066;
-  --danger-soft: #2E1514;
-  color-scheme: dark;
 }
 
 html, body, #root { min-height: 100%; }

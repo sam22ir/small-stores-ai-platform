@@ -16,14 +16,13 @@ Out of scope for v0: taking payments, creating orders, comment replies, other ch
 
 ## Web site (landing + dashboard)
 
-The landing page (`apps/landing`) and the dashboard (`apps/dashboard`) deploy as one Cloudflare Pages site, `store-assistant-dz`:
+The landing page and the dashboard are one React app in `apps/dashboard` (Vite, React, Tailwind v4, HeroUI). It deploys as one Cloudflare Pages site, `store-assistant-dz`:
 
 ```bash
-npm run build:site    # builds both into apps/dashboard/dist
-npx wrangler@4.30.0 pages deploy apps/dashboard/dist --project-name store-assistant-dz --branch main
+cd apps/dashboard && npm run build && npx wrangler@4.30.0 pages deploy dist --project-name store-assistant-dz --branch main
 ```
 
-The landing is served at `/`, `/fr/` and `/en/`. Dashboard routes are rewritten to the dashboard shell by `apps/dashboard/public/_redirects`. See [apps/landing/README.md](apps/landing/README.md).
+The landing is served at `/` (Arabic), `/fr` and `/en`. Every other path is handled by the same single-page app: `apps/dashboard/public/_redirects` rewrites all paths to `index.html`.
 
 ## Docs
 

@@ -1,10 +1,10 @@
 // Minimal service worker: makes the app installable and keeps the shell available offline.
 // It never touches API calls (those go to another origin) and holds no user data.
-const CACHE = "shell-v1";
+const CACHE = "shell-v2";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/app"])));
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/"])));
 });
 
 self.addEventListener("activate", (event) => {
@@ -20,7 +20,7 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
 
   if (req.mode === "navigate") {
-    event.respondWith(fetch(req).catch(() => caches.match("/app")));
+    event.respondWith(fetch(req).catch(() => caches.match("/")));
     return;
   }
   // Built assets have hashed names, so cache-first is safe.
