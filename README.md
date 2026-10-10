@@ -31,6 +31,7 @@ The landing is served at `/` (Arabic), `/fr` and `/en`. Every other path is hand
 - [Competitors](docs/competitors.md)
 - [Architecture](docs/architecture.md)
 - [Connecting Instagram](docs/instagram-setup.md)
+- [Deploying (CI workflow, secrets, manual deploy)](docs/deploy.md)
 - [Data model](supabase/migrations/0001_init.sql)
 
 ## Stack

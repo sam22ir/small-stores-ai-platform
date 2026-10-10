@@ -63,7 +63,7 @@ export async function ingestEvent(deps: IngestDeps, event: InboundEvent): Promis
 
   const { data: store, error: storeErr } = await db
     .from("stores")
-    .select("id,name,currency,business_info,agent_enabled,monthly_reply_limit,orders_enabled")
+    .select("id,name,currency,business_info,agent_enabled,monthly_reply_limit,ai_monthly_token_limit,orders_enabled")
     .eq("id", channel.store_id)
     .maybeSingle();
   if (storeErr) throw storeErr;
