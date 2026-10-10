@@ -1,0 +1,19 @@
+name: DB tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rls:
+    name: RLS tenant isolation (pgTAP)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start local Supabase database
+        run: supabase db start
+      - name: Run pgTAP tests
+        run: supabase test db
