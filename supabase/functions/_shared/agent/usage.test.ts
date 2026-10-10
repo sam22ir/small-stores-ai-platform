@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { monthStartUtc, usageStatus } from "./usage.ts";
+import { monthStartUtc, tokenCapStatus, usageStatus } from "./usage.ts";
 
 test("month starts on the 1st at 00:00 UTC", () => {
   assert.equal(monthStartUtc(new Date("2026-10-04T23:59:00Z")).toISOString(), "2026-10-01T00:00:00.000Z");
@@ -15,4 +15,12 @@ test("usage status flags the warning and the limit", () => {
   assert.equal(usageStatus(100, 100).exceeded, true);
   assert.equal(usageStatus(150, 100).remaining, 0);
   assert.equal(usageStatus(0, 0).exceeded, true); // a zero limit means no replies
+});
+
+test("token cap: null means unlimited, otherwise used >= cap is exceeded", async () => {
+  assert.deepEqual(tokenCapStatus(10_000_000, null), { used: 10_000_000, limit: null, exceeded: false });
+  assert.equal(tokenCapStatus(5, undefined).exceeded, false);
+  assert.equal(tokenCapStatus(99, 100).exceeded, false);
+  assert.equal(tokenCapStatus(100, 100).exceeded, true);
+  assert.equal(tokenCapStatus(1, 0).exceeded, true);
 });

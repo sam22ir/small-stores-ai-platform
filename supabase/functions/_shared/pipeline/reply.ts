@@ -10,9 +10,10 @@ import {
   runWithFallback,
 } from "../agent/providers.ts";
 import { DEFAULT_MODEL, runAgent } from "../agent/run.ts";
+import { errorKind } from "../agent/errors.ts";
 import type { AgentResult, ChatMessage } from "../agent/types.ts";
 import { supabaseCatalog, supabaseFaq, supabaseOrders } from "./ports.ts";
-import { getUsage, loadLookups } from "./usage.ts";
+import { claimCapAlert, getUsage, loadLookups } from "./usage.ts";
 import { announceOrders } from "./alerts.ts";
 import type { HandleInboundInput, HandleInboundResult, OwnerAlert } from "./types.ts";
 
@@ -98,7 +99,13 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
 
   // 2. Monthly allowance (customer traffic only).
   if (source === "customer") {
-    const usage = await getUsage(db, store.id, store.monthly_reply_limit, input.now);
+    const usage = await getUsage(
+      db,
+      store.id,
+      store.monthly_reply_limit,
+      input.now,
+      store.ai_monthly_token_limit ?? null,
+    );
     if (usage.exceeded) {
       const reason = "Monthly AI reply limit reached";
       const reply = limitReply(detectLang(input.text));
@@ -118,6 +125,26 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
         handoff: reason,
         limited: true,
       };
+    }
+
+    // Monthly token cap (input + output tokens). Same handling as the reply limit, but the owner is
+    // alerted once per month, and only when a Telegram alert can be sent.
+    if (usage.tokens.exceeded) {
+      const reason = "Monthly AI token cap reached";
+      const reply = limitReply(detectLang(input.text));
+      await record({ reply, model: "token-cap", provider: "none" }, { fast_path: true, error: null });
+      await db.from("conversations")
+        .update({ status: "human", handoff_reason: reason })
+        .eq("id", conversation.id);
+      console.warn(JSON.stringify({
+        event: "ai_token_cap_reached",
+        store_id: store.id,
+        conversation_id: conversation.id,
+        tokens_used: usage.tokens.used,
+        token_limit: usage.tokens.limit,
+      }));
+      if (await claimCapAlert(db, store.id, input.now)) alerts.push({ kind: "token_cap" });
+      return { ok: true, ...base, reply, status: "human", handoff: reason, limited: true };
     }
   }
 
@@ -229,16 +256,26 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       limited: false,
     };
   } catch (err) {
-    console.error("agent run failed", err);
-    await db.from("agent_runs").insert({
+    const { data: failedRun } = await db.from("agent_runs")
+      .insert({
+        store_id: store.id,
+        conversation_id: conversation.id,
+        trigger_message_id: input.inboundMessageId,
+        model,
+        source,
+        error: err instanceof Anthropic.APIError ? `${err.status}: ${err.message}` : String(err),
+        provider_errors: err instanceof AllProvidersFailed ? err.attempts : null,
+      })
+      .select("id")
+      .maybeSingle();
+    // Structured, no message text: provider errors can echo request details.
+    console.error(JSON.stringify({
+      event: "agent_run_failed",
       store_id: store.id,
+      run_id: (failedRun as { id?: string } | null)?.id ?? null,
       conversation_id: conversation.id,
-      trigger_message_id: input.inboundMessageId,
-      model,
-      source,
-      error: err instanceof Anthropic.APIError ? `${err.status}: ${err.message}` : String(err),
-      provider_errors: err instanceof AllProvidersFailed ? err.attempts : null,
-    });
+      error_kind: errorKind(err),
+    }));
     // A real customer must never be left hanging: say the owner will reply and put the chat in
     // the owner's "Needs you" list. Test chats show the failure instead, so outages are visible.
     if (source === "customer") {

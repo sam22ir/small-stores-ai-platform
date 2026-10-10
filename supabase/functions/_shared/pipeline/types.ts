@@ -6,6 +6,7 @@ export type RunSource = "customer" | "test" | "dev";
 export interface StoreSettings extends StoreContext {
   agent_enabled: boolean;
   monthly_reply_limit: number;
+  ai_monthly_token_limit?: number | null; // null = unlimited
 }
 
 export interface HandleInboundInput {
@@ -32,6 +33,7 @@ export interface HandleInboundInput {
 export type OwnerAlert =
   | { kind: "handoff"; reason: string }
   | { kind: "limit" }
+  | { kind: "token_cap" }
   | { kind: "degraded" }
   | { kind: "order"; total_cents: number };
 
