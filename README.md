@@ -33,6 +33,8 @@ The landing is served at `/` (Arabic), `/fr` and `/en`. Every other path is hand
 - [Connecting Instagram](docs/instagram-setup.md)
 - [Deploying (CI workflow, secrets, manual deploy)](docs/deploy.md)
 - [Data model](supabase/migrations/0001_init.sql)
+- [Edge Function API](docs/api.md)
+- [Guidance for Claude Code (CLAUDE.md)](CLAUDE.md)
 
 ## Stack
 
