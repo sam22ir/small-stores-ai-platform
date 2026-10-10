@@ -246,6 +246,65 @@ test("over the monthly limit: no model call, holding reply, conversation goes to
   assert.match(String(tables.conversations[0].handoff_reason), /limit/i);
 });
 
+test("over the monthly token cap: no model call, owner alerted once per month", async () => {
+  const runs = [
+    {
+      store_id: "s1",
+      source: "customer",
+      fast_path: false,
+      error: null,
+      created_at: new Date().toISOString(),
+      input_tokens: 90,
+      output_tokens: 10,
+      _seq: 0,
+    },
+  ];
+  const { tables, input } = setup({ runs });
+  const calls = { n: 0 };
+  stubLlm("nope", calls);
+  const sent: string[] = [];
+  const notify = (_storeId: string, text: string) => {
+    sent.push(text);
+    return Promise.resolve(true);
+  };
+  const capped = { ai_monthly_token_limit: 100 };
+
+  const r = await handleInbound({ ...input("do you ship to Oran?", "customer", capped), notify });
+  assert.ok(r.ok && r.limited);
+  assert.equal(calls.n, 0);
+  assert.equal(tables.conversations[0].status, "human");
+  assert.match(String(tables.conversations[0].handoff_reason), /token cap/i);
+  assert.equal(tables.store_ai_cap_alerts.length, 1);
+
+  // Second capped message in the same month: handled the same way, but no second alert.
+  tables.conversations[0].status = "bot";
+  await handleInbound({ ...input("still there?", "customer", capped), notify });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(calls.n, 0);
+  assert.equal(sent.length, 1);
+});
+
+test("a null token cap means unlimited: the model still runs", async () => {
+  const runs = [
+    {
+      store_id: "s1",
+      source: "customer",
+      fast_path: false,
+      error: null,
+      created_at: new Date().toISOString(),
+      input_tokens: 10_000_000,
+      output_tokens: 0,
+      _seq: 0,
+    },
+  ];
+  const { input } = setup({ runs });
+  const calls = { n: 0 };
+  stubLlm("Yes.", calls);
+  const r = await handleInbound(input("do you ship to Oran?", "customer", { ai_monthly_token_limit: null }));
+  assert.ok(r.ok && !r.limited);
+  assert.equal(calls.n, 1);
+});
+
 test("the limit notice is written in the customer's language", async () => {
   const now = new Date().toISOString();
   const runs = [0, 1].map((i) => ({ store_id: "s1", source: "customer", fast_path: false, error: null, created_at: now, _seq: i }));

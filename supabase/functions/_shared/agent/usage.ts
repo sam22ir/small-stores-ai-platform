@@ -26,3 +26,16 @@ export function usageStatus(used: number, limit: number): UsageStatus {
     nearLimit: safeLimit > 0 && used >= safeLimit * 0.8,
   };
 }
+
+export interface TokenCapStatus {
+  used: number;
+  limit: number | null; // null = unlimited
+  exceeded: boolean;
+}
+
+// Token cap: input + output tokens this month against the store's cap. A null cap never trips.
+export function tokenCapStatus(used: number, limit: number | null | undefined): TokenCapStatus {
+  if (limit === null || limit === undefined) return { used, limit: null, exceeded: false };
+  const safeLimit = Math.max(0, limit);
+  return { used, limit: safeLimit, exceeded: used >= safeLimit };
+}
