@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { conversationLang, detectLang, hasArabicScript, holdingReply, lastCustomerText } from "./language.ts";
+import { conversationLang, hasArabicScript, holdingReply } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import { capLookupOutputs, errorText, executeTool, lookupOutput, toolsForStore } from "./tools.ts";
 import type {

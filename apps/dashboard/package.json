@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test:unit": "node --test src/lib/*.test.ts",
-    "test:ui": "node tests/run.mjs"
+    "test:ui": "node tests/run.mjs",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@heroui/react": "^3.2.6",
@@ -22,13 +23,18 @@
     "tailwind-variants": "^3.3.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.5.0",
     "playwright-core": "^1.63.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5",
+    "typescript-eslint": "^8.71.1",
     "vite": "^8.3.2"
   }
 }
