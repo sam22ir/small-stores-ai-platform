@@ -14,14 +14,12 @@ export default tseslint.config(
     },
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
+      // A leading underscore marks an intentionally unused binding (e.g. a key dropped by destructuring).
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { varsIgnorePattern: "^_", argsIgnorePattern: "^_", ignoreRestSiblings: true },
+      ],
     },
   },
-  {
-    // tools.ts is being refactored in another PR; relax the one rule it trips
-    // rather than editing the file here.
-    files: ["supabase/functions/_shared/agent/tools.ts"],
-    rules: {
-      "@typescript-eslint/no-unused-vars": "off",
-    },
   },
 );
