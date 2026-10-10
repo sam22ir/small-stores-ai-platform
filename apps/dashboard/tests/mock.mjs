@@ -176,14 +176,18 @@ export function start(port = 54321) {
       }
       if (url.pathname === "/functions/v1/instagram-connect") {
         if (req.method !== "POST") return send(204);
-        const { action, channel_id } = JSON.parse(body || "{}");
+        const { action, channel_id, code } = JSON.parse(body || "{}");
         if (action === "start") {
           if (state.startStatus !== 200) return send(state.startStatus, { error: "not_configured" });
           // The real function returns Instagram's approval page; the mock returns the page Instagram
-          // would send the owner back to, and registers the channel the callback would have saved.
+          // (through the function's callback) would send the owner back to.
+          return send(200, { url: `http://127.0.0.1:${process.env.TEST_PORT || 4173}/assistant?instagram=finish&code=ig-code&state=signed-state` });
+        }
+        if (action === "finish") {
+          if (code !== "ig-code") return send(200, { ok: false, reason: "invalid_state" });
           if (!state.channels.some((c) => c.platform === "instagram")) state.channels.push({ id: "ch-ig", platform: "instagram", display_name: "@fennec_vision_", status: "active" });
           else state.channels.find((c) => c.platform === "instagram").status = "active";
-          return send(200, { url: `http://127.0.0.1:${process.env.TEST_PORT || 4173}/assistant?instagram=connected` });
+          return send(200, { ok: true });
         }
         if (action === "disconnect") {
           const c = state.channels.find((x) => x.id === channel_id);

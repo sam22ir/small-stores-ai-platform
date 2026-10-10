@@ -244,22 +244,40 @@ function ChannelsPanel() {
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  // Instagram sends the owner back here as /assistant?instagram=connected or ?instagram=error&reason=...
-  useEffect(() => {
-    const result = params.get("instagram");
-    if (!result) return;
-    if (result === "connected") {
-      setNotice(params.get("warning") === "subscribe_failed"
+  const finishedCode = useRef<string | null>(null);
+  const showResult = useCallback((r: { ok: boolean; warning?: string; reason?: string }) => {
+    if (r.ok) {
+      setNotice(r.warning === "subscribe_failed"
         ? { kind: "warn", text: t("channels.warnSubscribe") }
         : { kind: "ok", text: t("channels.okConnected") });
     } else {
-      const key = `channels.error.${params.get("reason") ?? ""}` as TKey;
+      const key = `channels.error.${r.reason ?? ""}` as TKey;
       const msg = t(key);
       setNotice({ kind: "error", text: msg === key ? t("common.error") : msg });
     }
-    setParams({}, { replace: true });
+  }, [t]);
+
+  // Instagram sends the owner back here as /assistant?instagram=finish&code=...&state=... (or
+  // ?instagram=error&reason=...). The server only connects the account when the signed-in owner
+  // who started the login finishes it, so a forwarded approval link can't connect someone else's account.
+  useEffect(() => {
+    const result = params.get("instagram");
+    if (!result) return;
+    const code = params.get("code");
+    const state = params.get("state");
+    setParams({}, { replace: true }); // the code is single use; don't leave it in the address bar
+    if (result === "finish" && code && state) {
+      if (finishedCode.current === code) return; // the effect can run twice; a code is only good once
+      finishedCode.current = code;
+      setBusy(true);
+      void supabase.functions.invoke("instagram-connect", { body: { action: "finish", code, state } })
+        .then(({ data, error }) => showResult(error || !data ? { ok: false } : data))
+        .finally(() => { setBusy(false); void load(); });
+      return;
+    }
+    showResult(result === "connected" ? { ok: true, warning: params.get("warning") ?? undefined } : { ok: false, reason: params.get("reason") ?? undefined });
     void load();
-  }, [params, setParams, t, load]);
+  }, [params, setParams, showResult, load]);
 
   async function connect() {
     setBusy(true); setNotice(null);

@@ -7,10 +7,14 @@ import { signState } from "../_shared/meta/state.ts";
 
 // Connects a store's Instagram professional account ("Connect Instagram" in the dashboard).
 //   POST {"action":"start","store_id"}                  owner's JWT -> {"url"} to send the browser to
+//   GET  ?code=&state=                                  Instagram sends the browser back here; we pass
+//                                                       code and state on to the dashboard
+//   POST {"action":"finish","code","state"}             owner's JWT -> {"ok", "warning"?} or {"ok": false, "reason"}
 //   POST {"action":"disconnect","store_id","channel_id"} owner's JWT -> stops replies, deletes the token
-//   GET  ?code=&state=                                  Instagram sends the browser back here
-// Deployed with verify_jwt = false: the GET comes from a browser redirect with no session (it is
-// protected by the signed state), and the POSTs check the JWT themselves.
+// Deployed with verify_jwt = false: the GET comes from a browser redirect with no session, and the
+// POSTs check the JWT themselves. The GET deliberately connects nothing: the code is only redeemed by
+// "finish", signed in as the same owner who started, so an approval link can't be handed to someone
+// else to pull their Instagram account into a store they don't own.
 //
 // Secrets: INSTAGRAM_APP_ID, INSTAGRAM_APP_SECRET, CREDENTIALS_ENCRYPTION_KEY, DASHBOARD_URL
 // (https://your-dashboard.example, no trailing slash). The redirect URL to register in the Meta
@@ -49,48 +53,46 @@ function backToDashboard(query: Record<string, string>): Response {
   const base = dashboardUrl();
   const qs = new URLSearchParams(query).toString();
   if (!base) {
+    // Finishing needs the owner's dashboard session, so there is nothing to finish without DASHBOARD_URL.
     return new Response(
-      query.instagram === "connected"
-        ? "Instagram connected. You can close this tab and go back to your dashboard."
-        : `Instagram could not be connected (${query.reason ?? "error"}). Go back to your dashboard and try again.`,
+      "Instagram could not be connected (DASHBOARD_URL is not set). Go back to your dashboard and try again.",
       { status: 200, headers: { "content-type": "text/plain; charset=utf-8" } },
     );
   }
   return new Response(null, { status: 302, headers: { location: `${base}/assistant?${qs}` } });
 }
 
-async function ownerOf(req: Request, storeId: string): Promise<{ userId: string } | Response> {
+async function userOf(req: Request): Promise<{ userId: string } | Response> {
   const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
   if (!token) return json({ error: "Unauthorized" }, 401);
   const { data, error } = await db.auth.getUser(token);
   if (error || !data.user) return json({ error: "Unauthorized" }, 401);
+  return { userId: data.user.id };
+}
+
+async function ownerOf(req: Request, storeId: string): Promise<{ userId: string } | Response> {
+  const user = await userOf(req);
+  if (user instanceof Response) return user;
   const { data: member, error: memErr } = await db
-    .from("store_members").select("role").eq("store_id", storeId).eq("user_id", data.user.id).maybeSingle();
+    .from("store_members").select("role").eq("store_id", storeId).eq("user_id", user.userId).maybeSingle();
   if (memErr) throw memErr;
   if (!member || member.role !== "owner") return json({ error: "Forbidden" }, 403);
-  return { userId: data.user.id };
+  return user;
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   const cfg = config();
 
-  // Instagram sends the owner's browser back here after they approve (or cancel).
+  // Instagram sends the owner's browser back here after they approve (or cancel). Hand the code to
+  // the dashboard, which finishes with the owner's session.
   if (req.method === "GET") {
     const q = new URL(req.url).searchParams;
     if (!cfg) return backToDashboard({ instagram: "error", reason: "not_configured" });
-    try {
-      const result = await completeInstagramConnect(
-        { db, cfg, stateSecret: cfg.appSecret, encryptionKey: env("CREDENTIALS_ENCRYPTION_KEY") },
-        { code: q.get("code"), state: q.get("state"), error: q.get("error") },
-      );
-      return result.ok
-        ? backToDashboard({ instagram: "connected", ...(result.warning ? { warning: result.warning } : {}) })
-        : backToDashboard({ instagram: "error", reason: result.reason });
-    } catch (err) {
-      console.error("instagram-connect callback failed", err);
-      return backToDashboard({ instagram: "error", reason: "server_error" });
-    }
+    const code = q.get("code");
+    const state = q.get("state");
+    if (q.get("error") || !code || !state) return backToDashboard({ instagram: "error", reason: "denied" });
+    return backToDashboard({ instagram: "finish", code, state });
   }
 
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -101,10 +103,23 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "Invalid JSON" }, 400);
   }
-  const storeId = body.store_id;
-  if (typeof storeId !== "string" || !UUID.test(storeId)) return json({ error: "store_id must be a uuid" }, 400);
-
   try {
+    if (body.action === "finish") {
+      if (!cfg) return json({ error: "not_configured" }, 503);
+      if (typeof body.code !== "string" || typeof body.state !== "string") {
+        return json({ error: "code and state are required" }, 400);
+      }
+      const user = await userOf(req);
+      if (user instanceof Response) return user;
+      const result = await completeInstagramConnect(
+        { db, cfg, stateSecret: cfg.appSecret, encryptionKey: env("CREDENTIALS_ENCRYPTION_KEY") },
+        { code: body.code, state: body.state, userId: user.userId },
+      );
+      return json(result.ok ? { ok: true, ...(result.warning ? { warning: result.warning } : {}) } : result);
+    }
+
+    const storeId = body.store_id;
+    if (typeof storeId !== "string" || !UUID.test(storeId)) return json({ error: "store_id must be a uuid" }, 400);
     const owner = await ownerOf(req, storeId);
     if (owner instanceof Response) return owner;
 

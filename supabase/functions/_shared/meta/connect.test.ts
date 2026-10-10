@@ -49,7 +49,7 @@ const stateFor = (user: string, store = "s1") => signState({ store_id: store, us
 test("connecting saves the account and its token encrypted, then subscribes to messages", async () => {
   const urls = stubInstagram();
   const { tables, deps } = setup();
-  const r = await completeInstagramConnect(deps, { code: "abc", state: await stateFor("owner-1") });
+  const r = await completeInstagramConnect(deps, { code: "abc", state: await stateFor("owner-1"), userId: "owner-1" });
   assert.ok(r.ok && !r.warning && r.username === "fennec_vision_");
 
   assert.equal(tables.channels.length, 1);
@@ -67,9 +67,9 @@ test("connecting saves the account and its token encrypted, then subscribes to m
 test("reconnecting the same account to the same store reactivates it", async () => {
   stubInstagram();
   const { tables, deps } = setup();
-  await completeInstagramConnect(deps, { code: "a", state: await stateFor("owner-1") });
+  await completeInstagramConnect(deps, { code: "a", state: await stateFor("owner-1"), userId: "owner-1" });
   tables.channels[0].status = "disconnected";
-  const r = await completeInstagramConnect(deps, { code: "b", state: await stateFor("owner-1") });
+  const r = await completeInstagramConnect(deps, { code: "b", state: await stateFor("owner-1"), userId: "owner-1" });
   assert.ok(r.ok);
   assert.equal(tables.channels.length, 1);
   assert.equal(tables.channels[0].status, "active");
@@ -81,17 +81,28 @@ test("a forged, expired or missing state saves nothing", async () => {
   const forged = await signState({ store_id: "s1", user_id: "owner-1" }, "attacker-secret", NOW.getTime());
   const old = await signState({ store_id: "s1", user_id: "owner-1" }, cfg.appSecret, NOW.getTime() - 3_600_000);
   for (const state of [forged, old, null, "junk"]) {
-    assert.deepEqual(await completeInstagramConnect(deps, { code: "abc", state }), { ok: false, reason: "invalid_state" });
+    assert.deepEqual(await completeInstagramConnect(deps, { code: "abc", state, userId: "owner-1" }), { ok: false, reason: "invalid_state" });
   }
   assert.equal(tables.channels.length, 0);
   assert.equal(urls.length, 0, "never even exchanged the code");
 });
 
+test("an approval link started by one owner can't be completed by someone else", async () => {
+  // Owner of s1 sends their Instagram approval link to a victim; the victim approves with their own
+  // account and comes back signed in as themselves (or not at all).
+  const urls = stubInstagram();
+  const { tables, deps } = setup();
+  const r = await completeInstagramConnect(deps, { code: "victim-code", state: await stateFor("owner-1"), userId: "victim" });
+  assert.deepEqual(r, { ok: false, reason: "invalid_state" });
+  assert.equal(tables.channels.length, 0);
+  assert.equal(urls.length, 0, "never exchanged the victim's code");
+});
+
 test("only an owner of the store can connect it", async () => {
   stubInstagram();
   const { tables, deps } = setup();
-  assert.deepEqual(await completeInstagramConnect(deps, { code: "a", state: await stateFor("staff-1") }), { ok: false, reason: "not_owner" });
-  assert.deepEqual(await completeInstagramConnect(deps, { code: "a", state: await stateFor("stranger") }), { ok: false, reason: "not_owner" });
+  assert.deepEqual(await completeInstagramConnect(deps, { code: "a", state: await stateFor("staff-1"), userId: "staff-1" }), { ok: false, reason: "not_owner" });
+  assert.deepEqual(await completeInstagramConnect(deps, { code: "a", state: await stateFor("stranger"), userId: "stranger" }), { ok: false, reason: "not_owner" });
   assert.equal(tables.channels.length, 0);
 });
 
@@ -99,8 +110,8 @@ test("an Instagram account that belongs to another store can't be taken over", a
   stubInstagram();
   const { tables, deps } = setup();
   tables.store_members.push({ store_id: "s2", user_id: "owner-2", role: "owner" });
-  await completeInstagramConnect(deps, { code: "a", state: await stateFor("owner-1") });
-  const r = await completeInstagramConnect(deps, { code: "b", state: await stateFor("owner-2", "s2") });
+  await completeInstagramConnect(deps, { code: "a", state: await stateFor("owner-1"), userId: "owner-1" });
+  const r = await completeInstagramConnect(deps, { code: "b", state: await stateFor("owner-2", "s2"), userId: "owner-2" });
   assert.deepEqual(r, { ok: false, reason: "already_connected" });
   assert.equal(tables.channels[0].store_id, "s1");
 });
@@ -108,16 +119,16 @@ test("an Instagram account that belongs to another store can't be taken over", a
 test("cancelling on Instagram, or a rejected code, is reported without saving", async () => {
   const { tables, deps } = setup();
   stubInstagram();
-  assert.deepEqual(await completeInstagramConnect(deps, { code: null, state: await stateFor("owner-1"), error: "access_denied" }), { ok: false, reason: "denied" });
+  assert.deepEqual(await completeInstagramConnect(deps, { code: null, state: await stateFor("owner-1"), error: "access_denied", userId: "owner-1" }), { ok: false, reason: "denied" });
   stubInstagram({ codeFails: true });
-  assert.deepEqual(await completeInstagramConnect(deps, { code: "used", state: await stateFor("owner-1") }), { ok: false, reason: "instagram_error" });
+  assert.deepEqual(await completeInstagramConnect(deps, { code: "used", state: await stateFor("owner-1"), userId: "owner-1" }), { ok: false, reason: "instagram_error" });
   assert.equal(tables.channels.length, 0);
 });
 
 test("if turning on message delivery fails, the account is saved and the owner is warned", async () => {
   stubInstagram({ subscribeFails: true });
   const { tables, deps } = setup();
-  const r = await completeInstagramConnect(deps, { code: "a", state: await stateFor("owner-1") });
+  const r = await completeInstagramConnect(deps, { code: "a", state: await stateFor("owner-1"), userId: "owner-1" });
   assert.ok(r.ok && r.warning === "subscribe_failed");
   assert.equal(tables.channels.length, 1);
 });
@@ -125,7 +136,7 @@ test("if turning on message delivery fails, the account is saved and the owner i
 test("disconnecting stops the channel, deletes its token and keeps the history", async () => {
   stubInstagram();
   const { tables, deps } = setup();
-  const r = await completeInstagramConnect(deps, { code: "a", state: await stateFor("owner-1") });
+  const r = await completeInstagramConnect(deps, { code: "a", state: await stateFor("owner-1"), userId: "owner-1" });
   assert.ok(r.ok);
   const channelId = r.ok ? r.channelId : "";
   assert.equal(await disconnectChannel(deps.db, "other-store", channelId), false);
@@ -144,7 +155,7 @@ test("a trailing '#_' on the code is stripped before it is exchanged", async () 
     return inner(url, init);
   }) as typeof fetch;
   const { deps } = setup();
-  const r = await completeInstagramConnect(deps, { code: "AQBxyz#_", state: await stateFor("owner-1") });
+  const r = await completeInstagramConnect(deps, { code: "AQBxyz#_", state: await stateFor("owner-1"), userId: "owner-1" });
   assert.ok(r.ok);
   assert.deepEqual(bodies, ["AQBxyz"]);
 });
@@ -153,7 +164,7 @@ test("an unusable encryption key saves nothing: no half-connected account", asyn
   stubInstagram();
   const { tables, deps } = setup();
   for (const encryptionKey of ["openssl rand -base64 32", "not base64!!", Buffer.alloc(16).toString("base64"), undefined]) {
-    const r = await completeInstagramConnect({ ...deps, encryptionKey }, { code: "a", state: await stateFor("owner-1") });
+    const r = await completeInstagramConnect({ ...deps, encryptionKey }, { code: "a", state: await stateFor("owner-1"), userId: "owner-1" });
     assert.deepEqual(r, { ok: false, reason: "server_error" });
   }
   assert.equal(tables.channels.length, 0);
