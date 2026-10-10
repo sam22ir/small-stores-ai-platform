@@ -38,6 +38,9 @@ function alertText(
     case "token_cap":
       line = `${who} : limite mensuelle de tokens IA atteinte, à vous / تم بلوغ حد الذكاء الاصطناعي الشهري، الرد لكم`;
       break;
+    case "billing":
+      line = `${who} : abonnement expiré, à vous / انتهى الاشتراك، الرد لكم`;
+      break;
     case "degraded":
       line = `${who} : assistant indisponible, à vous de répondre / المساعد غير متاح، ردّكم مطلوب`;
       break;

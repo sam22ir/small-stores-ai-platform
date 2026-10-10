@@ -666,6 +666,9 @@ export type Database = {
           id: string
           monthly_reply_limit: number
           name: string
+          paid_until: string | null
+          plan_status: "trial" | "active" | "past_due"
+          trial_ends_at: string
           orders_enabled: boolean
           timezone: string
         }
@@ -678,6 +681,9 @@ export type Database = {
           id?: string
           monthly_reply_limit?: number
           name: string
+          paid_until?: string | null
+          plan_status?: "trial" | "active" | "past_due"
+          trial_ends_at?: string
           orders_enabled?: boolean
           timezone?: string
         }
@@ -690,6 +696,9 @@ export type Database = {
           id?: string
           monthly_reply_limit?: number
           name?: string
+          paid_until?: string | null
+          plan_status?: "trial" | "active" | "past_due"
+          trial_ends_at?: string
           orders_enabled?: boolean
           timezone?: string
         }

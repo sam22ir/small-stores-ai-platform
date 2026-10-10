@@ -7,6 +7,12 @@ project_id = "small-stores-ai-platform"
 [functions.assistant-chat]
 verify_jwt = false
 
+[functions.billing-checkout]
+verify_jwt = false
+
+[functions.chargily-webhook]
+verify_jwt = false
+
 [functions.deliver-messages]
 verify_jwt = false
 

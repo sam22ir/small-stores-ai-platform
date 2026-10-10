@@ -24,7 +24,9 @@ class Query {
     this.table = table;
   }
 
+  private returning = false;
   select(_cols?: string, opts?: { count?: string; head?: boolean }) {
+    if (this.op === "update") this.returning = true;
     this.head = !!opts?.head;
     this.wantCount = !!opts?.count;
     return this;
@@ -93,7 +95,8 @@ class Query {
     const matching = rows.filter((r) => this.filters.every((f) => f(r)));
     if (this.op === "update") {
       for (const r of matching) Object.assign(r, this.payload);
-      return { data: null, error: null };
+      if (!this.returning) return { data: null, error: null };
+      return { data: this.single ? (matching[0] ?? null) : matching, error: null };
     }
     if (this.head) return { data: null, count: matching.length, error: null };
     const sorted = [...matching].sort((a, b) => (Number(a._seq) - Number(b._seq)) * (this.descending ? -1 : 1));
@@ -282,6 +285,44 @@ test("over the monthly token cap: no model call, owner alerted once per month", 
   await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(calls.n, 0);
   assert.equal(sent.length, 1);
+});
+
+test("trial over and not paid: no model call, owner alerted once per lapse", async () => {
+  const { tables, input } = setup();
+  tables.stores = [{ id: "s1", billing_alerted_for: null, _seq: 0 }];
+  const calls = { n: 0 };
+  stubLlm("nope", calls);
+  const sent: string[] = [];
+  const notify = (_storeId: string, text: string) => {
+    sent.push(text);
+    return Promise.resolve(true);
+  };
+  const expired = {
+    trial_ends_at: new Date(Date.now() - 86400000).toISOString(),
+    paid_until: null,
+    billing_alerted_for: null,
+  };
+
+  const r = await handleInbound({ ...input("do you ship to Oran?", "customer", expired), notify });
+  assert.ok(r.ok && r.limited);
+  assert.equal(r.handoff, "Subscription expired");
+  assert.equal(calls.n, 0);
+  assert.equal(tables.conversations[0].status, "human");
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(sent.length, 1);
+});
+
+test("trial over but paid (within grace): the model still answers", async () => {
+  const { input } = setup();
+  const calls = { n: 0 };
+  stubLlm("Oui, on livre à Oran.", calls);
+  const paid = {
+    trial_ends_at: new Date(Date.now() - 60 * 86400000).toISOString(),
+    paid_until: new Date(Date.now() - 86400000).toISOString(),
+  };
+  const r = await handleInbound(input("do you ship to Oran?", "customer", paid));
+  assert.ok(r.ok && !r.limited);
+  assert.equal(calls.n, 1);
 });
 
 test("a null token cap means unlimited: the model still runs", async () => {

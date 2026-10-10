@@ -7,6 +7,10 @@ export interface StoreSettings extends StoreContext {
   agent_enabled: boolean;
   monthly_reply_limit: number;
   ai_monthly_token_limit?: number | null; // null = unlimited
+  // Subscription state (see _shared/billing.ts). Missing = not enforced.
+  trial_ends_at?: string | null;
+  paid_until?: string | null;
+  billing_alerted_for?: string | null;
 }
 
 export interface HandleInboundInput {
@@ -34,6 +38,7 @@ export type OwnerAlert =
   | { kind: "handoff"; reason: string }
   | { kind: "limit" }
   | { kind: "token_cap" }
+  | { kind: "billing" }
   | { kind: "degraded" }
   | { kind: "order"; total_cents: number };
 
