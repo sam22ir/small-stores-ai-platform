@@ -145,6 +145,7 @@ const env = (k: string) =>
     LLM_BASE_URL: "https://llm.example/v1",
     LLM_API_KEY: "k",
     LLM_MODEL: "test-model",
+    BILLING_ENFORCED: "true",
   } as Record<string, string>)[k];
 
 function setup(opts: { status?: string; messages?: Row[]; runs?: Row[] } = {}) {
@@ -310,6 +311,17 @@ test("trial over and not paid: no model call, owner alerted once per lapse", asy
   assert.equal(tables.conversations[0].status, "human");
   await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(sent.length, 1);
+});
+
+test("billing not enforced: an expired trial still gets model replies", async () => {
+  const { input } = setup();
+  const calls = { n: 0 };
+  stubLlm("Oui, on livre à Oran.", calls);
+  const expired = { trial_ends_at: new Date(Date.now() - 86400000).toISOString(), paid_until: null };
+  const base = input("do you ship to Oran?", "customer", expired);
+  const r = await handleInbound({ ...base, env: (k: string) => (k === "BILLING_ENFORCED" ? undefined : base.env(k)) });
+  assert.ok(r.ok && !r.limited);
+  assert.equal(calls.n, 1);
 });
 
 test("trial over but paid (within grace): the model still answers", async () => {

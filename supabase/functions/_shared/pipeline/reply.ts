@@ -100,7 +100,8 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
 
   // 2. Subscription: after the trial and the paid period (plus grace), customers are handed to the
   // owner without a model call. Same handling as the caps; the owner is alerted once per lapse.
-  if (source === "customer") {
+  // Off until BILLING_ENFORCED=true, so stores are never cut off before payments can be taken.
+  if (source === "customer" && input.env("BILLING_ENFORCED") === "true") {
     const billing = billingState(store, input.now ?? new Date());
     if (billing.blocked && billing.lapsedAt) {
       const reason = "Subscription expired";

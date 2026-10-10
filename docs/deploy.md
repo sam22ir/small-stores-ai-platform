@@ -42,6 +42,7 @@ Edge Function secrets (set with `supabase secrets set`, never in the repo):
 | --- | --- |
 | `CHARGILY_SECRET_KEY` | Chargily Pay secret key. Test key while testing. It also verifies webhook signatures. |
 | `CHARGILY_API_BASE` | `https://pay.chargily.net/test/api/v2` for test, `https://pay.chargily.net/api/v2` for live. |
+| `BILLING_ENFORCED` | `true` turns on the subscription gate (expired trial or unpaid stores are handed to the owner). Leave unset until a live Chargily payment has been tested. Before turning it on, check `stores.trial_ends_at` for existing stores: it was set to 14 days after migration 0022 ran. |
 | `DASHBOARD_URL` | Already used by Instagram. Checkout returns to `<DASHBOARD_URL>/settings`. |
 
 Register the webhook endpoint `<SUPABASE_URL>/functions/v1/chargily-webhook` (it is also sent per checkout as `webhook_endpoint`).
