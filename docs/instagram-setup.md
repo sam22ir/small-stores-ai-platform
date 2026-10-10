@@ -9,9 +9,10 @@ Uses **Instagram API with Instagram Login**: the owner signs in with the shop's 
 ```
 Owner: Assistant → Channels → "Connect Instagram"
    dashboard ──POST start──► instagram-connect ──► Instagram approval page
-   Instagram ──?code&state──► instagram-connect  (checks the signed state, swaps the code for a 60-day token,
+   Instagram ──?code&state──► instagram-connect ──► <DASHBOARD_URL>/assistant?instagram=finish&code&state
+   dashboard ──POST finish (owner's JWT)──► instagram-connect  (checks the signed state was made for this same
+                                                  signed-in owner, swaps the code for a 60-day token,
                                                   saves the account + encrypted token, subscribes to messages)
-   browser returns to  <DASHBOARD_URL>/assistant?instagram=connected
 
 Customer DMs the shop
    Meta ──POST──► meta-webhook ──► 200 straight away; in the background:
@@ -28,7 +29,7 @@ Safety properties (all covered by tests in `supabase/functions/_shared/meta/`):
 - A retried webhook never duplicates a message; a reply is claimed atomically before sending so it can never go out twice.
 - Instagram only allows a reply within **24 hours** of the customer's last message. Later replies are marked **Not delivered** with the reason instead of failing silently.
 - Tokens are AES-GCM encrypted with `CREDENTIALS_ENCRYPTION_KEY`, refreshed automatically in their last 10 days, and deleted on Disconnect. An expired or revoked token marks the channel disconnected.
-- The login round trip carries a signed, 10-minute `state` tied to the store and owner; only an owner of the store can complete it; one Instagram account can belong to only one store.
+- The login round trip carries a signed, 10-minute `state` tied to the store and owner, and only that same owner, signed in to the dashboard, can complete it. A forwarded approval link can't pull someone else's Instagram account into a store. One Instagram account can belong to only one store. `DASHBOARD_URL` is required for this.
 - Only `instagram_business_basic` and `instagram_business_manage_messages` are requested.
 
 ## One-time setup

@@ -290,6 +290,7 @@ try {
   await page.waitForSelector("text=Instagram is connected.");
   ok("Connect asks the server for Instagram's approval page for this store", await logged((l) => l.startsWith("POST /functions/v1/instagram-connect") && l.includes('"action":"start"') && l.includes('"store_id":"s1"')));
   await page.waitForSelector("li:has-text('@fennec_vision_') >> text=Connected", { timeout: 5000 }).catch(() => {});
+  ok("coming back from Instagram finishes the connection with the owner's session", await logged((l) => l.startsWith("POST /functions/v1/instagram-connect") && l.includes('"action":"finish"') && l.includes('"code":"ig-code"') && l.includes('"state":"signed-state"')));
   ok("coming back from Instagram shows the connected account and clears the URL", await page.isVisible("li:has-text('@fennec_vision_') >> text=Connected") && !/instagram=/.test(page.url()));
   page.once("dialog", (d) => d.accept());
   await page.click("li:has-text('@fennec_vision_') >> button:has-text('Disconnect')");

@@ -9,13 +9,17 @@ import {
 } from "./instagram.ts";
 import { verifyState } from "./state.ts";
 
-// The return leg of "Connect Instagram": Instagram sends the browser back with a one-time code.
-// We trust only a valid signed state, re-check that the person is still an owner of the store,
-// exchange the code for a 60-day token, and save the account with its token encrypted.
+// The return leg of "Connect Instagram": Instagram sends the browser back with a one-time code,
+// and the dashboard posts it here with the owner's JWT. We trust only a valid signed state made for
+// that same signed-in person, re-check that they are still an owner of the store, exchange the code
+// for a 60-day token, and save the account with its token encrypted.
+// Requiring the caller to be the person who started the login stops a "connect my account to your
+// store" link: an owner of store A can't send their approval link to someone else and have that
+// person's Instagram account land in store A.
 
 export type ConnectFailure =
   | "denied" // the owner cancelled on Instagram
-  | "invalid_state" // forged, expired or missing state
+  | "invalid_state" // forged, expired or missing state, or started by someone else
   | "not_owner" // no longer an owner of that store
   | "already_connected" // this Instagram account belongs to another store
   | "instagram_error" // Instagram refused the code or the token
@@ -35,13 +39,13 @@ export interface ConnectDeps {
 
 export async function completeInstagramConnect(
   deps: ConnectDeps,
-  params: { code: string | null; state: string | null; error?: string | null },
+  params: { code: string | null; state: string | null; error?: string | null; userId: string },
 ): Promise<ConnectResult> {
   const { db, cfg } = deps;
   const now = deps.now ?? new Date();
 
   const state = params.state ? await verifyState(params.state, deps.stateSecret, now.getTime()) : null;
-  if (!state) return { ok: false, reason: "invalid_state" };
+  if (!state || state.user_id !== params.userId) return { ok: false, reason: "invalid_state" };
   if (params.error || !params.code) return { ok: false, reason: "denied" };
 
   const { data: member, error: memErr } = await db
