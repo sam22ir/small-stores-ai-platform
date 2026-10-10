@@ -143,7 +143,8 @@ export async function disconnectChannel(db: SupabaseClient, storeId: string, cha
     .maybeSingle();
   if (error) throw error;
   if (!channel) return false;
-  const { error: updErr } = await db.from("channels").update({ status: "disconnected" }).eq("id", channelId);
+  const { error: updErr } = await db.from("channels").update({ status: "disconnected" })
+    .eq("id", channelId).eq("store_id", storeId);
   if (updErr) throw updErr;
   const { error: delErr } = await db.from("channel_credentials").delete().eq("channel_id", channelId);
   if (delErr) throw delErr;
