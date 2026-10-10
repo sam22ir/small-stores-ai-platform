@@ -109,8 +109,8 @@ exception when insufficient_privilege then
   return -1;
 end $$;
 
--- Sanity: seed visible to superuser.
-select is((select count(*) from products), 2::bigint, 'seed: two products exist');
+-- Sanity: test seed visible to superuser (supabase/seed.sql adds its own demo rows, so scope to the test stores).
+select is((select count(*) from products where store_id in ('11111111-0000-0000-0000-00000000000a', '22222222-0000-0000-0000-00000000000b')), 2::bigint, 'seed: two test products exist');
 
 -- User A (member of store A only) -----------------------------------------
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-0000-0000-00000000000a","role":"authenticated"}', true);
