@@ -92,8 +92,7 @@ const landingEn: LandingDict = {
       { q: "Does it take payments?", a: "No. Cash on delivery only, and order-taking is optional." },
       { q: "Which languages?", a: "Darija (Arabic and Latin letters), French, Arabic." },
       { q: "Instagram and Facebook only?", a: "Yes, for now." },
-      // TODO: owner to fill in payment method
-      { q: "How do I pay?", a: "Contact us." },
+      { q: "How do I pay?", a: "Monthly, in cash. No card or online payment needed." },
     ],
   },
   footer: {

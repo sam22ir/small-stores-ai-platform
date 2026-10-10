@@ -40,7 +40,7 @@ Implementation notes (`supabase/functions/_shared/agent/`):
 - Stock is reported as `in_stock` / `low_stock` / `out_of_stock`. Exact counts are only exposed at 5 or fewer, so competitors can't read inventory by asking.
 - Default model is `claude-sonnet-5-5` (`AGENT_MODEL` overrides) with low effort and the server-side refusal fallback enabled.
 - Model providers can be chained (`providers.ts`): primary first, optional fallback on any error, with a short per-isolate circuit breaker. Falling back only protects uptime; whichever provider is primary still sees every message.
-- `assistant-chat` (dashboard test chat with the owner's JWT, plus a dev-secret mode) and `meta-webhook` are entry points to the same pipeline in `_shared/pipeline.ts`. Delivery to Instagram is in `_shared/meta/` (`deliver.ts`, `instagram.ts`).
+- `assistant-chat` (dashboard test chat with the owner's JWT, plus a dev-secret mode) and `meta-webhook` are entry points to the same pipeline in `_shared/pipeline.ts` (a barrel over `_shared/pipeline/`: `inbound.ts`, `reply.ts`, `alerts.ts`, `ports.ts`, `usage.ts`, `types.ts`). Delivery to Instagram is in `_shared/meta/` (`deliver.ts`, `instagram.ts`).
 
 Orders: the model never supplies prices or the store id. `place_order` recomputes prices from the catalog, checks and
 decrements stock under row locks, ignores duplicates (idempotency key) and runs as one transaction; test chats call it in

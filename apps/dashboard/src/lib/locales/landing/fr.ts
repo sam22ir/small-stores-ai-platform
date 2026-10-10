@@ -92,8 +92,7 @@ const landingFr: LandingDict = {
       { q: "Prend-il des paiements ?", a: "Non. Paiement à la livraison uniquement, et la prise de commande est optionnelle." },
       { q: "Quelles langues ?", a: "La darija (en lettres arabes et latines), le français et l'arabe." },
       { q: "Uniquement Instagram et Facebook ?", a: "Oui, pour le moment." },
-      // TODO: owner to fill in payment method
-      { q: "Comment payer ?", a: "Contactez-nous." },
+      { q: "Comment payer ?", a: "Chaque mois, en espèces. Pas de carte ni de paiement en ligne." },
     ],
   },
   footer: {
