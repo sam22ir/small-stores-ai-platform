@@ -1,4 +1,4 @@
-import { conversationLang, detectLang, holdingReply, lastCustomerText } from "./language.ts";
+import { conversationLang, holdingReply } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import {
   MAX_REPLY_BYTES,
