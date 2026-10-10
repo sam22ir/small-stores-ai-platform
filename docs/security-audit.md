@@ -1,7 +1,8 @@
 # Security audit: edge functions and RLS
 
 Scope: `supabase/functions/*` (+ `_shared`), `supabase/migrations/*.sql`. Done by reading the code; no
-live project was queried and no migration was applied. `supabase/config.toml` does not exist in the repo.
+live project was queried and no migration was applied. Live check afterwards: the live grants, policies and applied
+migrations (0001-0017) match the repo, and every function is deployed with `verify_jwt = false`.
 Deno is not installed here, so function code was not type-checked or run; `npm test` (node `--test`,
 covers `_shared`) passes 193/193.
 
@@ -11,9 +12,9 @@ covers `_shared`) passes 193/193.
 |---|---|---|---|---|
 | assistant-chat owner auth: JWT via `auth.getUser`, then store membership checked before any work | OK | - | assistant-chat/index.ts:79-89 | - |
 | assistant-chat dev mode: constant-time compare (SHA-256 digests); fails closed when `PLAYGROUND_SECRET` unset | OK | - | assistant-chat/index.ts:47-69 | - |
-| assistant-chat dev mode is one shared secret that can act on any store_id (no per-store scoping) | Issue | Medium | assistant-chat/index.ts:68-74 | Keep for dev only; set a strong secret in prod or remove dev mode from the deployed function. Not changed (by design). |
+| assistant-chat dev mode is one shared secret that can act on any store_id (no per-store scoping) | Issue | Medium | assistant-chat/index.ts | FIXED: dev mode only works for stores listed in `PLAYGROUND_STORE_IDS` (403 otherwise; empty list = no store). |
 | assistant-chat store_id always from request body but checked against membership (owner) or trusted only with dev secret | OK | - | assistant-chat/index.ts:106-130 | - |
-| assistant-chat returns `result.error` to client on 502 | Unverified | Low | assistant-chat/index.ts:230 | Return a fixed message; log the detail. Not checked (pipeline error text not inspected). |
+| assistant-chat returns `result.error` to client on 502 (names missing secrets/providers) | Issue | Low | assistant-chat/index.ts | FIXED: owners get a fixed message, the detail is logged; only dev-secret callers see it. |
 | deliver-messages: JWT via `getUser`, conversation -> store -> membership check, same 404 for missing/not-yours | OK | - | deliver-messages/index.ts:165-190 | - |
 | deliver-messages CORS `*` | OK | - | deliver-messages/index.ts:153-157 | Bearer auth, no cookies, so acceptable. |
 | instagram-connect start/disconnect: owner role required (`ownerOf`), store_id/channel_id validated as uuid | OK | - | instagram-connect/index.ts:73-81, 121-143 | - |
@@ -31,7 +32,7 @@ covers `_shared`) passes 193/193.
 | telegram-webhook replay: update_id not stored; a replayed `/start` with a used code is a no-op | OK | Info | telegram-webhook/index.ts:113-126 | - |
 | playground-chat: 410 stub, no logic | OK | - | playground-chat/index.ts:1-10 | - |
 | Generic error messages to clients ("Something went wrong") on the other paths | OK | - | deliver-messages:195, instagram-connect:148, assistant-chat:234 | - |
-| `supabase/config.toml` missing: `verify_jwt` per function is not in the repo, so the deployed setting is unknown. Functions that rely on self-auth (`meta-webhook`, `telegram-webhook`, `instagram-connect`, `deliver-messages`, `assistant-chat`) need `verify_jwt = false` or Meta/Telegram calls get rejected | Issue | Medium | supabase/ (no config.toml) | Commit a `supabase/config.toml` with `[functions.<name>] verify_jwt = false` for the self-auth functions, or confirm the dashboard setting. Not created here: a partial config can break `supabase` CLI commands, so this needs a human decision. |
+| `supabase/config.toml` missing: `verify_jwt` per function is not in the repo, so the deployed setting is unknown. Functions that rely on self-auth (`meta-webhook`, `telegram-webhook`, `instagram-connect`, `deliver-messages`, `assistant-chat`) need `verify_jwt = false` or Meta/Telegram calls get rejected | Issue | Medium | supabase/config.toml | FIXED: `supabase/config.toml` pins `verify_jwt = false` for every function, matching production. |
 
 ## B. RLS, grants and functions
 

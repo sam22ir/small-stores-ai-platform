@@ -10,11 +10,15 @@ import { getUsage, handleInbound, type RunSource } from "../_shared/pipeline.ts"
 //
 // Auth (verify_jwt is off; this function checks it itself):
 //   - Owner: `Authorization: Bearer <user JWT>` of a member of the store. Source "test".
-//   - Dev:   `x-playground-secret: $PLAYGROUND_SECRET`. Source "dev".
+//   - Dev:   `x-playground-secret: $PLAYGROUND_SECRET`. Source "dev". Only for the stores listed in
+//            PLAYGROUND_STORE_IDS (comma-separated uuids), so the shared secret can't reach real stores.
 // Test and dev runs never create real orders, never touch stock and don't count towards
 // the store's monthly limit. They are rate limited per store.
 
 const PLAYGROUND_SECRET = Deno.env.get("PLAYGROUND_SECRET") ?? "";
+const PLAYGROUND_STORE_IDS = new Set(
+  (Deno.env.get("PLAYGROUND_STORE_IDS") ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
+);
 const TEST_RUNS_PER_HOUR = 60;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -67,6 +71,9 @@ async function authenticate(
   if (secret !== null) {
     if (!PLAYGROUND_SECRET || !(await safeEqual(secret, PLAYGROUND_SECRET))) {
       return json({ error: "Unauthorized" }, 401);
+    }
+    if (!PLAYGROUND_STORE_IDS.has(storeId.toLowerCase())) {
+      return json({ error: "This store is not in PLAYGROUND_STORE_IDS" }, 403);
     }
     if (!/^[\w-]{1,64}$/.test(requestedSession)) {
       return json({ error: "session_id must be 1-64 chars of [A-Za-z0-9_-]" }, 400);
@@ -227,7 +234,11 @@ Deno.serve(async (req) => {
       text,
       source: caller.source,
     });
-    if (!result.ok) return json({ error: result.error }, 502);
+    if (!result.ok) {
+      // The detail can name missing secrets or providers: only the dev caller (who holds the secret) sees it.
+      console.error("assistant-chat run failed", result.error);
+      return json({ error: caller.source === "dev" ? result.error : "The assistant could not answer. Try again." }, 502);
+    }
     return json(result);
   } catch (err) {
     console.error("assistant-chat failed", err);

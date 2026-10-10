@@ -53,7 +53,8 @@ Other actions: `{"store_id": "...", "action": "reset"}` hands the test conversat
 `{"store_id": "...", "action": "usage"}` returns this month's reply count and limit.
 Test and dev runs never create real orders or touch stock, don't count towards the monthly limit and are capped at 60
 per hour per store. (`playground-chat` is now a stub that answers 410.)
-Needs the `PLAYGROUND_SECRET` secret plus a model provider (below).
+Needs the `PLAYGROUND_SECRET` secret, `PLAYGROUND_STORE_IDS` (comma-separated ids of the stores the dev secret may
+use, for example the demo store; any other store answers 403), plus a model provider (below).
 
 To test with a free OpenAI-compatible model instead (for example on TokenRouter), set the secrets
 `LLM_PROVIDER=openai-compatible`, `LLM_BASE_URL`, `LLM_API_KEY` and `LLM_MODEL`. Remove `LLM_PROVIDER` to go back to Claude.
