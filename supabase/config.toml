@@ -1,0 +1,23 @@
+# Supabase CLI config. Kept minimal: it pins how each Edge Function is deployed, so
+# `supabase functions deploy` matches production instead of relying on dashboard settings.
+project_id = "small-stores-ai-platform"
+
+# Every function checks auth itself (JWT + store membership, a signed webhook, or a secret header),
+# so the gateway's JWT check stays off. See docs/security-audit.md before turning one on or off.
+[functions.assistant-chat]
+verify_jwt = false
+
+[functions.deliver-messages]
+verify_jwt = false
+
+[functions.instagram-connect]
+verify_jwt = false
+
+[functions.meta-webhook]
+verify_jwt = false
+
+[functions.telegram-webhook]
+verify_jwt = false
+
+[functions.playground-chat]
+verify_jwt = false

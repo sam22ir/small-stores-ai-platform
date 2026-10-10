@@ -19,6 +19,21 @@ import { parseWebhook, validSignature } from "../_shared/meta/webhook.ts";
 const edgeRuntime = (globalThis as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime;
 
 const env = (k: string) => Deno.env.get(k);
+
+// Compare secrets in constant time (digests first, so length does not leak either).
+async function constantTimeEqual(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [x, y] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const xa = new Uint8Array(x);
+  const ya = new Uint8Array(y);
+  let diff = 0;
+  for (let i = 0; i < xa.length; i++) diff |= xa[i] ^ ya[i];
+  return diff === 0;
+}
+
 const VERIFY_TOKEN = env("META_WEBHOOK_VERIFY_TOKEN") ?? "";
 
 const db = createClient(env("SUPABASE_URL")!, env("SUPABASE_SERVICE_ROLE_KEY")!, {
@@ -43,7 +58,7 @@ Deno.serve(async (req) => {
   if (req.method === "GET") {
     const ok = url.searchParams.get("hub.mode") === "subscribe" &&
       VERIFY_TOKEN !== "" &&
-      url.searchParams.get("hub.verify_token") === VERIFY_TOKEN;
+      await constantTimeEqual(url.searchParams.get("hub.verify_token") ?? "", VERIFY_TOKEN);
     return ok
       ? new Response(url.searchParams.get("hub.challenge") ?? "", { status: 200 })
       : new Response("Forbidden", { status: 403 });
