@@ -31,6 +31,7 @@ export type Database = {
           store_id: string
           tool_calls: Json
           trigger_message_id: string | null
+          used_credit: boolean
         }
         Insert: {
           conversation_id: string
@@ -47,6 +48,7 @@ export type Database = {
           store_id: string
           tool_calls?: Json
           trigger_message_id?: string | null
+          used_credit?: boolean
         }
         Update: {
           conversation_id?: string
@@ -529,6 +531,53 @@ export type Database = {
           },
         ]
       }
+      payments: {
+        Row: {
+          amount: number
+          checkout_id: string
+          created_at: string
+          credits: number | null
+          currency: string
+          id: string
+          kind: "subscription" | "credits"
+          status: "pending" | "paid" | "failed" | "canceled"
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          checkout_id: string
+          created_at?: string
+          credits?: number | null
+          currency?: string
+          id?: string
+          kind?: "subscription" | "credits"
+          status?: "pending" | "paid" | "failed" | "canceled"
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          checkout_id?: string
+          created_at?: string
+          credits?: number | null
+          currency?: string
+          id?: string
+          kind?: "subscription" | "credits"
+          status?: "pending" | "paid" | "failed" | "canceled"
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_variants: {
         Row: {
           id: string
@@ -670,6 +719,7 @@ export type Database = {
           plan_status: "trial" | "active" | "past_due"
           trial_ends_at: string
           orders_enabled: boolean
+          reply_credits: number
           timezone: string
         }
         Insert: {
@@ -685,6 +735,7 @@ export type Database = {
           plan_status?: "trial" | "active" | "past_due"
           trial_ends_at?: string
           orders_enabled?: boolean
+          reply_credits?: number
           timezone?: string
         }
         Update: {
