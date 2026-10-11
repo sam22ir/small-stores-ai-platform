@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AnimatePresence, m } from "motion/react";
-import { Alert, Avatar, Button, Chip, Spinner, TextArea } from "@heroui/react";
+import { Alert, Avatar, Button, Chip, Skeleton, Spinner, TextArea } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { formatTime } from "../lib/format";
+import { useRealtimeRefresh } from "../lib/store";
 import { dur, ease, useMotionSafe } from "../lib/motion";
 import { platformKey } from "./Inbox";
 import { FaqModal } from "../components/FaqModal";
@@ -34,6 +35,20 @@ type Msg = {
   delivery_error: string | null;
 };
 
+// Messages per query. The newest page is shown first; "Load earlier" fetches the page before it.
+const PAGE = 100;
+// While a reply is waiting to go out, ask the server to send it this often.
+const RETRY_MS = 8000;
+const isPending = (msg: Msg) => msg.direction === "outbound" && msg.delivery_status === "pending";
+
+// Oldest first, one entry per id. When both lists have a message, the later argument wins.
+function mergeMsgs(a: Msg[], b: Msg[]): Msg[] {
+  const byId = new Map<string, Msg>();
+  for (const msg of [...a, ...b]) byId.set(msg.id, msg);
+  return [...byId.values()].sort((x, y) =>
+    x.created_at < y.created_at ? -1 : x.created_at > y.created_at ? 1 : x.id < y.id ? -1 : x.id > y.id ? 1 : 0);
+}
+
 // Check mark that draws itself. Used after a reply is sent and after an answer is saved.
 function Tick({ className = "" }: { className?: string }) {
   const reduced = useMotionSafe();
@@ -48,41 +63,79 @@ function Tick({ className = "" }: { className?: string }) {
   );
 }
 
+// Placeholder shown while the first messages load: a header and a few bubbles.
+function ThreadSkeleton() {
+  const { t } = useI18n();
+  return (
+    <div className="flex min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden rounded-wakil-lg border-2 border-ink bg-slip shadow-ink lg:min-h-[70vh]">
+      <div className="flex items-center gap-3 border-b-2 border-ink px-3 py-3" aria-hidden="true">
+        <Skeleton className="size-9 shrink-0 rounded-full" />
+        <div className="flex flex-1 flex-col gap-2">
+          <Skeleton className="h-3.5 w-2/5 rounded-full" />
+          <Skeleton className="h-3 w-1/5 rounded-full" />
+        </div>
+      </div>
+      <div className="flex flex-1 flex-col gap-3 bg-paper/60 px-4 py-4" aria-hidden="true">
+        <Skeleton className="h-12 w-3/5 rounded-wakil" />
+        <Skeleton className="ms-auto h-12 w-1/2 rounded-wakil" />
+        <Skeleton className="h-10 w-2/5 rounded-wakil" />
+      </div>
+      <span role="status" className="sr-only">{t("common.loading")}</span>
+    </div>
+  );
+}
+
 export function Thread() {
   const { id } = useParams<{ id: string }>();
+  // Keyed by chat: switching chats starts from an empty thread, with no messages from the last one.
+  return <ThreadView key={id ?? ""} id={id} />;
+}
+
+function ThreadView({ id }: { id: string | undefined }) {
   const { t, lang } = useI18n();
   const reduced = useMotionSafe();
   const rtl = lang === "ar";
   const [conv, setConv] = useState<Conv | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [hasOlder, setHasOlder] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [failed, setFailed] = useState(false);
   const [reply, setReply] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [announce, setAnnounce] = useState("");
   const [faqFor, setFaqFor] = useState<{ question: string; answer: string } | null>(null);
   const [faqSaved, setFaqSaved] = useState<Set<string>>(new Set());
   const [faqMsgId, setFaqMsgId] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
-  const lastCount = useRef(0);
-  // Messages already on screen do not animate; only ones that arrive afterwards do.
-  const firstLoadRef = useRef(true);
+  // created_at of the newest message already on screen. Messages after it animate in; older ones do not.
+  const newestAtRef = useRef<string | null>(null);
+  // Id of the newest customer message already announced. undefined until the first messages arrive.
+  const inboundRef = useRef<string | null | undefined>(undefined);
 
-  const load = useCallback(async () => {
-    if (!id) return;
+  // The chat header and the newest page of messages. Messages loaded earlier by "Load earlier" stay.
+  const loadNewest = useCallback(async (): Promise<Msg[] | undefined> => {
+    if (!id) return undefined;
     const [c, m] = await Promise.all([
       supabase.from("conversations")
         .select("id,store_id,channel_id,status,handoff_reason,customers(display_name,platform_user_id),channels(platform)")
         .eq("id", id).single(),
       supabase.from("messages")
         .select("id,direction,sender,body,created_at,delivery_status,delivery_error")
-        .eq("conversation_id", id).order("created_at", { ascending: true }).limit(500),
+        .eq("conversation_id", id).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(PAGE),
     ]);
-    if (c.error || m.error) { setFailed(true); return; }
+    if (c.error || m.error) { setFailed(true); return undefined; }
     setFailed(false);
     setConv(c.data as unknown as Conv);
-    setMsgs(m.data as Msg[]);
-    return m.data as Msg[];
+    const newest = ((m.data ?? []) as Msg[]).slice().reverse();
+    setMsgs((prev) => {
+      const floor = newest[0]?.created_at;
+      const older = floor ? prev.filter((x) => x.created_at < floor) : [];
+      return mergeMsgs(older, newest);
+    });
+    setHasOlder((prev) => prev || newest.length === PAGE);
+    return newest;
   }, [id]);
 
   // Replies are delivered to Instagram by a function; this asks it to (re)send what is waiting.
@@ -92,28 +145,63 @@ export function Thread() {
     await supabase.functions.invoke("deliver-messages", { body: { conversation_id: id } });
   }, [id]);
 
+  // Load, and when something is still waiting to go out (a reply whose delivery was interrupted),
+  // ask for it to be sent and look again.
+  const refresh = useCallback(async () => {
+    const rows = await loadNewest();
+    if (rows?.some(isPending)) {
+      await deliver();
+      await loadNewest();
+    }
+  }, [loadNewest, deliver]);
+
+  // Realtime for this chat's messages and header; the hook polls as a fallback (60 s, or 15 s without realtime).
+  useRealtimeRefresh("messages", id ? `conversation_id=eq.${id}` : undefined, refresh);
+  useRealtimeRefresh("conversations", id ? `id=eq.${id}` : undefined, refresh);
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  const hasPending = msgs.some(isPending);
+  // A reply that is still pending gets a short retry until it goes out. Only runs while one is pending.
+  const retryPending = useCallback(async () => {
+    await deliver();
+    await loadNewest();
+  }, [deliver, loadNewest]);
   useEffect(() => {
-    // Load, and when something is still waiting to go out (a reply whose delivery was interrupted),
-    // ask for it to be sent and look again.
-    const refresh = async () => {
-      const rows = await load();
-      if (rows?.some((r) => r.direction === "outbound" && r.delivery_status === "pending")) {
-        await deliver();
-        await load();
-      }
-    };
-    void refresh();
-    const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, 8000);
+    if (!hasPending) return;
+    const timer = window.setInterval(() => { if (!document.hidden) void retryPending(); }, RETRY_MS);
     return () => window.clearInterval(timer);
-  }, [load, deliver]);
+  }, [hasPending, retryPending]);
+
+  // Keep the newest message in view. Loading earlier messages does not change it, so the view stays put.
+  const lastId = msgs[msgs.length - 1]?.id;
+  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [lastId]);
 
   useEffect(() => {
-    if (msgs.length !== lastCount.current) {
-      lastCount.current = msgs.length;
-      endRef.current?.scrollIntoView({ block: "end" });
+    newestAtRef.current = msgs[msgs.length - 1]?.created_at ?? null;
+    // Announce only a new customer message, and only after the first load (what was already there is not news).
+    const newestInbound = [...msgs].reverse().find((x) => x.direction === "inbound");
+    if (msgs.length === 0) return;
+    if (inboundRef.current === undefined) { inboundRef.current = newestInbound?.id ?? null; return; }
+    if (newestInbound && newestInbound.id !== inboundRef.current) {
+      inboundRef.current = newestInbound.id;
+      setAnnounce(`${t("thread.newMessage")}: ${newestInbound.body ?? ""}`);
     }
-    if (msgs.length > 0) firstLoadRef.current = false;
-  }, [msgs]);
+  }, [msgs, t]);
+
+  async function loadOlder() {
+    const oldest = msgs[0];
+    if (!id || !oldest || loadingOlder) return;
+    setLoadingOlder(true);
+    const { data, error: err } = await supabase.from("messages")
+      .select("id,direction,sender,body,created_at,delivery_status,delivery_error")
+      .eq("conversation_id", id).lt("created_at", oldest.created_at)
+      .order("created_at", { ascending: false }).order("id", { ascending: false }).limit(PAGE);
+    setLoadingOlder(false);
+    if (err) { setError(t("common.error")); return; }
+    const rows = ((data ?? []) as Msg[]).slice().reverse();
+    setMsgs((prev) => mergeMsgs(rows, prev));
+    setHasOlder(rows.length === PAGE);
+  }
 
   async function setStatus(status: Conv["status"]) {
     if (!conv) return;
@@ -121,7 +209,7 @@ export function Thread() {
     const patch = status === "bot" ? { status, handoff_reason: null } : { status };
     const { error: err } = await supabase.from("conversations").update(patch).eq("id", conv.id);
     if (err) setError(t("common.error"));
-    await load();
+    await loadNewest();
     setBusy(false);
   }
 
@@ -144,7 +232,7 @@ export function Thread() {
     if (conv.status !== "human") await supabase.from("conversations").update({ status: "human" }).eq("id", conv.id);
     setReply("");
     await deliver();
-    await load();
+    await loadNewest();
     setBusy(false);
     setSent(true);
     window.setTimeout(() => setSent(false), 1200);
@@ -160,13 +248,13 @@ export function Thread() {
         <Alert.Content>
           <Alert.Description>
             {t("common.error")}{" "}
-            <button type="button" className="font-semibold underline underline-offset-4" onClick={() => void load()}>{t("common.retry")}</button>
+            <button type="button" className="font-semibold underline underline-offset-4" onClick={() => void refresh()}>{t("common.retry")}</button>
           </Alert.Description>
         </Alert.Content>
       </Alert>
     );
   }
-  if (!conv) return <p className="text-soft">{t("common.loading")}</p>;
+  if (!conv) return <ThreadSkeleton />;
 
   // The question an owner reply answers: the customer message right before it.
   const questionFor = (msg: Msg) => {
@@ -178,7 +266,8 @@ export function Thread() {
   const who = (msg: Msg) => msg.sender === "customer" ? t("thread.customerName") : msg.sender === "owner" ? t("thread.you") : t("thread.assistantName");
   const name = conv.customers?.display_name || conv.customers?.platform_user_id || t("inbox.customer");
   const initial = name.trim().charAt(0).toUpperCase();
-  const animateNew = !firstLoadRef.current && !reduced;
+  // Only messages newer than what was on screen animate in (not the ones loaded by "Load earlier").
+  const isFresh = (msg: Msg) => !reduced && newestAtRef.current !== null && msg.created_at > newestAtRef.current;
 
   return (
     <div className="flex min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden rounded-wakil-lg border-2 border-ink bg-slip shadow-ink lg:min-h-[70vh]">
@@ -220,7 +309,12 @@ export function Thread() {
         )}
       </AnimatePresence>
 
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-paper/60 px-4 py-4" aria-live="polite">
+      <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-paper/60 px-4 py-4">
+        {hasOlder && (
+          <div className="flex justify-center">
+            <Button size="sm" variant="outline" isDisabled={loadingOlder} onPress={() => void loadOlder()}>{t("thread.loadEarlier")}</Button>
+          </div>
+        )}
         {msgs.length === 0 && <p className="m-0 text-soft">{t("inbox.noMessages")}</p>}
         {msgs.map((msg) => {
           const inbound = msg.direction === "inbound";
@@ -232,9 +326,10 @@ export function Thread() {
             : msg.sender === "owner"
               ? "border-2 border-ink bg-ink text-slip rounded-ee-sm"
               : "border-2 border-blue bg-blue text-slip rounded-ee-sm";
+          const animate = isFresh(msg);
           return (
             <m.div key={msg.id} className={`flex min-w-0 flex-col gap-1 ${inbound ? "items-start" : "items-end"}`}
-              initial={animateNew ? { opacity: 0, x: fromX, y: 6 } : false}
+              initial={animate ? { opacity: 0, x: fromX, y: 6 } : false}
               animate={{ opacity: 1, x: 0, y: 0 }}
               transition={{ duration: dur.short, ease: ease.out }}>
               <div className={`max-w-[85%] whitespace-pre-wrap rounded-wakil px-3.5 py-2.5 text-[15px] leading-relaxed [overflow-wrap:anywhere] ${bubbleTone}`}>
@@ -270,6 +365,8 @@ export function Thread() {
         })}
         <div ref={endRef} />
       </div>
+      {/* Screen readers hear the newest customer message only, not every change in the list. */}
+      <div role="status" className="sr-only">{announce}</div>
 
       <div className="flex flex-col gap-2 border-t-2 border-ink bg-slip px-3 pb-3 pt-2">
         <div className="flex gap-2 overflow-x-auto pb-0.5" role="group" aria-label={t("thread.quickLabel")}>

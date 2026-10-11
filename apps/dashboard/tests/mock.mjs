@@ -9,6 +9,12 @@ const session = { access_token: jwt, token_type: "bearer", expires_in: 3600, exp
 
 const ago = (days) => new Date(Date.now() - days * 86400000).toISOString();
 
+// Chat c5 has 250 messages, one a minute, so the newest page (100) and "Load earlier" both get exercised.
+const longChat = { id: "c5", store_id: "s1", channel_id: "ch1", status: "closed", handoff_reason: null, last_customer_message_at: "2026-10-03T09:00:00Z", created_at: "2026-10-02T09:00:00Z", customers: { display_name: "Yasmine Long", platform_user_id: "ig-5" }, channels: { platform: "instagram" } };
+const longThread = Array.from({ length: 250 }, (_, i) => ({ id: `L${i + 1}`, conversation_id: "c5", direction: i % 2 ? "outbound" : "inbound", sender: i % 2 ? "owner" : "customer", body: `Long thread message ${i + 1}`, created_at: new Date(Date.UTC(2026, 9, 2, 9, 0) + i * 60000).toISOString(), delivery_status: i % 2 ? "sent" : null, delivery_error: null }));
+// 60 more closed chats, added when state.bulk is set, so the inbox list needs "Load more".
+const bulkChats = Array.from({ length: 60 }, (_, i) => ({ id: `b${i + 1}`, store_id: "s1", channel_id: "ch1", status: "closed", handoff_reason: null, last_customer_message_at: new Date(Date.UTC(2026, 8, 30) - i * 60000).toISOString(), created_at: "2026-09-30T00:00:00Z", customers: { display_name: `Bulk customer ${String(i + 1).padStart(2, "0")}`, platform_user_id: `bulk-${i + 1}` }, channels: { platform: "instagram" } }));
+
 export const state = {
   hasStore: true,
   store: { id: "s1", name: "Demo Boutique", currency: "DZD", timezone: "Africa/Algiers", business_info: null, business_info_fields: null, agent_enabled: true, monthly_reply_limit: 1000, orders_enabled: false, created_at: "2026-10-01T00:00:00Z", trial_ends_at: new Date(Date.now() + 10 * 86400000).toISOString(), paid_until: null, plan_status: "trial", reply_credits: 120 },
@@ -17,8 +23,10 @@ export const state = {
     { id: "c2", store_id: "s1", channel_id: "ch1", status: "bot", handoff_reason: null, last_customer_message_at: "2026-10-04T20:20:00Z", created_at: "2026-10-04T20:00:00Z", customers: { display_name: "Sara", platform_user_id: "ig-1" }, channels: { platform: "instagram" } },
     { id: "c4", store_id: "s1", channel_id: "ch1", status: "human", handoff_reason: "test handoff", last_customer_message_at: "2026-10-04T21:00:00Z", created_at: "2026-10-04T21:00:00Z", customers: { display_name: "Test chat", platform_user_id: "test-user-1-main" }, channels: { platform: "playground" } },
     { id: "c3", store_id: "s1", channel_id: "ch1", status: "closed", handoff_reason: null, last_customer_message_at: "2026-10-03T10:00:00Z", created_at: "2026-10-03T10:00:00Z", customers: { display_name: null, platform_user_id: "fb-9" }, channels: { platform: "facebook" } },
+    longChat,
   ],
   messages: [
+    ...longThread,
     { id: "m1", conversation_id: "c1", direction: "inbound", sender: "customer", body: "I want to order 2 hoodies", created_at: "2026-10-04T20:29:00Z", delivery_status: null },
     { id: "m2", conversation_id: "c1", direction: "outbound", sender: "agent", body: "The owner will reply to you personally.", created_at: "2026-10-04T20:29:30Z", delivery_status: "sent" },
     { id: "m3", conversation_id: "c2", direction: "inbound", sender: "customer", body: "هل عندكم هودي أسود؟", created_at: "2026-10-04T20:20:00Z", delivery_status: null },
@@ -43,7 +51,8 @@ export const state = {
   testRuns: 0,
   realtimeJoins: 0, // postgres_changes subscriptions the dashboard has joined
   failStoreWrites: false, // true makes PATCH /stores fail, to test the pause switch's revert
-  deliverMode: "ok", // "fail" makes deliver-messages report a closed 24-hour window
+  bulk: false, // true adds bulkChats to the conversation lists
+  deliverMode: "ok", // "fail" makes deliver-messages report a closed 24-hour window; "skip" leaves replies pending
   startStatus: 200, // 503 = Instagram connection not configured on the server
   log: [],
 };
@@ -114,18 +123,85 @@ function handleRealtime(conn, raw) {
   }
 }
 
-// Tells every subscribed dashboard that a conversation changed (as Supabase realtime would).
-export function pushConversationChange() {
+// Tells every subscribed dashboard that rows of a table changed (as Supabase realtime would).
+export function pushChange(table) {
   for (const conn of sockets) {
     for (const sub of conn.subs) {
-      if (sub.table !== "conversations") continue;
-      const body = { ids: [sub.id], data: { schema: "public", table: "conversations", type: "UPDATE", commit_timestamp: new Date().toISOString(), errors: null } };
+      if (sub.table !== table) continue;
+      const body = { ids: [sub.id], data: { schema: "public", table, type: "UPDATE", commit_timestamp: new Date().toISOString(), errors: null } };
       conn.socket.write(frame(JSON.stringify([null, null, sub.topic, "postgres_changes", body])));
     }
   }
 }
+export const pushConversationChange = () => pushChange("conversations");
 
-export function start(port = 54321) {
+// The conversations the dashboard can see: the seeded ones, plus the bulk ones when state.bulk is set.
+const convs = () => (state.bulk ? [...state.conversations, ...bulkChats] : state.conversations);
+
+// The inbox_list RPC: one row per chat (playground excluded), newest customer message first, nulls last.
+// Search matches the customer's name or any message body. Keyset cursor, as in migration 0024.
+function inboxRows({ status = null, search = null, limit = 50, beforeAt = null, beforeId = null }) {
+  const term = (search || "").trim().toLowerCase();
+  const byId = (a, b) => b.localeCompare(a);
+  const rows = convs()
+    .filter((c) => c.channels?.platform !== "playground" && (!status || c.status === status))
+    .map((c) => {
+      const msgs = state.messages.filter((m) => m.conversation_id === c.id)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at) || byId(a.id, b.id));
+      const last = msgs[0];
+      return {
+        id: c.id, status: c.status, handoff_reason: c.handoff_reason, last_customer_message_at: c.last_customer_message_at, created_at: c.created_at,
+        customer_name: c.customers?.display_name ?? null, platform_user_id: c.customers?.platform_user_id ?? "", platform: c.channels?.platform ?? "",
+        last_body: last?.body ?? null, last_direction: last?.direction ?? null, last_message_at: last?.created_at ?? null, _msgs: msgs,
+      };
+    })
+    .filter((r) => !term || (r.customer_name ?? "").toLowerCase().includes(term) || r._msgs.some((m) => (m.body ?? "").toLowerCase().includes(term)));
+  rows.sort((a, b) => {
+    const x = a.last_customer_message_at, y = b.last_customer_message_at;
+    if (x === y) return byId(a.id, b.id);
+    if (x === null) return 1;
+    if (y === null) return -1;
+    return y.localeCompare(x) || byId(a.id, b.id);
+  });
+  const after = beforeId === null ? rows : rows.filter((r) => {
+    if (beforeAt !== null) {
+      return (r.last_customer_message_at !== null && (r.last_customer_message_at < beforeAt || (r.last_customer_message_at === beforeAt && r.id < beforeId)))
+        || r.last_customer_message_at === null;
+    }
+    return r.last_customer_message_at === null && r.id < beforeId;
+  });
+  return after.slice(0, limit).map((r) => {
+    const row = { ...r };
+    delete row._msgs;
+    return row;
+  });
+}
+
+// PostgREST ilike pattern (* is the wildcard) as a regular expression. A backslash escapes the next character.
+const escapeRe = (c) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function likeRegex(pattern) {
+  let re = "";
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i];
+    if (ch === "\\" && i + 1 < pattern.length) re += escapeRe(pattern[++i]);
+    else if (ch === "%") re += ".*";
+    else if (ch === "_") re += ".";
+    else re += escapeRe(ch);
+  }
+  return new RegExp(`^${re}$`, "is");
+}
+// An or=(col.ilike."*term*",...) filter: true when any column matches. Quoted values are unescaped first.
+function matchOr(or, row) {
+  const re = /([a-z_]+)\.ilike\."((?:[^"\\]|\\.)*)"/g;
+  let m;
+  while ((m = re.exec(or))) {
+    const value = m[2].replace(/\\(.)/g, "$1").replace(/\*/g, "%");
+    if (likeRegex(value).test(String(row[m[1]] ?? ""))) return true;
+  }
+  return false;
+}
+
+export function start(port = Number(process.env.MOCK_PORT || 54321)) {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://x");
     let body = "";
@@ -145,6 +221,10 @@ export function start(port = 54321) {
       if (url.pathname === "/auth/v1/logout") return send(204);
 
       if (url.pathname.startsWith("/rest/v1/rpc/create_store")) { state.hasStore = true; return send(200, "s1"); }
+      if (url.pathname.startsWith("/rest/v1/rpc/inbox_list")) {
+        const { p_status, p_search, p_limit, p_before_at, p_before_id } = JSON.parse(body || "{}");
+        return send(200, inboxRows({ status: p_status, search: p_search, limit: p_limit ?? 50, beforeAt: p_before_at ?? null, beforeId: p_before_id ?? null }));
+      }
       if (url.pathname.startsWith("/rest/v1/rpc/set_order_status")) {
         const { p_order_id, p_status } = JSON.parse(body);
         const o = state.orders.find((x) => x.id === p_order_id);
@@ -169,6 +249,7 @@ export function start(port = 54321) {
         let sent = 0, failed = 0;
         for (const m of state.messages) {
           if (m.conversation_id !== conversation_id || m.direction !== "outbound" || m.delivery_status !== "pending") continue;
+          if (state.deliverMode === "skip") continue;
           if (state.deliverMode === "fail") { m.delivery_status = "failed"; m.delivery_error = "Instagram only allows a reply within 24 hours of the customer's last message."; failed++; }
           else { m.delivery_status = "sent"; sent++; }
         }
@@ -200,6 +281,17 @@ export function start(port = 54321) {
 
       const pick = (rows) => single ? (rows[0] ? send(200, rows[0]) : send(406, { code: "PGRST116", message: "no rows", details: "", hint: "" })) : send(200, rows);
       if (req.method === "HEAD" && table === "products") return send(200, undefined, { "content-range": `*/${state.products.filter((p) => p.active).length}` });
+      if (req.method === "HEAD" && table === "conversations") {
+        // Count-only queries (the Needs-you badge, the inbox tab counts). Test chats are never counted.
+        const status = url.searchParams.get("status");
+        const n = convs().filter((c) => c.channels?.platform !== "playground" && (!status || `eq.${c.status}` === status)).length;
+        return send(200, undefined, { "content-range": `*/${n}` });
+      }
+      if (req.method === "HEAD" && table === "orders") {
+        const status = url.searchParams.get("status");
+        const n = state.orders.filter((o) => !status || `eq.${o.status}` === status).length;
+        return send(200, undefined, { "content-range": `*/${n}` });
+      }
       if (req.method === "HEAD" && table === "channels") {
         const n = state.channels.filter((c) => c.platform !== "playground" && c.status === "active").length;
         return send(200, undefined, { "content-range": `*/${n}` });
@@ -209,7 +301,18 @@ export function start(port = 54321) {
         return send(200, undefined, { "content-range": `*/${n}` });
       }
       if (req.method === "GET") {
-        if (table === "orders") return pick(state.orders);
+        if (table === "orders") {
+          // Status tab, the name/phone search, and offset/limit paging (postgrest-js range()), newest first.
+          let rows = state.orders;
+          const status = url.searchParams.get("status");
+          if (status) rows = rows.filter((o) => `eq.${o.status}` === status);
+          const or = url.searchParams.get("or");
+          if (or) rows = rows.filter((o) => matchOr(or, o));
+          rows = [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
+          const offset = Number(url.searchParams.get("offset") || 0);
+          const limit = url.searchParams.get("limit");
+          return pick(rows.slice(offset, limit ? offset + Number(limit) : undefined));
+        }
         if (table === "faq_entries") return pick(state.faq);
         if (table === "delivery_fees") return pick(state.fees);
         if (table === "store_members") return pick(state.hasStore ? [{ store_id: "s1" }] : []);
@@ -217,7 +320,7 @@ export function start(port = 54321) {
         if (table === "conversations") {
           const id = url.searchParams.get("id");
           const status = url.searchParams.get("status");
-          let rows = state.conversations;
+          let rows = convs();
           if (id) rows = rows.filter((c) => `eq.${c.id}` === id);
           if (status) rows = rows.filter((c) => `eq.${c.status}` === status);
           return pick(rows);
@@ -227,9 +330,13 @@ export function start(port = 54321) {
           let rows = state.messages;
           if (cid && cid.startsWith("in.")) { const ids = cid.slice(4, -1).split(","); rows = rows.filter((m) => ids.includes(m.conversation_id)); }
           else if (cid) rows = rows.filter((m) => `eq.${m.conversation_id}` === cid);
-          const order = url.searchParams.get("order") || "";
-          if (order.includes("created_at.desc")) rows = [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at));
-          return pick(rows);
+          // Oldest first unless ordered desc; ties broken by id, as the dashboard asks. "lt" = created before a time.
+          const desc = (url.searchParams.get("order") || "").includes("created_at.desc");
+          const before = url.searchParams.get("created_at");
+          if (before?.startsWith("lt.")) rows = rows.filter((m) => m.created_at < before.slice(3));
+          rows = [...rows].sort((a, b) => (a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)) * (desc ? -1 : 1));
+          const limit = url.searchParams.get("limit");
+          return pick(limit ? rows.slice(0, Number(limit)) : rows);
         }
         if (table === "products") return pick(state.products);
         if (table === "channels") return pick(state.channels);
@@ -237,6 +344,7 @@ export function start(port = 54321) {
       if (req.method === "POST" && table === "messages") {
         const row = JSON.parse(body);
         state.messages.push({ id: "m" + (state.messages.length + 1), created_at: new Date().toISOString(), ...row });
+        pushChange("messages");
         return send(201);
       }
       if (req.method === "POST" && table === "products") return send(201, [{ id: "p-new" }]);

@@ -2,7 +2,7 @@
 //   npm run test:ui          (needs a Chromium: set CHROMIUM_PATH, or run `npx playwright-core install chromium`)
 import { chromium } from "playwright-core";
 import { spawn } from "node:child_process";
-import { start, state, pushConversationChange } from "./mock.mjs";
+import { start, state, pushChange, pushConversationChange } from "./mock.mjs";
 
 // TEST_PORT lets several checkouts run the smoke test at once.
 const PORT = Number(process.env.TEST_PORT || 4173);
@@ -38,6 +38,16 @@ async function newPage(opts = {}) {
   // The rate-limit and not-configured tests deliberately trigger a 429 / 503 from a function.
   page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("status of 429") && !m.text().includes("status of 503") && !m.text().includes("status of 500")) errors.push("console: " + m.text()); });
   return { page, ctx, errors };
+}
+
+// Signs in with the demo owner's password and waits for the inbox.
+async function signIn(page) {
+  await page.goto(`http://127.0.0.1:${PORT}/login`);
+  await page.fill("#email", "owner@example.com");
+  await page.fill("#password", "password123");
+  await page.click("[data-testid=auth-submit]");
+  await page.waitForURL(/\/inbox/);
+  await page.waitForSelector("text=Customer chats");
 }
 
 try {
@@ -492,6 +502,90 @@ try {
     ok("signed-in visitor on the landing sees 'Go to inbox'", (await goInbox.count()) > 0);
     await goInbox.click();
     ok("'Go to inbox' navigates to /inbox", await page.waitForURL(/\/inbox/, { timeout: 5000 }).then(() => true, () => false));
+    await ctx.close();
+  }
+  // 13. inbox search (server-side, all statuses while searching), paging, long threads, realtime messages
+  {
+    ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
+    await signIn(page);
+    const search = "input[type=search]";
+    const gone = (sel) => page.waitForSelector(sel, { state: "detached", timeout: 3000 }).then(() => true, () => false);
+    const seen = (sel) => page.waitForSelector(sel, { timeout: 3000 }).then(() => true, () => false);
+    await page.fill(search, "Sara");
+    ok("inbox search by name finds a chat in any status", await seen("a:has-text('Sara')"));
+    ok("a search hides the other chats", await gone("a:has-text('Amine')"));
+    await page.fill(search, "hoodies");
+    ok("inbox search matches message text", await seen("a:has-text('Amine')") && await gone("a:has-text('Sara')"));
+    await page.fill(search, "هودي");
+    ok("inbox search matches an Arabic term in a message", await seen("a:has-text('Sara')") && await gone("a:has-text('Amine')"));
+    await page.fill(search, "zzz-no-such-chat");
+    ok("a search with no match says so", await seen("text=No chats match this search."));
+    await page.fill(search, "");
+    ok("clearing the search brings the 'Needs you' box back", await seen("text=Needs you") && await seen("a:has-text('Amine')"));
+
+    // Load more: 62 closed chats, 50 per page
+    state.bulk = true;
+    await page.reload();
+    await page.waitForSelector("text=Customer chats");
+    await page.click("[role=tab]:has-text('Closed')");
+    await page.waitForSelector("[role=tab]:has-text('Closed (62)')");
+    const rowLinks = () => page.locator("a[href^='/inbox/']").count();
+    ok("the first page of chats is 50 rows (plus one 'Needs you' row)", (await rowLinks()) === 51);
+    await page.click("button:has-text('Load more')");
+    await page.waitForFunction(() => document.querySelectorAll("a[href^='/inbox/']").length === 63, null, { timeout: 5000 }).catch(() => {});
+    ok("'Load more' appends the rest of the chats", (await rowLinks()) === 63);
+    state.bulk = false;
+    await page.screenshot({ path: OUT + "12-inbox-search.png" });
+
+    // A 250-message chat: the newest 100 show first, and "Load earlier" fetches the rest in pages
+    await page.goto(`http://127.0.0.1:${PORT}/inbox/c5`);
+    await page.waitForSelector("text=Long thread message 250");
+    ok("a 250-message chat opens at the newest message", await page.isVisible("text=Long thread message 250"));
+    ok("older messages are not loaded until asked for", !(await page.getByText("Long thread message 150", { exact: true }).isVisible()));
+    await page.click("button:has-text('Load earlier messages')");
+    await page.waitForSelector("text=Long thread message 150", { state: "attached", timeout: 5000 });
+    ok("'Load earlier' brings in the messages before the newest page", await page.getByText("Long thread message 150", { exact: true }).isVisible());
+    ok("the newest message is still the last one", await page.isVisible("text=Long thread message 250"));
+    await page.screenshot({ path: OUT + "12b-long-thread.png" });
+
+    // A new customer message arrives over realtime, with no reload and no poll
+    const joinsBefore = state.realtimeJoins;
+    await page.goto(`http://127.0.0.1:${PORT}/inbox/c1`);
+    await page.waitForSelector("text=The owner will reply to you personally.");
+    // Wait for this page's subscriptions (Layout, Inbox, and the thread's messages and header) before pushing.
+    for (let i = 0; i < 100 && state.realtimeJoins < joinsBefore + 4; i++) await new Promise((r) => setTimeout(r, 100));
+    state.messages.push({ id: "rt1", conversation_id: "c1", direction: "inbound", sender: "customer", body: "Realtime hello from the customer", created_at: new Date().toISOString(), delivery_status: null, delivery_error: null });
+    pushChange("messages");
+    ok("a realtime message update shows in the open chat within 5 s", await seen("text=Realtime hello from the customer"));
+    ok("the new customer message is announced to screen readers", await seen("[role=status]:has-text('New message from the customer: Realtime hello')"));
+
+    // A reply that is not delivered yet is retried by the 8 s timer, not left for the 60 s poll
+    state.deliverMode = "skip";
+    await page.fill("textarea", "Reply that waits to go out");
+    await page.click("button[type=submit]:has-text('Send')");
+    await page.waitForSelector("text=Not sent yet");
+    state.deliverMode = "ok";
+    const started = Date.now();
+    ok("a pending reply goes out on the retry without waiting for the 60 s poll",
+      await page.waitForSelector("text=Not sent yet", { state: "detached", timeout: 12000 }).then(() => true, () => false) && Date.now() - started < 12000);
+    ok("no runtime errors in the inbox search, paging, long thread and realtime checks", errors.length === 0);
+    if (errors.length) console.log(errors.join("\n"));
+    await ctx.close();
+  }
+  // 14. orders search
+  {
+    ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
+    await signIn(page);
+    await page.goto(`http://127.0.0.1:${PORT}/orders`);
+    await page.waitForSelector("[role=tab]:has-text('Shipped')");
+    await page.click("[role=tab]:has-text('Shipped')");
+    await page.fill("input[type=search]", "Lina");
+    ok("orders search finds a shipped order by name", await page.waitForSelector("text=Lina S", { timeout: 3000 }).then(() => true, () => false));
+    await page.fill("input[type=search]", "0661");
+    ok("orders search also matches the phone number", await page.waitForSelector("text=Lina S", { timeout: 3000 }).then(() => true, () => false));
+    await page.fill("input[type=search]", "nobody-here");
+    ok("an orders search with no match says so", await page.waitForSelector("text=No orders match this search.", { timeout: 3000 }).then(() => true, () => false));
+    ok("no runtime errors in the orders search checks", errors.length === 0);
     await ctx.close();
   }
 } catch (e) {
