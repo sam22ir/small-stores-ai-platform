@@ -266,5 +266,226 @@ select ok((select paid_until from stores where id = '22222222-0000-0000-0000-000
   between now() + interval '29 days 23 hours' and now() + interval '30 days 1 hour',
   'a replayed subscription checkout does not extend paid_until again');
 
+-- Dashboard RPCs (0024_dashboard_rpcs.sql) ----------------------------------------------
+-- Raises any error (used for RPC rejections; insufficient_privilege included).
+create function pg_temp.raises(stmt text) returns boolean language plpgsql as $$
+begin
+  execute stmt;
+  return false;
+exception when others then
+  return true;
+end $$;
+
+-- Fixtures (superuser). Store A gets a second and third customer conversation, a playground conversation
+-- (must be hidden), and messages with Darija, Arabic and '%' content. Timestamps are fixed for paging.
+insert into channels (id, store_id, platform, external_id) values
+  ('a1100000-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 'playground', 'pg-a');
+
+insert into customers (id, store_id, channel_id, platform_user_id, display_name) values
+  ('a4100000-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 'a1000000-0000-0000-0000-00000000000a', 'psid-a2', 'Yasmine'),
+  ('a4200000-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 'a1000000-0000-0000-0000-00000000000a', 'psid-a3', null),
+  ('a4300000-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 'a1100000-0000-0000-0000-00000000000a', 'pg-user', 'Tester');
+
+insert into conversations (id, store_id, channel_id, customer_id, last_customer_message_at) values
+  ('a5100000-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 'a1000000-0000-0000-0000-00000000000a', 'a4100000-0000-0000-0000-00000000000a', '2026-10-10 12:00:00+00'),
+  ('a5300000-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 'a1000000-0000-0000-0000-00000000000a', 'a4200000-0000-0000-0000-00000000000a', null),
+  ('a5200000-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 'a1100000-0000-0000-0000-00000000000a', 'a4300000-0000-0000-0000-00000000000a', '2026-10-10 13:00:00+00');
+
+update conversations set last_customer_message_at = '2026-10-10 10:00:00+00'
+where id = 'a5000000-0000-0000-0000-00000000000a';
+
+insert into messages (id, store_id, conversation_id, channel_id, direction, sender, body) values
+  ('a6100000-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 'a5000000-0000-0000-0000-00000000000a', 'a1000000-0000-0000-0000-00000000000a', 'inbound', 'customer', 'chhal taman lhoodie'),
+  ('a6200000-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 'a5000000-0000-0000-0000-00000000000a', 'a1000000-0000-0000-0000-00000000000a', 'inbound', 'customer', 'عندكم هودي أسود؟'),
+  ('a6300000-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 'a5100000-0000-0000-0000-00000000000a', 'a1000000-0000-0000-0000-00000000000a', 'inbound', 'customer', 'promo 50% off'),
+  ('a6400000-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 'a5200000-0000-0000-0000-00000000000a', 'a1100000-0000-0000-0000-00000000000a', 'inbound', 'customer', 'هودي test playground');
+
+-- Insights data: a test-source run (not a customer reply), a cancelled order (excluded), and items.
+insert into agent_runs (id, store_id, conversation_id, model, source) values
+  ('a7100000-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 'a5000000-0000-0000-0000-00000000000a', 'test-model', 'test');
+
+insert into orders (id, store_id, customer_name, phone, wilaya, address, subtotal_cents, total_cents, status) values
+  ('a8100000-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 'Client C', '0550123458', 'Alger', 'Rue C', 9999, 9999, 'cancelled');
+
+insert into order_items (store_id, order_id, name, quantity, unit_price_cents) values
+  ('11111111-0000-0000-0000-00000000000a', 'a8000000-0000-0000-0000-00000000000a', 'Hoodie', 3, 500),
+  ('11111111-0000-0000-0000-00000000000a', 'a8100000-0000-0000-0000-00000000000a', 'Cancelled item', 10, 999);
+
+-- Handoff stamping, as superuser: a new reason stamps; the reset below lets the takeover check start clean.
+update conversations set status = 'human', handoff_reason = 'refund'
+where id = 'a5000000-0000-0000-0000-00000000000a';
+update conversations set handoff_reason = 'wants a human'
+where id = 'a5300000-0000-0000-0000-00000000000a';
+
+select ok((select handed_off_at from conversations where id = 'a5000000-0000-0000-0000-00000000000a') is not null,
+  'handed_off_at is stamped when a handoff reason is set');
+select ok((select handed_off_at from conversations where id = 'a5300000-0000-0000-0000-00000000000a') is not null,
+  'handed_off_at is stamped on a second conversation too');
+
+update conversations set handed_off_at = null where id = 'a5300000-0000-0000-0000-00000000000a';
+
+-- Owner takeover (status -> human, reason unchanged) by user A must not stamp.
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+
+select is(pg_temp.affected($$update conversations set status = 'human'
+  where id = 'a5300000-0000-0000-0000-00000000000a'$$), 1::bigint, 'user A takes over a conversation (status only)');
+
+reset role;
+select is((select handed_off_at from conversations where id = 'a5300000-0000-0000-0000-00000000000a'), null::timestamptz,
+  'owner takeover with unchanged reason does not stamp handed_off_at');
+
+-- Inbox (user A) ----------------------------------------------------------------------
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+
+select is((select count(*) from inbox_list('11111111-0000-0000-0000-00000000000a', null, null)), 3::bigint,
+  'inbox_list returns store A conversations and not the playground one');
+select is((select id from inbox_list('11111111-0000-0000-0000-00000000000a', null, null) limit 1),
+  'a5100000-0000-0000-0000-00000000000a'::uuid, 'inbox_list orders by newest customer message first');
+select is((select count(*) from inbox_list('11111111-0000-0000-0000-00000000000a', null, null, 100)
+           where platform = 'playground'), 0::bigint, 'inbox_list never returns a playground channel');
+
+select is((select count(*) from inbox_list('11111111-0000-0000-0000-00000000000a', null, 'هودي')), 1::bigint,
+  'Arabic search finds the message body and skips the playground match');
+select is((select id from inbox_list('11111111-0000-0000-0000-00000000000a', null, 'هودي')),
+  'a5000000-0000-0000-0000-00000000000a'::uuid, 'Arabic search returns the right conversation');
+select is((select id from inbox_list('11111111-0000-0000-0000-00000000000a', null, 'chhal')),
+  'a5000000-0000-0000-0000-00000000000a'::uuid, 'Darija search finds the message body');
+select is((select id from inbox_list('11111111-0000-0000-0000-00000000000a', null, 'yasm')),
+  'a5100000-0000-0000-0000-00000000000a'::uuid, 'search matches the customer display name');
+select is((select id from inbox_list('11111111-0000-0000-0000-00000000000a', null, '%')),
+  'a5100000-0000-0000-0000-00000000000a'::uuid, 'a literal % only matches the body that contains it');
+select is((select count(*) from inbox_list('11111111-0000-0000-0000-00000000000a', null, '_')), 0::bigint,
+  'a literal _ matches nothing here (escaped, not a wildcard)');
+
+select is((select count(*) from inbox_list('11111111-0000-0000-0000-00000000000a', 'human', null)), 2::bigint,
+  'status filter returns the human conversations');
+select is((select count(*) from inbox_list('11111111-0000-0000-0000-00000000000a', 'bot', null)), 1::bigint,
+  'status filter returns the bot conversations');
+
+-- Keyset paging: 12:00, then 10:00, then the null one last.
+select is((select id from inbox_list('11111111-0000-0000-0000-00000000000a', null, null, 1,
+  '2026-10-10 12:00:00+00', 'a5100000-0000-0000-0000-00000000000a')), 'a5000000-0000-0000-0000-00000000000a'::uuid,
+  'keyset page 2 starts after the cursor row');
+select is((select id from inbox_list('11111111-0000-0000-0000-00000000000a', null, null, 1,
+  '2026-10-10 10:00:00+00', 'a5000000-0000-0000-0000-00000000000a')), 'a5300000-0000-0000-0000-00000000000a'::uuid,
+  'keyset page 3 reaches the conversation with no customer message');
+select is((select count(*) from inbox_list('11111111-0000-0000-0000-00000000000a', null, null, 1,
+  null, 'a5300000-0000-0000-0000-00000000000a')), 0::bigint,
+  'a null-ordered cursor returns nothing after the last row');
+select is((select count(*) from inbox_list('11111111-0000-0000-0000-00000000000a', null, null, 500)), 3::bigint,
+  'inbox_list accepts a large limit (capped at 100 internally)');
+
+select ok(pg_temp.raises($$select * from inbox_list('22222222-0000-0000-0000-00000000000b', null, null)$$),
+  'user A cannot list store B conversations');
+
+-- save_product -------------------------------------------------------------------------
+select lives_ok($$select save_product('11111111-0000-0000-0000-00000000000a', null,
+  '{"name":"Hoodie","price_cents":2500,"active":true,"aliases":"kapuchon, هودي"}',
+  '[{"label":"M","stock_quantity":3},{"label":"L","stock_quantity":0}]')$$,
+  'save_product creates a product in one call');
+
+select is((select count(*) from product_variants pv join products p on p.id = pv.product_id
+           where p.name = 'Hoodie' and p.store_id = '11111111-0000-0000-0000-00000000000a'), 2::bigint,
+  'save_product creates both variants with the product');
+
+select is(save_product('11111111-0000-0000-0000-00000000000a', 'a2000000-0000-0000-0000-00000000000a',
+  '{"name":"Product A v2","price_cents":1200,"active":true}',
+  '[{"id":"a3000000-0000-0000-0000-00000000000a","label":"Default","stock_quantity":9},{"label":"Red","stock_quantity":4}]'),
+  'a2000000-0000-0000-0000-00000000000a'::uuid, 'save_product updates an existing product and returns its id');
+
+select is((select count(*) from product_variants where product_id = 'a2000000-0000-0000-0000-00000000000a'), 2::bigint,
+  'save_product adds a new variant next to the kept one');
+
+select lives_ok($$select save_product('11111111-0000-0000-0000-00000000000a', 'a2000000-0000-0000-0000-00000000000a',
+  '{"name":"Product A v2","price_cents":1200,"active":true}',
+  '[{"id":"a3000000-0000-0000-0000-00000000000a","label":"Default","stock_quantity":9}]')$$,
+  'save_product removes a variant that is no longer listed');
+
+select is((select count(*) from product_variants where product_id = 'a2000000-0000-0000-0000-00000000000a'), 1::bigint,
+  'the unlisted variant is deleted');
+
+select ok(pg_temp.raises($$select save_product('11111111-0000-0000-0000-00000000000a', 'a2000000-0000-0000-0000-00000000000a',
+  '{"name":"Rolled back","price_cents":1}',
+  '[{"id":"b3000000-0000-0000-0000-00000000000b","label":"x","stock_quantity":1}]')$$),
+  'save_product rejects a store B variant id, even from a store A member');
+
+select ok(pg_temp.raises($$select save_product('11111111-0000-0000-0000-00000000000a', null,
+  '{"name":"Ghost","price_cents":1}',
+  '[{"id":"b3000000-0000-0000-0000-00000000000b","label":"x","stock_quantity":1}]')$$),
+  'save_product rejects a foreign variant id on a new product');
+
+select ok(pg_temp.raises($$select save_product('22222222-0000-0000-0000-00000000000b', null,
+  '{"name":"Not mine","price_cents":1}', '[]')$$),
+  'user A cannot save a product into store B');
+
+select ok(pg_temp.raises($$select save_product('11111111-0000-0000-0000-00000000000a', 'b2000000-0000-0000-0000-00000000000b',
+  '{"name":"Hacked","price_cents":1}', '[]')$$),
+  'user A cannot update store B product through save_product');
+
+-- adjust_stock -------------------------------------------------------------------------
+select is(adjust_stock('a3000000-0000-0000-0000-00000000000a', -2), 7, 'adjust_stock applies a relative change');
+select is(adjust_stock('a3000000-0000-0000-0000-00000000000a', -100), 0, 'adjust_stock floors at zero');
+select is(adjust_stock('a3000000-0000-0000-0000-00000000000a', 4), 4, 'adjust_stock adds stock back');
+select ok(pg_temp.raises($$select adjust_stock('b3000000-0000-0000-0000-00000000000b', 5)$$),
+  'user A cannot adjust store B stock');
+select ok(pg_temp.raises($$select adjust_stock('a3000000-0000-0000-0000-00000000000a', null)$$),
+  'adjust_stock rejects a null delta instead of zeroing the stock');
+
+-- store_insights -----------------------------------------------------------------------
+select is(jsonb_array_length(store_insights('11111111-0000-0000-0000-00000000000a', 7) -> 'days'), 7,
+  'store_insights returns one entry per day');
+select is(jsonb_array_length(store_insights('11111111-0000-0000-0000-00000000000a', 0) -> 'days'), 1,
+  'store_insights clamps days below 1');
+select is(jsonb_array_length(store_insights('11111111-0000-0000-0000-00000000000a', 500) -> 'days'), 90,
+  'store_insights clamps days above 90');
+select is((store_insights('11111111-0000-0000-0000-00000000000a', 7) -> 'totals' ->> 'conversations')::int, 3,
+  'insights count store A conversations, not playground or store B');
+select is((store_insights('11111111-0000-0000-0000-00000000000a', 7) -> 'totals' ->> 'replies')::int, 1,
+  'insights count customer replies only (test runs excluded)');
+select is((store_insights('11111111-0000-0000-0000-00000000000a', 7) -> 'totals' ->> 'handoffs')::int, 1,
+  'insights count handoffs by handed_off_at (takeover did not add one)');
+select is((store_insights('11111111-0000-0000-0000-00000000000a', 7) -> 'totals' ->> 'orders')::int, 1,
+  'insights exclude cancelled orders from the order count');
+select is((store_insights('11111111-0000-0000-0000-00000000000a', 7) -> 'totals' ->> 'revenue_cents')::int, 1500,
+  'insights revenue excludes cancelled orders');
+select is(store_insights('11111111-0000-0000-0000-00000000000a', 7) -> 'top_products' -> 0 ->> 'name', 'Hoodie',
+  'top products lists the most ordered product first');
+select is((store_insights('11111111-0000-0000-0000-00000000000a', 7) -> 'top_products' -> 0 ->> 'quantity')::int, 3,
+  'top products sums quantity, excluding cancelled orders');
+select ok(pg_temp.raises($$select store_insights('22222222-0000-0000-0000-00000000000b', 7)$$),
+  'user A cannot read store B insights');
+select is((store_insights('11111111-0000-0000-0000-00000000000a', 7) ->> 'reply_credits')::int,
+  (select reply_credits from stores where id = '11111111-0000-0000-0000-00000000000a'),
+  'insights report the store reply credits');
+
+reset role;
+
+-- Final state (superuser): denied writes changed nothing.
+select is((select name from products where id = 'a2000000-0000-0000-0000-00000000000a'), 'Product A v2',
+  'a rejected save_product rolled back its product update');
+select is((select count(*) from products where name in ('Rolled back', 'Ghost', 'Not mine', 'Hacked')), 0::bigint,
+  'rejected save_product calls left no product rows');
+select is((select stock_quantity from product_variants where id = 'b3000000-0000-0000-0000-00000000000b'), 7,
+  'store B stock is unchanged by user A');
+
+-- Anon: no new function is executable without a session, and the grants are as intended.
+select ok(not has_function_privilege('anon', 'public.save_product(uuid,uuid,jsonb,jsonb)', 'execute'),
+  'anon cannot execute save_product');
+select ok(not has_function_privilege('anon', 'public.adjust_stock(uuid,integer)', 'execute'),
+  'anon cannot execute adjust_stock');
+select ok(not has_function_privilege('anon', 'public.inbox_list(uuid,text,text,integer,timestamptz,uuid)', 'execute'),
+  'anon cannot execute inbox_list');
+select ok(not has_function_privilege('anon', 'public.store_insights(uuid,integer)', 'execute'),
+  'anon cannot execute store_insights');
+select ok(has_function_privilege('authenticated', 'public.inbox_list(uuid,text,text,integer,timestamptz,uuid)', 'execute'),
+  'authenticated can execute inbox_list');
+
+set local role anon;
+select ok(pg_temp.write_denied($$select * from inbox_list('11111111-0000-0000-0000-00000000000a', null, null)$$),
+  'anon call to inbox_list is denied');
+reset role;
+
 select * from finish();
 rollback;
