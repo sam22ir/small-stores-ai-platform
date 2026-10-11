@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
 
     const { data: store, error: storeErr } = await db
       .from("stores")
-      .select("id,name,currency,business_info,agent_enabled,monthly_reply_limit,ai_monthly_token_limit,orders_enabled")
+      .select("id,name,currency,business_info,agent_enabled,monthly_reply_limit,ai_monthly_token_limit,orders_enabled,trial_ends_at,paid_until,billing_alerted_for")
       .eq("id", storeId)
       .maybeSingle();
     if (storeErr) throw storeErr;

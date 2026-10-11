@@ -32,6 +32,25 @@ Variables (public values, read at build time, so they are not secrets):
 
 Never put the service-role key or any `sb_secret_` / Cloudflare token in a variable or in the repo.
 
+## Subscription billing (Chargily Pay)
+
+Stores pay 1,000 DA per month. Two Edge Functions handle it: `billing-checkout` (owner starts a payment, returns the Chargily checkout URL) and `chargily-webhook` (Chargily's `checkout.paid` extends `stores.paid_until` by 30 days). Both are deployed with `verify_jwt = false` and check auth themselves.
+
+Edge Function secrets (set with `supabase secrets set`, never in the repo):
+
+| Name | Notes |
+| --- | --- |
+| `CHARGILY_SECRET_KEY` | Chargily Pay secret key. Test key while testing. It also verifies webhook signatures. |
+| `CHARGILY_API_BASE` | `https://pay.chargily.net/test/api/v2` for test, `https://pay.chargily.net/api/v2` for live. |
+| `BILLING_ENFORCED` | `true` turns on the subscription gate (expired trial or unpaid stores are handed to the owner). Leave unset until a live Chargily payment has been tested. Before turning it on, check `stores.trial_ends_at` for existing stores: it was set to 14 days after migration 0022 ran. |
+| `DASHBOARD_URL` | Already used by Instagram. Checkout returns to `<DASHBOARD_URL>/settings`. |
+
+Register the webhook endpoint `<SUPABASE_URL>/functions/v1/chargily-webhook` (it is also sent per checkout as `webhook_endpoint`).
+
+Migration `0020_billing.sql` adds `stores.plan_status`, `trial_ends_at` (14 days), `paid_until`, and the `payments` table. Existing stores start a 14-day trial when it is applied. Once the trial and the paid period (plus a 3-day grace) have ended, the assistant hands customer chats to the owner without calling the model, and the owner gets one Telegram alert per lapse.
+
+Going live: check the checkout fields and webhook signature once against a real test payment (see the notes in `supabase/functions/_shared/billing.ts`).
+
 ## Local run
 
 ```bash

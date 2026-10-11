@@ -14,6 +14,7 @@ import { errorKind } from "../agent/errors.ts";
 import type { AgentResult, ChatMessage } from "../agent/types.ts";
 import { supabaseCatalog, supabaseFaq, supabaseOrders } from "./ports.ts";
 import { claimCapAlert, getUsage, loadLookups } from "./usage.ts";
+import { billingState, claimBillingAlert } from "../billing.ts";
 import { announceOrders } from "./alerts.ts";
 import type { HandleInboundInput, HandleInboundResult, OwnerAlert } from "./types.ts";
 
@@ -97,7 +98,26 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
     };
   }
 
-  // 2. Monthly allowance (customer traffic only).
+  // 2. Subscription: after the trial and the paid period (plus grace), customers are handed to the
+  // owner without a model call. Same handling as the caps; the owner is alerted once per lapse.
+  // Off until BILLING_ENFORCED=true, so stores are never cut off before payments can be taken.
+  if (source === "customer" && input.env("BILLING_ENFORCED") === "true") {
+    const billing = billingState(store, input.now ?? new Date());
+    if (billing.blocked && billing.lapsedAt) {
+      const reason = "Subscription expired";
+      const reply = holdingReply(detectLang(input.text));
+      await record({ reply, model: "billing", provider: "none" }, { fast_path: true, error: null });
+      await db.from("conversations")
+        .update({ status: "human", handoff_reason: reason })
+        .eq("id", conversation.id);
+      if (await claimBillingAlert(db, store.id, billing.lapsedAt, store.billing_alerted_for)) {
+        alerts.push({ kind: "billing" });
+      }
+      return { ok: true, ...base, reply, status: "human", handoff: reason, limited: true };
+    }
+  }
+
+  // 3. Monthly allowance (customer traffic only).
   if (source === "customer") {
     const usage = await getUsage(
       db,
@@ -148,7 +168,7 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
     }
   }
 
-  // 3. The model.
+  // 4. The model.
   const env = input.env;
   const useOpenAICompatible = env("LLM_PROVIDER") === "openai-compatible";
   const primary = providerFromEnv(env, "LLM_");

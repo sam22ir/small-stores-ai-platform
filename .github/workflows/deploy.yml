@@ -67,7 +67,7 @@ jobs:
       # verify_jwt for each function comes from supabase/config.toml, so it is not passed here.
       - name: Deploy Edge Functions
         run: |
-          for fn in assistant-chat deliver-messages instagram-connect meta-webhook playground-chat telegram-webhook; do
+          for fn in assistant-chat billing-checkout chargily-webhook deliver-messages instagram-connect meta-webhook playground-chat telegram-webhook; do
             echo "Deploying $fn"
             supabase functions deploy "$fn"
           done
