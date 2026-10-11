@@ -3,6 +3,7 @@
 import { chromium } from "playwright-core";
 import { spawn } from "node:child_process";
 import { start, state, pushConversationChange } from "./mock.mjs";
+import { insightsFixture } from "./mock.mjs";
 
 // TEST_PORT lets several checkouts run the smoke test at once.
 const PORT = Number(process.env.TEST_PORT || 4173);
@@ -492,6 +493,91 @@ try {
     ok("signed-in visitor on the landing sees 'Go to inbox'", (await goInbox.count()) > 0);
     await goInbox.click();
     ok("'Go to inbox' navigates to /inbox", await page.waitForURL(/\/inbox/, { timeout: 5000 }).then(() => true, () => false));
+    await ctx.close();
+  }
+  // 13. insights: nav entry, range toggle, stat cards, empty state, Arabic, phone bottom bar
+  {
+    const card = async (pg, k) => ((await pg.textContent(`[data-testid=insights-stat-${k}] .text-2xl`)) || "").trim();
+    // Compares the stat cards with what the RPC fixture returns for the same window.
+    const cardsMatch = async (pg, want) => {
+      const t = want.totals;
+      const rate = t.conversations ? `${Math.round((100 * t.handoffs) / t.conversations)}%` : "0%";
+      return (await card(pg, "conversations")) === String(t.conversations)
+        && (await card(pg, "replies")) === String(t.replies)
+        && (await card(pg, "handoff")) === rate
+        && (await card(pg, "orders")) === String(t.orders)
+        && (await card(pg, "revenue")).replace(/\D/g, "") === String(t.revenue_cents / 100)
+        && (await card(pg, "credits")) === String(want.reply_credits);
+    };
+    const want7 = insightsFixture(7);
+    const want30 = insightsFixture(30);
+
+    ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
+    await page.goto(`http://127.0.0.1:${PORT}/login`);
+    await page.fill("#email", "owner@example.com"); await page.fill("#password", "password123");
+    await page.click("[data-testid=auth-submit]");
+    await page.waitForURL(/\/inbox/);
+    await page.click("a:has-text('Insights')");
+    await page.waitForURL(/\/insights/);
+    await page.waitForSelector("[data-testid=insights-stat-orders] .text-2xl");
+    ok("insights page is reachable from the nav", await page.isVisible("h1:has-text('Insights')"));
+    ok("stat cards show the 7-day totals from store_insights", await cardsMatch(page, want7));
+    ok("first load asks for 7 days", await logged((l) => l.includes("/rest/v1/rpc/store_insights") && l.includes('"p_days":7')));
+    ok("the bar charts have accessible labels and a data table", await page.isVisible("svg[role=img][aria-label^='Conversations per day']") && await page.locator("table.sr-only tbody tr").count() === 14);
+    await page.click("[role=tab]:has-text('30 days')");
+    ok("30-day toggle asks for 30 days", await logged((l) => l.includes("/rest/v1/rpc/store_insights") && l.includes('"p_days":30')));
+    await page.waitForFunction((n) => document.querySelector("[data-testid=insights-stat-orders] .text-2xl")?.textContent?.trim() === n, String(want30.totals.orders), { timeout: 3000 }).catch(() => {});
+    ok("the 30-day window holds more orders than the 7-day one", want30.totals.orders > want7.totals.orders);
+    ok("stat cards show the 30-day totals after the toggle", await cardsMatch(page, want30));
+    await page.screenshot({ path: OUT + "11-insights-30d.png" });
+
+    // An empty window shows the empty state instead of charts.
+    state.insightsEmpty = true;
+    await page.reload();
+    await page.waitForSelector("[data-testid=insights-empty]", { timeout: 5000 }).catch(() => {});
+    ok("an all-zero window shows the empty state and no charts", await page.isVisible("[data-testid=insights-empty]") && (await card(page, "conversations")) === "0" && (await page.locator("svg[role=img]").count()) === 0);
+    state.insightsEmpty = false;
+    ok("no runtime errors on the insights page", errors.length === 0);
+    if (errors.length) console.log(errors.join("\n"));
+
+    // Arabic: right-to-left page, Latin digits in the cards.
+    await page.selectOption("aside select", "ar");
+    await page.click("a:has-text('الإحصاءات')");
+    await page.waitForSelector("h1:has-text('الإحصاءات')");
+    await page.waitForSelector("[data-testid=insights-stat-orders] .text-2xl");
+    ok("Arabic insights page is right-to-left", (await page.evaluate(() => document.documentElement.dir)) === "rtl");
+    ok("Arabic insights keep Latin digits in the cards", (await card(page, "conversations")) === String(want7.totals.conversations));
+    await page.screenshot({ path: OUT + "11-insights-ar.png" });
+    ok("no runtime errors on the Arabic insights page", errors.length === 0);
+    if (errors.length) console.log(errors.join("\n"));
+    await ctx.close();
+
+    // Phone: six bottom tabs on one row, labels not clipped, no horizontal scroll.
+    ({ page, ctx, errors } = await newPage({ viewport: { width: 375, height: 760 }, locale: "fr-FR", isMobile: true, hasTouch: true }));
+    await page.goto(`http://127.0.0.1:${PORT}/login`);
+    await page.fill("#email", "owner@example.com"); await page.fill("#password", "password123");
+    await page.click("[data-testid=auth-submit]");
+    await page.waitForURL(/\/inbox/);
+    await page.waitForSelector("nav.fixed a:has-text('Stats')");
+    const bar = await page.evaluate(() => {
+      const links = [...document.querySelectorAll("nav.fixed a")];
+      const labels = links.map((a) => a.querySelector("span.truncate")).filter(Boolean);
+      return {
+        count: links.length,
+        labels: labels.length,
+        rows: new Set(links.map((a) => Math.round(a.getBoundingClientRect().top))).size,
+        inView: links.every((a) => { const r = a.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 1; }),
+        clipped: labels.filter((l) => l.scrollWidth > l.clientWidth + 1).length,
+      };
+    });
+    ok("phone bottom bar holds six tabs on one row at 375px", bar.count === 6 && bar.rows === 1 && bar.inView);
+    ok("phone bottom bar labels are not clipped at 375px", bar.labels === 6 && bar.clipped === 0);
+    await page.click("nav.fixed a:has-text('Stats')");
+    await page.waitForSelector("h1:has-text('Statistiques')");
+    ok("no horizontal scroll on the insights page on a phone", !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
+    await page.screenshot({ path: OUT + "11-insights-phone-fr.png" });
+    ok("no runtime errors on the phone insights page", errors.length === 0);
+    if (errors.length) console.log(errors.join("\n"));
     await ctx.close();
   }
 } catch (e) {

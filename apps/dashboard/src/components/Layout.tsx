@@ -9,7 +9,7 @@ import type { TKey } from "../lib/i18n";
 import { useConversationsRefresh, useStore } from "../lib/store";
 import { dur, ease, useMotionSafe } from "../lib/motion";
 import { LangSwitch } from "./LangSwitch";
-import { BoxIcon, ChatIcon, GearIcon, LogoutIcon, OrdersIcon, SparkIcon } from "./icons";
+import { BoxIcon, ChatIcon, GearIcon, InsightsIcon, LogoutIcon, OrdersIcon, SparkIcon } from "./icons";
 
 const NAV: { to: string; key: TKey; icon: ReactNode }[] = [
   { to: "/inbox", key: "nav.inbox", icon: <ChatIcon /> },
@@ -17,6 +17,7 @@ const NAV: { to: string; key: TKey; icon: ReactNode }[] = [
   { to: "/catalog", key: "nav.catalog", icon: <BoxIcon /> },
   { to: "/assistant", key: "nav.assistant", icon: <SparkIcon /> },
   { to: "/settings", key: "nav.settings", icon: <GearIcon /> },
+  { to: "/insights", key: "nav.insights", icon: <InsightsIcon /> },
 ];
 
 // Pause / resume the assistant. The switch flips at once and reverts if the write fails.
@@ -196,10 +197,10 @@ export function Layout() {
         </div>
 
         {/* Phone bottom tab bar (< 1024px) */}
-        <nav aria-label={t("app.name")} className="pb-[env(safe-area-inset-bottom)] fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t-2 border-ink bg-slip lg:hidden">
+        <nav aria-label={t("app.name")} className="pb-[env(safe-area-inset-bottom)] fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t-2 border-ink bg-slip lg:hidden">
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to}
-              className={({ isActive }) => `relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-xs leading-tight no-underline transition-colors duration-150 ${isActive ? "font-bold text-blue" : "font-medium text-soft"}`}>
+              className={({ isActive }) => `relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0 py-1.5 text-[10px] leading-tight no-underline transition-colors duration-150 ${isActive ? "font-bold text-blue" : "font-medium text-soft"}`}>
               {({ isActive }) => (
                 <>
                   {isActive && <m.span layoutId="tab-active" aria-hidden="true" className="absolute inset-x-3 top-0 h-[3px] rounded-full bg-red"
