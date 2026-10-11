@@ -356,11 +356,13 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
   } finally {
     // The credit paid for a reply that never reached the customer: give it back.
     if (creditSpent && !runRecorded) {
+      const failed = (err: unknown) =>
+        console.error(JSON.stringify({ event: "reply_credit_refund_failed", store_id: store.id, error_kind: errorKind(err) }));
       try {
         const { error } = await db.rpc("add_reply_credits", { p_store_id: store.id, p_n: 1 });
-        if (error) throw error;
+        if (error) failed(error);
       } catch (err) {
-        console.error(JSON.stringify({ event: "reply_credit_refund_failed", store_id: store.id, error_kind: errorKind(err) }));
+        failed(err);
       }
     }
   }
