@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getUsage, handleInbound, type StoreSettings } from "./pipeline.ts";
+import { creditRpc } from "./testing/memdb.ts";
 
 // A tiny in-memory stand-in for the parts of supabase-js the pipeline uses.
 type Row = Record<string, unknown>;
@@ -112,13 +113,19 @@ class Query {
 // Conversation locks, shared with the tests so they can hold or free them.
 const locks = new Set<string>();
 const rpcCalls: string[] = [];
+// Makes consume_reply_credit / add_reply_credits fail, as if the database were unreachable.
+let creditRpcError = false;
 
 function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
   return {
     from: (t: string) => new Query(tables, t),
-    rpc: (name: string, args: { p_conversation_id: string }) => {
+    rpc: (name: string, args: Record<string, unknown>) => {
       rpcCalls.push(name);
-      const id = args.p_conversation_id;
+      if (name === "consume_reply_credit" || name === "add_reply_credits") {
+        if (creditRpcError) return Promise.resolve({ data: null, error: { message: "rpc unavailable" } });
+        return Promise.resolve(creditRpc(tables, name, args) ?? { data: null, error: null });
+      }
+      const id = args.p_conversation_id as string;
       if (name === "claim_conversation") {
         if (locks.has(id)) return Promise.resolve({ data: false, error: null });
         locks.add(id);
@@ -177,6 +184,7 @@ afterEach(() => {
   globalThis.fetch = realFetch;
   locks.clear();
   rpcCalls.length = 0;
+  creditRpcError = false;
 });
 
 function stubLlm(reply: string, calls: { n: number }) {
@@ -621,6 +629,113 @@ test("an owner alert that fails does not change the customer's reply", async () 
   assert.ok(r.ok && r.degraded);
   await settle();
   assert.equal(tables.messages.filter((m) => m.sender === "agent").length, 1);
+});
+
+// --- Reply credits ----------------------------------------------------------------------------
+
+// Two customer replies this month: the included allowance (monthly_reply_limit 2) is spent.
+const spentAllowance = (extra: Row = {}) =>
+  [0, 1].map((i) => ({
+    store_id: "s1",
+    source: "customer",
+    fast_path: false,
+    error: null,
+    created_at: new Date().toISOString(),
+    _seq: i,
+    ...extra,
+  }));
+
+const creditCalls = () => rpcCalls.filter((name) => name.includes("credit"));
+
+// The store row the RPCs act on, and the settings the pipeline reads (the same balance).
+function withCredits(tables: Record<string, Row[]>, credits: number): Partial<StoreSettings> {
+  tables.stores = [{ id: "s1", reply_credits: credits, _seq: 0 }];
+  return { reply_credits: credits };
+}
+
+test("limit hit with credits: the reply is sent, one credit is spent, the run is marked used_credit", async () => {
+  const { tables, input } = setup({ runs: spentAllowance() });
+  const credits = withCredits(tables, 1);
+  const calls = { n: 0 };
+  stubLlm("Yes, we ship to Oran.", calls);
+  const r = await handleInbound(input("do you ship to Oran?", "customer", credits));
+  assert.ok(r.ok && !r.limited && r.reply === "Yes, we ship to Oran.");
+  assert.equal(calls.n, 1);
+  assert.equal(tables.stores[0].reply_credits, 0);
+  const run = tables.agent_runs.at(-1);
+  assert.equal(run?.used_credit, true);
+  assert.equal(run?.error, null);
+  assert.deepEqual(creditCalls(), ["consume_reply_credit"]);
+});
+
+test("limit hit with no credits: the hand-off happens as before and no credit is touched", async () => {
+  const { tables, input } = setup({ runs: spentAllowance() });
+  const credits = withCredits(tables, 0);
+  const calls = { n: 0 };
+  stubLlm("nope", calls);
+  const r = await handleInbound(input("do you ship to Oran?", "customer", credits));
+  assert.ok(r.ok && r.limited && /limit/i.test(String(r.handoff)));
+  assert.equal(calls.n, 0);
+  assert.equal(tables.stores[0].reply_credits, 0);
+  assert.deepEqual(creditCalls(), []);
+});
+
+test("a credit spent on a reply that then fails is refunded", async () => {
+  const { tables, input } = setup({ runs: spentAllowance() });
+  const credits = withCredits(tables, 1);
+  globalThis.fetch = (() => Promise.resolve(new Response("down", { status: 500 }))) as typeof fetch;
+  const r = await handleInbound(input("do you ship to Oran?", "customer", credits));
+  assert.ok(r.ok && r.degraded);
+  assert.equal(tables.stores[0].reply_credits, 1, "balance restored");
+  assert.deepEqual(creditCalls(), ["consume_reply_credit", "add_reply_credits"]);
+  assert.equal(tables.agent_runs.filter((run) => run.used_credit === true && !run.error).length, 0);
+});
+
+test("the credit rpc fails: the limit hand-off, no model call and no free reply", async () => {
+  const { tables, input } = setup({ runs: spentAllowance() });
+  const credits = withCredits(tables, 1);
+  creditRpcError = true;
+  const calls = { n: 0 };
+  stubLlm("nope", calls);
+  const r = await handleInbound(input("do you ship to Oran?", "customer", credits));
+  assert.ok(r.ok && r.limited && /limit/i.test(String(r.handoff)));
+  assert.equal(calls.n, 0);
+  assert.equal(tables.stores[0].reply_credits, 1);
+  assert.equal(tables.conversations[0].status, "human");
+});
+
+test("the token cap still blocks a credit reply: no credit spent", async () => {
+  const runs = [
+    ...spentAllowance({ input_tokens: 60, output_tokens: 60 }),
+  ];
+  const { tables, input } = setup({ runs });
+  const credits = withCredits(tables, 1);
+  const calls = { n: 0 };
+  stubLlm("nope", calls);
+  const r = await handleInbound({ ...input("do you ship to Oran?", "customer", { ...credits, ai_monthly_token_limit: 100 }), notify: () => Promise.resolve(true) });
+  assert.ok(r.ok && r.limited);
+  assert.match(String(r.ok ? r.handoff : ""), /token cap/i);
+  assert.equal(calls.n, 0);
+  assert.equal(tables.stores[0].reply_credits, 1, "balance unchanged");
+  assert.ok(!rpcCalls.includes("consume_reply_credit"));
+});
+
+test("credit-paid replies don't count toward the token cap, but still count as replies", async () => {
+  const runs = spentAllowance({ used_credit: true, input_tokens: 90, output_tokens: 10 });
+  const { tables, input } = setup({ runs });
+  const credits = withCredits(tables, 1);
+  const usage = await getUsage(fakeDb(tables), "s1", 2, new Date(), 100);
+  assert.equal(usage.used, 2);
+  assert.equal(usage.exceeded, true);
+  assert.equal(usage.tokens.used, 0);
+  assert.equal(usage.tokens.exceeded, false);
+
+  const calls = { n: 0 };
+  stubLlm("Oui, on livre à Oran.", calls);
+  const r = await handleInbound(input("do you ship to Oran?", "customer", { ...credits, ai_monthly_token_limit: 100 }));
+  assert.ok(r.ok && !r.limited && r.reply === "Oui, on livre à Oran.");
+  assert.equal(calls.n, 1);
+  assert.equal(tables.stores[0].reply_credits, 0);
 });
 
 // Fake provider: replies in order and records each request body.

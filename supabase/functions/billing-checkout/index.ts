@@ -1,9 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
-import { PRICE_DZD } from "../_shared/billing.ts";
+import { CREDIT_PACKS, PRICE_DZD } from "../_shared/billing.ts";
 
-// Starts a subscription payment for a store (1,000 DA per month).
+// Starts a payment for a store: the monthly subscription (1,000 DA), or a reply-credit pack.
 //   POST {"store_id"} with the owner's JWT -> {"checkout_url"} to send the browser to
+//   POST {"store_id", "pack": "500" | "2000" | "5000"} -> a credit pack (price from CREDIT_PACKS)
 // Deployed with verify_jwt = false: the function checks the JWT and the owner role itself.
 //
 // Secrets: CHARGILY_SECRET_KEY, CHARGILY_API_BASE (https://pay.chargily.net/test/api/v2 for test,
@@ -24,6 +25,19 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...CORS } });
 
+// Best effort: never throws, so the caller's own error is what the owner sees.
+async function expireCheckout(base: string, secret: string, checkoutId: string): Promise<void> {
+  try {
+    const res = await fetch(`${base}/checkouts/${encodeURIComponent(checkoutId)}/expire`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${secret}`, accept: "application/json" },
+    });
+    if (!res.ok) console.error("chargily checkout expire failed", res.status);
+  } catch {
+    console.error("chargily checkout expire failed: network");
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -41,6 +55,14 @@ Deno.serve(async (req) => {
   }
   const storeId = body.store_id;
   if (typeof storeId !== "string" || !UUID.test(storeId)) return json({ error: "store_id must be a uuid" }, 400);
+
+  // No pack = the monthly subscription. A pack must be one of the sizes in CREDIT_PACKS.
+  let pack: { credits: number; price: number } | null = null;
+  if (body.pack !== undefined && body.pack !== null) {
+    const key = typeof body.pack === "string" || typeof body.pack === "number" ? String(body.pack) : "";
+    if (!Object.hasOwn(CREDIT_PACKS, key)) return json({ error: "pack must be one of 500, 2000, 5000" }, 400);
+    pack = { credits: Number(key), price: CREDIT_PACKS[key] };
+  }
 
   try {
     const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
@@ -68,11 +90,13 @@ Deno.serve(async (req) => {
         accept: "application/json",
       },
       body: JSON.stringify({
-        amount: PRICE_DZD,
+        amount: pack ? pack.price : PRICE_DZD,
         currency: "dzd",
         payment_method: "edahabia",
         locale: "fr",
-        description: "Store Assistant subscription, 1 month",
+        description: pack
+          ? `Store Assistant, ${pack.credits} reply credits`
+          : "Store Assistant subscription, 1 month",
         success_url: `${dashboard}/settings?billing=success`,
         failure_url: `${dashboard}/settings?billing=failed`,
         webhook_endpoint: `${env("SUPABASE_URL")}/functions/v1/chargily-webhook`,
@@ -89,14 +113,31 @@ Deno.serve(async (req) => {
       return json({ error: "Payment provider unavailable" }, 502);
     }
 
-    const { error: insErr } = await db.from("payments").insert({
-      store_id: storeId,
-      checkout_id: checkout.id,
-      amount: PRICE_DZD,
-      currency: "dzd",
-      status: "pending",
-    });
-    if (insErr) throw insErr;
+    const { error: insErr } = await db.from("payments").insert(
+      pack
+        ? {
+          store_id: storeId,
+          checkout_id: checkout.id,
+          amount: pack.price,
+          currency: "dzd",
+          status: "pending",
+          kind: "credits",
+          credits: pack.credits,
+        }
+        : {
+          store_id: storeId,
+          checkout_id: checkout.id,
+          amount: PRICE_DZD,
+          currency: "dzd",
+          status: "pending",
+        },
+    );
+    if (insErr) {
+      // Chargily already created the checkout but we can't track it: expire it so it can't be paid
+      // unrecorded. Best effort; the error is still returned below.
+      await expireCheckout(base, secret, checkout.id);
+      throw insErr;
+    }
 
     return json({ checkout_url: checkout.checkout_url });
   } catch (err) {

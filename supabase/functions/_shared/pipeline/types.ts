@@ -7,6 +7,8 @@ export interface StoreSettings extends StoreContext {
   agent_enabled: boolean;
   monthly_reply_limit: number;
   ai_monthly_token_limit?: number | null; // null = unlimited
+  // Bought replies left over (see 0023_reply_credits.sql). Used once the monthly allowance is spent.
+  reply_credits?: number;
   // Subscription state (see _shared/billing.ts). Missing = not enforced.
   trial_ends_at?: string | null;
   paid_until?: string | null;

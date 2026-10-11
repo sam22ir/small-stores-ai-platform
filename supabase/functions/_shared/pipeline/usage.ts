@@ -88,7 +88,7 @@ export async function getUsage(
   for (let from = 0; ; from += USAGE_PAGE) {
     const { data, error: convErr } = await db
       .from("agent_runs")
-      .select("conversation_id,input_tokens,output_tokens")
+      .select("conversation_id,input_tokens,output_tokens,used_credit")
       .eq("store_id", storeId)
       .eq("source", "customer")
       .eq("fast_path", false)
@@ -101,9 +101,13 @@ export async function getUsage(
       conversation_id: string;
       input_tokens?: number | null;
       output_tokens?: number | null;
+      used_credit?: boolean | null;
     }[];
     for (const r of rows) {
       conversationIds.add(r.conversation_id);
+      // A reply paid with a bought credit is outside the token cap (it is a safety net for the
+      // included replies only). It still counts as a reply above.
+      if (r.used_credit) continue;
       tokensUsed += (r.input_tokens ?? 0) + (r.output_tokens ?? 0);
     }
     if (rows.length < USAGE_PAGE) break;

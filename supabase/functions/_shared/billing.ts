@@ -1,12 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Subscription billing: 1,000 DA per store per month, paid through Chargily Pay (V2 API).
-// Pure helpers (signature, period math, gate) and the database writes the functions need.
+// Reply-credit packs are bought the same way. Pure helpers (signature, gate) and the database writes.
 
 export const PRICE_DZD = 1000;
-export const PERIOD_DAYS = 30;
 export const GRACE_DAYS = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Reply-credit packs: pack size (credits) -> price in DZD. Server-side only: the client sends the
+// pack size, never a price. Paid periods and credits are granted by SQL (apply_paid_checkout).
+export const CREDIT_PACKS: Readonly<Record<string, number>> = { "500": 300, "2000": 1000, "5000": 2000 };
 
 const enc = new TextEncoder();
 
@@ -37,15 +40,6 @@ export async function signatureMatches(rawBody: string, signature: string | null
   const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(rawBody)));
   return constantTimeEqual(toHex(mac), signature.trim().toLowerCase());
-}
-
-// --- Period math -------------------------------------------------------------------------------
-
-// A payment extends the paid period by 30 days from the later of now and the current paid_until,
-// so paying early never loses the days already bought.
-export function computePaidUntil(currentPaidUntil: Date | null, now: Date): Date {
-  const start = currentPaidUntil && currentPaidUntil.getTime() > now.getTime() ? currentPaidUntil : now;
-  return new Date(start.getTime() + PERIOD_DAYS * DAY_MS);
 }
 
 // --- Gate --------------------------------------------------------------------------------------
@@ -99,57 +93,23 @@ export async function claimBillingAlert(
 // --- Webhook: checkout.paid --------------------------------------------------------------------
 
 export type PaidOutcome =
-  | { result: "paid"; storeId: string; paidUntil: string }
+  | { result: "paid"; kind: "subscription"; store_id: string; paid_until: string }
+  | { result: "paid"; kind: "credits"; store_id: string; reply_credits: number }
   | { result: "duplicate" }
   | { result: "unknown_checkout" };
 
-// Idempotent on the checkout id. The pending -> paid change is a conditional update, so only one
-// delivery wins it and extends the period. If extending fails, the payment goes back to pending so
-// Chargily's retry can finish the job.
-export async function applyCheckoutPaid(db: SupabaseClient, checkoutId: string, now: Date): Promise<PaidOutcome> {
-  const { data: claimed, error: claimErr } = await db
-    .from("payments")
-    .update({ status: "paid", updated_at: now.toISOString() })
-    .eq("checkout_id", checkoutId)
-    .eq("status", "pending")
-    .select("store_id")
-    .maybeSingle();
-  if (claimErr) throw claimErr;
-  if (!claimed) {
-    const { data: existing, error: findErr } = await db
-      .from("payments").select("id").eq("checkout_id", checkoutId).maybeSingle();
-    if (findErr) throw findErr;
-    return existing ? { result: "duplicate" } : { result: "unknown_checkout" };
+// Idempotent on the checkout id. One SQL call (apply_paid_checkout) claims the payment and grants what
+// it bought in a single transaction: a repeat is "duplicate", and a failure rolls the claim back so
+// Chargily's retry finishes the job. Throws on a database error (the webhook then answers 500).
+export async function applyCheckoutPaid(db: SupabaseClient, checkoutId: string): Promise<PaidOutcome> {
+  const { data, error } = await db.rpc("apply_paid_checkout", { p_checkout_id: checkoutId });
+  if (error) throw new Error(`apply_paid_checkout failed: ${error.message}`);
+  const outcome = data as PaidOutcome | null;
+  if (!outcome || typeof outcome.result !== "string") throw new Error("apply_paid_checkout returned no result");
+  if (outcome.result === "unknown_checkout") {
+    console.error(JSON.stringify({ event: "checkout_unknown", checkout_id: checkoutId }));
   }
-
-  const storeId = (claimed as { store_id: string }).store_id;
-  try {
-    const paidUntil = await extendPaidUntil(db, storeId, now);
-    return { result: "paid", storeId, paidUntil };
-  } catch (err) {
-    await db.from("payments").update({ status: "pending" }).eq("checkout_id", checkoutId);
-    throw err;
-  }
-}
-
-// Two payments for one store can land at once, so the write only succeeds if paid_until is still
-// what was read. Retries a few times, then gives up (the caller rolls the payment back).
-async function extendPaidUntil(db: SupabaseClient, storeId: string, now: Date): Promise<string> {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const { data: row, error } = await db.from("stores").select("paid_until").eq("id", storeId).maybeSingle();
-    if (error) throw error;
-    if (!row) throw new Error("store not found for payment");
-    const current = (row as { paid_until: string | null }).paid_until;
-    const next = computePaidUntil(current ? new Date(current) : null, now).toISOString();
-    const base = db.from("stores").update({ plan_status: "active", paid_until: next }).eq("id", storeId);
-    const { data: updated, error: updErr } = await (current
-      ? base.eq("paid_until", current)
-      : base.is("paid_until", null)
-    ).select("id").maybeSingle();
-    if (updErr) throw updErr;
-    if (updated) return next;
-  }
-  throw new Error("paid_until update kept losing a race");
+  return outcome;
 }
 
 // checkout.failed / checkout.canceled: only moves a payment that is still pending.
