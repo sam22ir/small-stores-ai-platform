@@ -45,6 +45,9 @@ export const state = {
       order_items: [ { id: "i1", name: "Black Hoodie", variant_label: "M", quantity: 2, unit_price_cents: 450000 } ] },
     { id: "o2", customer_name: "Lina S", phone: "0661000000", wilaya: "Alger", address: "Hydra", subtotal_cents: 320000, delivery_fee_cents: 40000, total_cents: 360000, status: "shipped", created_at: "2026-10-03T19:00:00Z",
       order_items: [ { id: "i2", name: "Leather Wallet", variant_label: "Brown", quantity: 1, unit_price_cents: 320000 } ] },
+    // Older than 7 days: counted in the 30-day insights only.
+    { id: "o3", customer_name: "Nadia K", phone: "0770000000", wilaya: "Blida", address: "Centre", subtotal_cents: 120000, delivery_fee_cents: 0, total_cents: 120000, status: "delivered", created_at: "2026-09-21T10:00:00Z",
+      order_items: [ { id: "i3", name: "Canvas Tote", variant_label: "Default", quantity: 1, unit_price_cents: 120000 } ] },
   ],
   fees: [ { id: "f1", wilaya: "Alger", fee_cents: 40000 } ],
   faq: [ { id: "q1", question: "Do you gift wrap?", answer: "Yes, free of charge.", created_at: "2026-10-03T10:00:00Z" } ],
@@ -54,10 +57,50 @@ export const state = {
   bulk: false, // true adds bulkChats to the conversation lists
   deliverMode: "ok", // "fail" makes deliver-messages report a closed 24-hour window; "skip" leaves replies pending
   startStatus: 200, // 503 = Instagram connection not configured on the server
+  insightsEmpty: false, // true makes store_insights report an empty window
   log: [],
 };
 
 const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS", "access-control-expose-headers": "*" };
+
+// store_insights stand-in, built from the same rows the Inbox and Orders pages show: playground chats and
+// cancelled orders are left out, and a handoff counts when the conversation has a handoff reason.
+// The window is measured from a fixed day, not the clock, because the fixture dates are fixed. With that
+// anchor the 7-day window holds the Oct 3-4 rows and the 30-day window also holds the Sep 21 order.
+const INSIGHTS_NOW = Date.parse("2026-10-06T00:00:00Z");
+const DAY_MS = 86400000;
+export function insightsFixture(days) {
+  const n = Math.min(Math.max(Number(days) || 7, 1), 90);
+  const series = Array.from({ length: n }, (_, i) => ({
+    day: new Date(INSIGHTS_NOW - (n - 1 - i) * DAY_MS).toISOString().slice(0, 10),
+    conversations: 0, replies: 0, handoffs: 0, orders: 0, revenue_cents: 0,
+  }));
+  // Returns the day bucket for a timestamp, or null when it falls outside the window.
+  const slot = (iso) => {
+    const age = Math.floor((INSIGHTS_NOW - Date.parse(iso)) / DAY_MS);
+    return age >= 0 && age < n ? series[n - 1 - age] : null;
+  };
+  const empty = state.insightsEmpty === true;
+  const chats = empty ? [] : state.conversations.filter((c) => c.channels?.platform !== "playground");
+  for (const c of chats) { const d = slot(c.created_at); if (d) d.conversations++; }
+  for (const c of chats) { const d = c.handoff_reason ? slot(c.created_at) : null; if (d) d.handoffs++; }
+  if (!empty) for (const m of state.messages) {
+    if (m.direction !== "inbound" || m.sender !== "customer") continue;
+    const d = slot(m.created_at); if (d) d.replies++;
+  }
+  const sales = empty ? [] : state.orders.filter((o) => o.status !== "cancelled");
+  for (const o of sales) { const d = slot(o.created_at); if (d) { d.orders++; d.revenue_cents += o.total_cents; } }
+  const totals = { conversations: 0, replies: 0, handoffs: 0, orders: 0, revenue_cents: 0 };
+  for (const d of series) for (const k of Object.keys(totals)) totals[k] += d[k];
+  const sold = new Map();
+  for (const o of sales) {
+    if (!slot(o.created_at)) continue;
+    for (const i of o.order_items) sold.set(i.name, (sold.get(i.name) || 0) + i.quantity);
+  }
+  const top_products = [...sold].map(([name, quantity]) => ({ name, quantity }))
+    .sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name)).slice(0, 5);
+  return { days: series, totals, top_products, reply_credits: state.store.reply_credits };
+}
 
 // Realtime: a minimal Phoenix-channel websocket. It accepts joins, answers heartbeats, and can push
 // a postgres_changes event for the conversations table to every joined client (see pushConversationChange).
@@ -224,6 +267,10 @@ export function start(port = Number(process.env.MOCK_PORT || 54321)) {
       if (url.pathname.startsWith("/rest/v1/rpc/inbox_list")) {
         const { p_status, p_search, p_limit, p_before_at, p_before_id } = JSON.parse(body || "{}");
         return send(200, inboxRows({ status: p_status, search: p_search, limit: p_limit ?? 50, beforeAt: p_before_at ?? null, beforeId: p_before_id ?? null }));
+      }
+      if (url.pathname.startsWith("/rest/v1/rpc/store_insights")) {
+        const { p_days } = JSON.parse(body || "{}");
+        return send(200, insightsFixture(p_days));
       }
       if (url.pathname.startsWith("/rest/v1/rpc/set_order_status")) {
         const { p_order_id, p_status } = JSON.parse(body);

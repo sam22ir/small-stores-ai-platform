@@ -793,6 +793,10 @@ export type Database = {
         Args: { p_order_id: string; p_status: string }
         Returns: string
       }
+      store_insights: {
+        Args: { p_store_id: string; p_days: number }
+        Returns: Json
+      }
       telegram_link: {
         Args: { p_store_id: string }
         Returns: { connected: boolean; code: string }
