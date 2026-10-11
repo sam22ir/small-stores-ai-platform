@@ -766,6 +766,29 @@ export type Database = {
       }
       is_store_member: { Args: { p_store_id: string }; Returns: boolean }
       is_store_owner: { Args: { p_store_id: string }; Returns: boolean }
+      inbox_list: {
+        Args: {
+          p_store_id: string
+          p_status: string | null
+          p_search: string | null
+          p_limit?: number
+          p_before_at?: string | null
+          p_before_id?: string | null
+        }
+        Returns: {
+          id: string
+          status: string
+          handoff_reason: string | null
+          last_customer_message_at: string | null
+          created_at: string
+          customer_name: string | null
+          platform_user_id: string
+          platform: string
+          last_body: string | null
+          last_direction: string | null
+          last_message_at: string | null
+        }[]
+      }
       set_order_status: {
         Args: { p_order_id: string; p_status: string }
         Returns: string

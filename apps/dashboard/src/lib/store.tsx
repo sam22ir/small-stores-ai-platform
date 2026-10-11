@@ -44,10 +44,10 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
 
 export const useStore = () => useContext(Ctx);
 
-// Calls `refresh` when conversations of this store change (Supabase realtime), so screens stay fresh
-// without reloads. Polling is the fallback: every 60 s while the subscription is live, every 15 s when
-// it is not (not subscribed yet, or realtime errored).
-export function useConversationsRefresh(storeId: string | undefined, refresh: () => void) {
+// Calls `refresh` when rows of `table` that match `filter` change (Supabase realtime), so screens stay
+// fresh without reloads. Polling is the fallback: every 60 s while the subscription is live, every 15 s
+// when it is not (not subscribed yet, or realtime errored). Pass no filter to skip the subscription.
+export function useRealtimeRefresh(table: string, filter: string | undefined, refresh: () => void) {
   const instance = useId().replace(/[^a-zA-Z0-9]/g, "");
   const refreshRef = useRef(refresh);
   const [live, setLive] = useState(false);
@@ -55,12 +55,12 @@ export function useConversationsRefresh(storeId: string | undefined, refresh: ()
   useEffect(() => { refreshRef.current = refresh; }, [refresh]);
 
   useEffect(() => {
-    if (!storeId) return;
+    if (!filter) return;
     let timer: number | undefined;
     // Unique channel name per hook instance: realtime-js shares channels that have the same topic.
     const channel = supabase
-      .channel(`conversations-${storeId}-${instance}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "conversations", filter: `store_id=eq.${storeId}` }, () => {
+      .channel(`${table}-${filter.replace(/[^a-zA-Z0-9]/g, "")}-${instance}`)
+      .on("postgres_changes", { event: "*", schema: "public", table, filter }, () => {
         window.clearTimeout(timer);
         timer = window.setTimeout(() => refreshRef.current(), 300);
       })
@@ -70,10 +70,15 @@ export function useConversationsRefresh(storeId: string | undefined, refresh: ()
       setLive(false);
       void supabase.removeChannel(channel);
     };
-  }, [storeId, instance]);
+  }, [table, filter, instance]);
 
   useEffect(() => {
     const id = window.setInterval(() => { if (!document.hidden) refreshRef.current(); }, live ? 60_000 : 15_000);
     return () => window.clearInterval(id);
   }, [live]);
+}
+
+// Conversations of one store (the inbox badge and list).
+export function useConversationsRefresh(storeId: string | undefined, refresh: () => void) {
+  useRealtimeRefresh("conversations", storeId ? `store_id=eq.${storeId}` : undefined, refresh);
 }

@@ -6,6 +6,7 @@ import { Avatar, Button, Switch, Toast } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
+import { countConversations } from "../lib/inbox";
 import { useConversationsRefresh, useStore } from "../lib/store";
 import { dur, ease, useMotionSafe } from "../lib/motion";
 import { LangSwitch } from "./LangSwitch";
@@ -116,11 +117,8 @@ export function Layout() {
   // Chats that are waiting for the owner. Test chats (playground channel) are not customers.
   const loadNeeds = useCallback(async () => {
     if (!storeId) return;
-    const { data, error } = await supabase.from("conversations")
-      .select("id,channels(platform)").eq("store_id", storeId).eq("status", "human").limit(500);
-    if (error || !data) return;
-    const rows = data as unknown as { channels: { platform: string } | null }[];
-    setNeeds(rows.filter((r) => r.channels?.platform !== "playground").length);
+    const n = await countConversations(storeId, "human");
+    if (n !== null) setNeeds(n);
   }, [storeId]);
 
   useEffect(() => { void loadNeeds(); }, [loadNeeds]);

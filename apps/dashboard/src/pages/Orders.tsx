@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, m } from "motion/react";
-import { Alert, Button, Chip, toast } from "@heroui/react";
+import { Alert, Button, Chip, Input, toast } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
-import { useStore } from "../lib/store";
+import { useRealtimeRefresh, useStore } from "../lib/store";
 import { formatMoney, formatTime } from "../lib/format";
 import { buildOrderMessage, whatsappUrl } from "../lib/orderMessage";
+import { ilikeOr } from "../lib/search";
 import { dur, ease, useMotionSafe } from "../lib/motion";
 
 type Status = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
@@ -23,6 +24,8 @@ type Order = {
   created_at: string;
   order_items: { id: string; name: string; variant_label: string; quantity: number; unit_price_cents: number }[];
 };
+// Orders per page: the first page on load, then one more page per "Load more".
+const PAGE = 50;
 
 const TABS: Status[] = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
 const STATUS_KEY: Record<Status, TKey> = {
@@ -63,17 +66,36 @@ function StatusChip({ status, label }: { status: Status; label: string }) {
   );
 }
 
+// One tab's orders, newest first, from `from` to `to` (inclusive). Search matches name or phone.
+function ordersPage(storeId: string, status: Status, term: string, from: number, to: number) {
+  const q = supabase.from("orders")
+    .select("id,customer_name,phone,wilaya,address,subtotal_cents,delivery_fee_cents,total_cents,status,created_at,order_items(id,name,variant_label,quantity,unit_price_cents)")
+    .eq("store_id", storeId).eq("status", status)
+    .order("created_at", { ascending: false }).order("id", { ascending: false })
+    .range(from, to);
+  return term ? q.or(ilikeOr(["customer_name", "phone"], term)) : q;
+}
+
 export function Orders() {
   const { t, lang } = useI18n();
   const reduced = useMotionSafe();
   const { store } = useStore();
+  const storeId = store!.id;
   const currency = store!.currency;
   const [tab, setTab] = useState<Status>("pending");
-  const [orders, setOrders] = useState<Order[] | null>(null);
+  const [query, setQuery] = useState("");
+  // The search term, 300 ms after the owner stops typing.
+  const [term, setTerm] = useState("");
+  const [list, setList] = useState<{ rows: Order[]; hasMore: boolean } | null>(null);
+  const [counts, setCounts] = useState<Record<Status, number> | null>(null);
   const [failed, setFailed] = useState(false);
+  const [moreBusy, setMoreBusy] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  // Each load gets a number; only the newest one may write the screen.
+  const seqRef = useRef(0);
+  const listRef = useRef<{ rows: Order[]; hasMore: boolean } | null>(null);
 
   const messageFor = (o: Order) => buildOrderMessage(o, {
     greeting: (name) => t("orders.msg.greeting", { name }),
@@ -92,36 +114,67 @@ export function Orders() {
     }
   }
 
-  const load = useCallback(async () => {
-    const { data, error: err } = await supabase
-      .from("orders")
-      .select("id,customer_name,phone,wilaya,address,subtotal_cents,delivery_fee_cents,total_cents,status,created_at,order_items(id,name,variant_label,quantity,unit_price_cents)")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (err) { setFailed(true); return; }
-    setOrders(data as unknown as Order[]); setFailed(false);
-  }, []);
-
   useEffect(() => {
-    void load();
-    const id = window.setInterval(() => { if (!document.hidden) void load(); }, 15000);
-    return () => window.clearInterval(id);
-  }, [load]);
+    const id = window.setTimeout(() => setTerm(query.trim()), 300);
+    return () => window.clearTimeout(id);
+  }, [query]);
+
+  useEffect(() => { listRef.current = list; }, [list]);
+
+  // Reloads the tab and the counts. A reset starts over at one page; a refresh re-reads the rows already
+  // loaded, so "Load more" pages survive a realtime or polling refresh.
+  const load = useCallback(async (reset: boolean) => {
+    const seq = ++seqRef.current;
+    const want = reset ? PAGE : Math.max(PAGE, listRef.current?.rows.length ?? 0);
+    if (reset) setList(null);
+    const [page, counted] = await Promise.all([
+      ordersPage(storeId, tab, term, 0, want - 1),
+      Promise.all(TABS.map((s) => supabase.from("orders").select("id", { count: "exact", head: true }).eq("store_id", storeId).eq("status", s))),
+    ]);
+    if (seq !== seqRef.current) return;
+    if (page.error || counted.some((c) => c.error)) { setFailed(true); return; }
+    const rows = (page.data ?? []) as unknown as Order[];
+    setList({ rows, hasMore: rows.length === want });
+    setCounts(Object.fromEntries(TABS.map((s, i) => [s, counted[i].count ?? 0])) as Record<Status, number>);
+    setFailed(false);
+  }, [storeId, tab, term]);
+
+  useEffect(() => { void load(true); }, [load]);
+  // Realtime on this store's orders; polls every 60 s (15 s if realtime is down).
+  const refresh = useCallback(() => { void load(false); }, [load]);
+  useRealtimeRefresh("orders", `store_id=eq.${storeId}`, refresh);
+
+  async function loadMore() {
+    const cur = listRef.current;
+    if (!cur?.hasMore || moreBusy) return;
+    const seq = seqRef.current;
+    setMoreBusy(true);
+    const { data, error: err } = await ordersPage(storeId, tab, term, cur.rows.length, cur.rows.length + PAGE - 1);
+    setMoreBusy(false);
+    if (err) { setFailed(true); return; }
+    if (seq !== seqRef.current) return;
+    const rows = (data ?? []) as unknown as Order[];
+    setList((prev) => prev && {
+      rows: [...prev.rows, ...rows.filter((r) => !prev.rows.some((p) => p.id === r.id))],
+      hasMore: rows.length === PAGE,
+    });
+  }
 
   async function move(o: Order, to: Status) {
     if (to === "cancelled" && !window.confirm(t("orders.confirmCancel"))) return;
     setBusy(o.id); setError(false);
     // Optimistic: the card leaves this tab and its chip changes at once; a failure puts it back.
-    setOrders((all) => all && all.map((x) => (x.id === o.id ? { ...x, status: to } : x)));
+    setList((all) => all && { ...all, rows: all.rows.map((x) => (x.id === o.id ? { ...x, status: to } : x)) });
     const { error: err } = await supabase.rpc("set_order_status", { p_order_id: o.id, p_status: to });
     if (err) { setError(true); toast.danger(t("common.error")); }
     else toast.success(t("common.saved"));
-    await load();
+    await load(false);
     setBusy(null);
   }
 
-  const count = (s: Status) => (orders ?? []).filter((o) => o.status === s).length;
-  const visible = (orders ?? []).filter((o) => o.status === tab);
+  const visible = (list?.rows ?? []).filter((o) => o.status === tab);
+  const countOf = (s: Status) => (counts ? ` (${counts[s]})` : "");
+  const noOrdersAtAll = counts !== null && TABS.every((s) => counts[s] === 0);
 
   return (
     <m.div
@@ -139,16 +192,21 @@ export function Orders() {
             onClick={() => setTab(s)}
             className={`relative min-h-10 rounded-full border-2 px-3.5 text-sm font-bold transition-colors ${tab === s ? "border-ink bg-ink text-slip" : "border-ink/20 bg-slip text-ink hover:border-ink"}`}
           >
-            {t(STATUS_KEY[s])}{orders ? ` (${count(s)})` : ""}
+            {t(STATUS_KEY[s])}{countOf(s)}
           </button>
         ))}
       </div>
+      <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+        placeholder={t("orders.search")} aria-label={t("orders.search")} className="mb-4 w-full" />
 
-      {failed && <Alert status="danger" className="mb-3"><Alert.Content><Alert.Description>{t("common.error")} <Button size="sm" variant="outline" onPress={() => void load()}>{t("common.retry")}</Button></Alert.Description></Alert.Content></Alert>}
+      {failed && <Alert status="danger" className="mb-3"><Alert.Content><Alert.Description>{t("common.error")} <Button size="sm" variant="outline" onPress={() => void load(true)}>{t("common.retry")}</Button></Alert.Description></Alert.Content></Alert>}
       {error && <Alert status="danger" className="mb-3"><Alert.Content><Alert.Description role="alert">{t("common.error")}</Alert.Description></Alert.Content></Alert>}
-      {!orders && !failed && <p className="text-soft">{t("common.loading")}</p>}
-      {orders && orders.length === 0 && <p className="rounded-wakil-lg border-2 border-ink bg-slip p-8 text-center text-soft">{t("orders.emptyAll")}</p>}
-      {orders && orders.length > 0 && visible.length === 0 && <p className="rounded-wakil-lg border-2 border-ink bg-slip p-8 text-center text-soft">{t("orders.empty")}</p>}
+      {!list && !failed && <p className="text-soft">{t("common.loading")}</p>}
+      {list && visible.length === 0 && (
+        <p className="rounded-wakil-lg border-2 border-ink bg-slip p-8 text-center text-soft">
+          {term ? t("orders.noResults") : noOrdersAtAll ? t("orders.emptyAll") : t("orders.empty")}
+        </p>
+      )}
 
       <ul className="m-0 grid list-none gap-3 p-0 lg:grid-cols-2">
         <AnimatePresence initial={false}>
@@ -206,6 +264,11 @@ export function Orders() {
           })}
         </AnimatePresence>
       </ul>
+      {list?.hasMore && (
+        <div className="mt-4 flex justify-center">
+          <Button size="sm" variant="outline" isDisabled={moreBusy} onPress={() => void loadMore()}>{t("orders.loadMore")}</Button>
+        </div>
+      )}
     </m.div>
   );
 }
