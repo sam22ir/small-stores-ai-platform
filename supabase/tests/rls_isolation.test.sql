@@ -198,5 +198,56 @@ select ok(pg_temp.write_denied($$insert into products (store_id, name, price_cen
 
 reset role;
 
+-- Reply credits and paid checkouts (0023_reply_credits.sql) --------------------------
+-- Setup as the superuser: store A has one credit, and two pending payments for it.
+update stores set reply_credits = 1 where id = '11111111-0000-0000-0000-00000000000a';
+insert into payments (store_id, checkout_id, amount, currency, status, kind, credits) values
+  ('11111111-0000-0000-0000-00000000000a', 'ch_rls_credits', 300, 'dzd', 'pending', 'credits', 5),
+  ('11111111-0000-0000-0000-00000000000a', 'ch_rls_forged', 300, 'dzd', 'pending', 'credits', 500);
+
+-- User A (owner of store A) cannot grant credits or mark payments paid.
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+
+select is((select reply_credits from stores where id = '11111111-0000-0000-0000-00000000000a'), 1,
+  'user A can read own reply_credits');
+
+select ok(pg_temp.write_denied($$update stores set reply_credits = 999
+  where id = '11111111-0000-0000-0000-00000000000a'$$),
+  'user A cannot UPDATE stores.reply_credits');
+
+select ok(pg_temp.write_denied($$select consume_reply_credit('11111111-0000-0000-0000-00000000000a')$$),
+  'user A cannot call consume_reply_credit');
+
+select ok(pg_temp.write_denied($$select add_reply_credits('11111111-0000-0000-0000-00000000000a', 100)$$),
+  'user A cannot call add_reply_credits');
+
+select ok(pg_temp.write_denied($$select apply_paid_checkout('ch_rls_forged')$$),
+  'user A cannot call apply_paid_checkout');
+
+reset role;
+
+select is((select reply_credits from stores where id = '11111111-0000-0000-0000-00000000000a'), 1,
+  'store A balance unchanged after user A attempts');
+select is((select status from payments where checkout_id = 'ch_rls_forged'), 'pending',
+  'forged payment is still pending');
+
+-- Service role (the edge functions) runs the three functions. Balance never goes below zero.
+set local role service_role;
+
+select is(consume_reply_credit('11111111-0000-0000-0000-00000000000a'), true, 'service role spends the one credit');
+select is(consume_reply_credit('11111111-0000-0000-0000-00000000000a'), false, 'a spend at zero is refused');
+select is(add_reply_credits('11111111-0000-0000-0000-00000000000a', 2), 2, 'service role adds credits');
+select is(apply_paid_checkout('ch_rls_credits') ->> 'result', 'paid', 'a paid credit pack is applied once');
+select is(apply_paid_checkout('ch_rls_credits') ->> 'result', 'duplicate', 'a replayed checkout is a duplicate');
+select is(apply_paid_checkout('ch_rls_nope') ->> 'result', 'unknown_checkout', 'an unknown checkout changes nothing');
+
+reset role;
+
+select is((select reply_credits from stores where id = '11111111-0000-0000-0000-00000000000a'), 7,
+  'balance is 1 - 1 + 2 + 5 = 7');
+select is((select paid_until from stores where id = '11111111-0000-0000-0000-00000000000a'), null::timestamptz,
+  'a credit pack leaves the paid period alone');
+
 select * from finish();
 rollback;

@@ -117,7 +117,30 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
     }
   }
 
+  // Hands the chat to the owner because the monthly reply allowance is spent.
+  const limitHandoff = async (): Promise<HandleInboundResult> => {
+    const reason = "Monthly AI reply limit reached";
+    const reply = limitReply(detectLang(input.text));
+    await record({ reply, model: "limit", provider: "none" }, {
+      fast_path: true,
+      error: null,
+    });
+    await db.from("conversations")
+      .update({ status: "human", handoff_reason: reason })
+      .eq("id", conversation.id);
+    alerts.push({ kind: "limit" });
+    return {
+      ok: true,
+      ...base,
+      reply,
+      status: "human",
+      handoff: reason,
+      limited: true,
+    };
+  };
+
   // 3. Monthly allowance (customer traffic only).
+  let needsCredit = false;
   if (source === "customer") {
     const usage = await getUsage(
       db,
@@ -127,24 +150,10 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       store.ai_monthly_token_limit ?? null,
     );
     if (usage.exceeded) {
-      const reason = "Monthly AI reply limit reached";
-      const reply = limitReply(detectLang(input.text));
-      await record({ reply, model: "limit", provider: "none" }, {
-        fast_path: true,
-        error: null,
-      });
-      await db.from("conversations")
-        .update({ status: "human", handoff_reason: reason })
-        .eq("id", conversation.id);
-      if (source === "customer") alerts.push({ kind: "limit" });
-      return {
-        ok: true,
-        ...base,
-        reply,
-        status: "human",
-        handoff: reason,
-        limited: true,
-      };
+      // Bought credits cover this reply. The credit is spent just before the model call (step 4),
+      // so the token cap below still applies to it.
+      if ((store.reply_credits ?? 0) > 0) needsCredit = true;
+      else return limitHandoff();
     }
 
     // Monthly token cap (input + output tokens). Same handling as the reply limit, but the owner is
@@ -202,6 +211,24 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
     attempts: [],
   };
 
+  // Spend the bought credit right before the model call. If it can't be spent (error or none left),
+  // the chat takes the normal limit hand-off: no free reply.
+  let creditSpent = false;
+  if (needsCredit) {
+    let spent = false;
+    try {
+      const { data, error } = await db.rpc("consume_reply_credit", { p_store_id: store.id });
+      if (error) throw error;
+      spent = data === true;
+    } catch (err) {
+      console.error(JSON.stringify({ event: "reply_credit_consume_failed", store_id: store.id, error_kind: errorKind(err) }));
+    }
+    if (!spent) return limitHandoff();
+    creditSpent = true;
+  }
+  // True once a successful run row is stored. A credit spent without one is refunded below.
+  let runRecorded = false;
+
   try {
     const catalog = supabaseCatalog(db);
     // Test and dev chats price and validate orders but never write them.
@@ -253,7 +280,9 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       input_tokens: result.usage.input_tokens,
       output_tokens: result.usage.output_tokens,
       provider_errors: meta.attempts.length ? meta.attempts : null,
+      used_credit: creditSpent,
     });
+    runRecorded = true;
     let status = "bot";
     if (result.handoffReason) {
       status = "human";
@@ -324,5 +353,15 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       };
     }
     return { ok: false, error: "Agent failed; see agent_runs for details" };
+  } finally {
+    // The credit paid for a reply that never reached the customer: give it back.
+    if (creditSpent && !runRecorded) {
+      try {
+        const { error } = await db.rpc("add_reply_credits", { p_store_id: store.id, p_n: 1 });
+        if (error) throw error;
+      } catch (err) {
+        console.error(JSON.stringify({ event: "reply_credit_refund_failed", store_id: store.id, error_kind: errorKind(err) }));
+      }
+    }
   }
 }

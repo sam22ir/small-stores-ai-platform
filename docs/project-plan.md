@@ -37,6 +37,16 @@ Full numbers in [economics.md](economics.md). Summary:
 - At realistic volumes the AI cost is tiny; risk is concentrated in very busy stores, so each store has a **monthly reply limit** (`stores.monthly_reply_limit`, default 1,000, changed by us, not the owner). Only customer replies answered by the model count: greetings/thanks (free fast path), failed runs and dashboard test chats don't. At the limit the customer gets a holding message and the chat goes to the owner. Top-up packs and pricing in DA are still **(open)**.
 - Competitor Chatbot DZ sells prepaid "tokens" with no subscription; see [competitors.md](competitors.md).
 
+### Reply credits
+
+Extra AI replies a store can buy on top of its monthly plan (migration 0023, `stores.reply_credits`).
+
+- **Packs** (price in DZD, set on the server in `_shared/billing.ts` `CREDIT_PACKS`, never taken from the client): 500 replies for 300 DA, 2,000 for 1,000 DA, 5,000 for 2,000 DA. The owner picks a pack in `billing-checkout` with `{"store_id", "pack"}`; no `pack` means the monthly subscription.
+- **Paid by:** a Chargily checkout, applied by the webhook through `apply_paid_checkout` in one transaction (the payment claim and the credit grant succeed or fail together; a repeat is a no-op).
+- **Spent:** only once the included monthly replies are used. One credit per customer reply, taken just before the model call (`consume_reply_credit`, never below zero). If the reply fails, the credit is given back (`add_reply_credits`). A failed or unavailable credit check hands the chat to the owner rather than answering for free.
+- **Exempt from the monthly token cap:** a credit-paid reply is recorded with `agent_runs.used_credit = true` and left out of the token sum. It still counts as a reply. The token cap still blocks a store that has credits.
+- Only customer replies use credits. Test chats and the dashboard never spend them.
+
 ## Android app and notifications (decision: build in stages)
 
 1. **Telegram alert** to the owner on handoff (days of work).

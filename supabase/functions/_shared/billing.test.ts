@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   applyCheckoutClosed,
   applyCheckoutPaid,
   billingState,
+  CREDIT_PACKS,
   claimBillingAlert,
-  computePaidUntil,
   signatureMatches,
   toHex,
 } from "./billing.ts";
@@ -54,21 +55,10 @@ test("signature: rejects the wrong secret, a missing header, an empty secret and
   assert.equal(await signatureMatches(body, "", SECRET), false);
 });
 
-// --- Period math -------------------------------------------------------------------------------
+// --- Credit packs -------------------------------------------------------------------------------
 
-test("paid_until: first payment starts from now and adds 30 days", () => {
-  const until = computePaidUntil(null, NOW);
-  assert.equal(until.getTime(), NOW.getTime() + 30 * DAY);
-});
-
-test("paid_until: a payment made early adds to the time still left", () => {
-  const current = new Date(NOW.getTime() + 10 * DAY);
-  assert.equal(computePaidUntil(current, NOW).getTime(), current.getTime() + 30 * DAY);
-});
-
-test("paid_until: an expired period restarts from now, not from the old end date", () => {
-  const expired = new Date(NOW.getTime() - 20 * DAY);
-  assert.equal(computePaidUntil(expired, NOW).getTime(), NOW.getTime() + 30 * DAY);
+test("credit packs: pack size -> price in DZD, server-side", () => {
+  assert.deepEqual({ ...CREDIT_PACKS }, { "500": 300, "2000": 1000, "5000": 2000 });
 });
 
 // --- Gate --------------------------------------------------------------------------------------
@@ -109,19 +99,20 @@ test("gate: a missing trial date means billing is not enforced", () => {
 
 // --- Database: checkout.paid, idempotency, alerts ----------------------------------------------
 
+// The fake database's clock is fixed at NOW, so the RPC's now() is deterministic.
 function world(overrides: Partial<Tables> = {}) {
   const tables: Tables = {
-    stores: [{ id: "s1", paid_until: null, plan_status: "trial", billing_alerted_for: null }],
-    payments: [{ id: "p1", store_id: "s1", checkout_id: "ch_1", status: "pending", amount: 1000 }],
+    stores: [{ id: "s1", paid_until: null, plan_status: "trial", billing_alerted_for: null, reply_credits: 0 }],
+    payments: [{ id: "p1", store_id: "s1", checkout_id: "ch_1", status: "pending", amount: 1000, kind: "subscription", credits: null }],
     ...overrides,
   };
-  return { tables, db: memDb(tables, { payments: ["checkout_id"] }) };
+  return { tables, db: memDb(tables, { payments: ["checkout_id"] }, () => NOW) };
 }
 
 test("checkout.paid: marks the payment paid and activates the store with 30 days", async () => {
   const { tables, db } = world();
-  const out = await applyCheckoutPaid(db, "ch_1", NOW);
-  assert.equal(out.result, "paid");
+  const out = await applyCheckoutPaid(db, "ch_1");
+  assert.deepEqual(out, { result: "paid", kind: "subscription", store_id: "s1", paid_until: new Date(NOW.getTime() + 30 * DAY).toISOString() });
   assert.equal(tables.payments[0].status, "paid");
   assert.equal(tables.stores[0].plan_status, "active");
   assert.equal(tables.stores[0].paid_until, new Date(NOW.getTime() + 30 * DAY).toISOString());
@@ -129,16 +120,16 @@ test("checkout.paid: marks the payment paid and activates the store with 30 days
 
 test("checkout.paid: a redelivered event does not extend the period again", async () => {
   const { tables, db } = world();
-  await applyCheckoutPaid(db, "ch_1", NOW);
+  await applyCheckoutPaid(db, "ch_1");
   const after = tables.stores[0].paid_until;
-  const again = await applyCheckoutPaid(db, "ch_1", new Date(NOW.getTime() + 5 * DAY));
+  const again = await applyCheckoutPaid(db, "ch_1");
   assert.equal(again.result, "duplicate");
   assert.equal(tables.stores[0].paid_until, after);
 });
 
 test("checkout.paid: an unknown checkout id changes nothing", async () => {
   const { tables, db } = world();
-  const out = await applyCheckoutPaid(db, "ch_unknown", NOW);
+  const out = await applyCheckoutPaid(db, "ch_unknown");
   assert.equal(out.result, "unknown_checkout");
   assert.equal(tables.stores[0].paid_until, null);
 });
@@ -150,14 +141,41 @@ test("checkout.paid: a second payment stacks on the first paid period", async ()
       { id: "p2", store_id: "s1", checkout_id: "ch_2", status: "pending", amount: 1000 },
     ],
   });
-  await applyCheckoutPaid(db, "ch_1", NOW);
-  await applyCheckoutPaid(db, "ch_2", NOW);
+  await applyCheckoutPaid(db, "ch_1");
+  await applyCheckoutPaid(db, "ch_2");
   assert.equal(tables.stores[0].paid_until, new Date(NOW.getTime() + 60 * DAY).toISOString());
+});
+
+test("checkout.paid: a credit pack grants its credits and leaves the paid period alone", async () => {
+  const { tables, db } = world({
+    payments: [{ id: "p1", store_id: "s1", checkout_id: "ch_c", status: "pending", amount: 300, kind: "credits", credits: 500 }],
+  });
+  tables.stores[0].reply_credits = 20;
+  const out = await applyCheckoutPaid(db, "ch_c");
+  assert.deepEqual(out, { result: "paid", kind: "credits", store_id: "s1", reply_credits: 520 });
+  assert.equal(tables.stores[0].reply_credits, 520);
+  assert.equal(tables.stores[0].paid_until, null);
+  assert.equal(tables.payments[0].status, "paid");
+});
+
+test("checkout.paid: a replayed credit pack event does not add credits twice", async () => {
+  const { tables, db } = world({
+    payments: [{ id: "p1", store_id: "s1", checkout_id: "ch_c", status: "pending", amount: 300, kind: "credits", credits: 500 }],
+  });
+  await applyCheckoutPaid(db, "ch_c");
+  const again = await applyCheckoutPaid(db, "ch_c");
+  assert.equal(again.result, "duplicate");
+  assert.equal(tables.stores[0].reply_credits, 500);
+});
+
+test("checkout.paid: a database error is thrown, so the webhook answers 500 and Chargily retries", async () => {
+  const db = { rpc: () => Promise.resolve({ data: null, error: { message: "connection reset" } }) } as unknown as SupabaseClient;
+  await assert.rejects(applyCheckoutPaid(db, "ch_1"), /connection reset/);
 });
 
 test("checkout.failed does not touch a paid payment", async () => {
   const { tables, db } = world();
-  await applyCheckoutPaid(db, "ch_1", NOW);
+  await applyCheckoutPaid(db, "ch_1");
   await applyCheckoutClosed(db, "ch_1", "failed", NOW);
   assert.equal(tables.payments[0].status, "paid");
 });

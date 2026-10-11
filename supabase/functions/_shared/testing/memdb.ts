@@ -169,8 +169,66 @@ class Query {
   }
 }
 
-export function memDb(tables: Tables, uniques: Uniques = {}): SupabaseClient {
+export type RpcResult = { data: unknown; error: { message: string } | null };
+
+// The reply-credit and checkout functions from supabase/migrations/0023_reply_credits.sql, with the
+// same rules: the balance never goes below zero, and a payment is claimed once. Returns undefined
+// for any other function name.
+export function creditRpc(tables: Tables, name: string, args: Row, now = new Date()): RpcResult | undefined {
+  const stores = tables.stores ??= [];
+  const payments = tables.payments ??= [];
+  const store = (id: unknown) => stores.find((s) => s.id === id);
+
+  if (name === "consume_reply_credit") {
+    const s = store(args.p_store_id);
+    if (!s || Number(s.reply_credits ?? 0) <= 0) return { data: false, error: null };
+    s.reply_credits = Number(s.reply_credits) - 1;
+    return { data: true, error: null };
+  }
+
+  if (name === "add_reply_credits") {
+    const n = Number(args.p_n);
+    if (!Number.isInteger(n) || n <= 0) return { data: null, error: { message: "p_n must be positive" } };
+    const s = store(args.p_store_id);
+    if (!s) return { data: null, error: null };
+    s.reply_credits = Number(s.reply_credits ?? 0) + n;
+    return { data: s.reply_credits, error: null };
+  }
+
+  if (name === "apply_paid_checkout") {
+    const p = payments.find((r) => r.checkout_id === args.p_checkout_id && r.status === "pending");
+    if (!p) {
+      const exists = payments.some((r) => r.checkout_id === args.p_checkout_id);
+      return { data: { result: exists ? "duplicate" : "unknown_checkout" }, error: null };
+    }
+    p.status = "paid";
+    p.updated_at = now.toISOString();
+    const s = store(p.store_id);
+    if (!s) return { data: null, error: { message: "store not found for payment" } };
+    if (p.kind === "credits") {
+      s.reply_credits = Number(s.reply_credits ?? 0) + Number(p.credits);
+      return {
+        data: { result: "paid", kind: "credits", store_id: s.id, reply_credits: s.reply_credits },
+        error: null,
+      };
+    }
+    const base = Math.max(now.getTime(), s.paid_until ? new Date(s.paid_until as string).getTime() : now.getTime());
+    s.plan_status = "active";
+    s.paid_until = new Date(base + 30 * 24 * 60 * 60 * 1000).toISOString();
+    return { data: { result: "paid", kind: "subscription", store_id: s.id, paid_until: s.paid_until }, error: null };
+  }
+
+  return undefined;
+}
+
+export function memDb(tables: Tables, uniques: Uniques = {}, clock: () => Date = () => new Date()): SupabaseClient {
   const seq = { n: 0 };
   for (const rows of Object.values(tables)) for (const r of rows) r._seq ??= ++seq.n;
-  return { from: (t: string) => new Query(tables, t, uniques, seq) } as unknown as SupabaseClient;
+  return {
+    from: (t: string) => new Query(tables, t, uniques, seq),
+    rpc: (name: string, args: Row) =>
+      Promise.resolve(
+        creditRpc(tables, name, args, clock()) ?? { data: null, error: { message: `memdb: unknown rpc ${name}` } },
+      ),
+  } as unknown as SupabaseClient;
 }

@@ -5,7 +5,8 @@ import { applyCheckoutClosed, applyCheckoutPaid, signatureMatches } from "../_sh
 // Chargily Pay sends checkout events here (POST, JSON, header `signature`).
 // The signature is HMAC-SHA256 hex of the raw body keyed with CHARGILY_SECRET_KEY, checked in
 // constant time. Deployed with verify_jwt = false: the signature is the auth.
-// checkout.paid extends the store's paid period by 30 days; repeats are harmless.
+// checkout.paid applies the payment in one SQL call (apply_paid_checkout): a subscription extends the
+// paid period by 30 days, a credit pack adds its replies. Repeats are harmless.
 //
 // Secrets: CHARGILY_SECRET_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 
@@ -44,7 +45,7 @@ Deno.serve(async (req) => {
   try {
     const now = new Date();
     if (event.type === "checkout.paid") {
-      const outcome = await applyCheckoutPaid(db, checkoutId, now);
+      const outcome = await applyCheckoutPaid(db, checkoutId);
       console.log(JSON.stringify({ event: "checkout_paid", outcome: outcome.result }));
     } else if (event.type === "checkout.failed" || event.type === "checkout.canceled") {
       await applyCheckoutClosed(db, checkoutId, event.type === "checkout.failed" ? "failed" : "canceled", now);
