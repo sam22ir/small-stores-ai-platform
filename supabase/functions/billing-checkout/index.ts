@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
     if (insErr) {
       // Chargily already created the checkout but we can't track it: expire it so it can't be paid
       // unrecorded. Best effort; the error is still returned below.
-      if (pack) await expireCheckout(base, secret, checkout.id);
+      await expireCheckout(base, secret, checkout.id);
       throw insErr;
     }
 

@@ -204,6 +204,9 @@ update stores set reply_credits = 1 where id = '11111111-0000-0000-0000-00000000
 insert into payments (store_id, checkout_id, amount, currency, status, kind, credits) values
   ('11111111-0000-0000-0000-00000000000a', 'ch_rls_credits', 300, 'dzd', 'pending', 'credits', 5),
   ('11111111-0000-0000-0000-00000000000a', 'ch_rls_forged', 300, 'dzd', 'pending', 'credits', 500);
+-- Store B pays the monthly subscription (default kind), to cover that branch of apply_paid_checkout.
+insert into payments (store_id, checkout_id, amount, currency, status) values
+  ('22222222-0000-0000-0000-00000000000b', 'ch_rls_sub', 1000, 'dzd', 'pending');
 
 -- User A (owner of store A) cannot grant credits or mark payments paid.
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-0000-0000-00000000000a","role":"authenticated"}', true);
@@ -241,6 +244,7 @@ select is(add_reply_credits('11111111-0000-0000-0000-00000000000a', 2), 2, 'serv
 select is(apply_paid_checkout('ch_rls_credits') ->> 'result', 'paid', 'a paid credit pack is applied once');
 select is(apply_paid_checkout('ch_rls_credits') ->> 'result', 'duplicate', 'a replayed checkout is a duplicate');
 select is(apply_paid_checkout('ch_rls_nope') ->> 'result', 'unknown_checkout', 'an unknown checkout changes nothing');
+select is(apply_paid_checkout('ch_rls_sub') ->> 'result', 'paid', 'a paid subscription is applied');
 
 reset role;
 
@@ -248,6 +252,19 @@ select is((select reply_credits from stores where id = '11111111-0000-0000-0000-
   'balance is 1 - 1 + 2 + 5 = 7');
 select is((select paid_until from stores where id = '11111111-0000-0000-0000-00000000000a'), null::timestamptz,
   'a credit pack leaves the paid period alone');
+
+select is((select plan_status from stores where id = '22222222-0000-0000-0000-00000000000b'), 'active',
+  'a paid subscription activates the plan');
+select ok((select paid_until from stores where id = '22222222-0000-0000-0000-00000000000b')
+  between now() + interval '29 days 23 hours' and now() + interval '30 days 1 hour',
+  'a paid subscription extends paid_until by about 30 days');
+
+set local role service_role;
+select is(apply_paid_checkout('ch_rls_sub') ->> 'result', 'duplicate', 'a replayed subscription checkout is a duplicate');
+reset role;
+select ok((select paid_until from stores where id = '22222222-0000-0000-0000-00000000000b')
+  between now() + interval '29 days 23 hours' and now() + interval '30 days 1 hour',
+  'a replayed subscription checkout does not extend paid_until again');
 
 select * from finish();
 rollback;
