@@ -774,9 +774,36 @@ export type Database = {
         Args: { p_product: Json; p_product_id: string | null; p_store_id: string; p_variants: Json }
         Returns: string
       }
+      inbox_list: {
+        Args: {
+          p_store_id: string
+          p_status: string | null
+          p_search: string | null
+          p_limit?: number
+          p_before_at?: string | null
+          p_before_id?: string | null
+        }
+        Returns: {
+          id: string
+          status: string
+          handoff_reason: string | null
+          last_customer_message_at: string | null
+          created_at: string
+          customer_name: string | null
+          platform_user_id: string
+          platform: string
+          last_body: string | null
+          last_direction: string | null
+          last_message_at: string | null
+        }[]
+      }
       set_order_status: {
         Args: { p_order_id: string; p_status: string }
         Returns: string
+      }
+      store_insights: {
+        Args: { p_store_id: string; p_days: number }
+        Returns: Json
       }
       telegram_link: {
         Args: { p_store_id: string }

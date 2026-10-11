@@ -1,26 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Outlet, useMatch } from "react-router-dom";
 import { AnimatePresence, m } from "motion/react";
-import { Alert, Avatar, Card, Chip, Skeleton, Tabs } from "@heroui/react";
+import { Alert, Avatar, Button, Card, Chip, Input, Skeleton, Tabs } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { formatTime } from "../lib/format";
+import { countConversations, fetchInboxRows, INBOX_PAGE } from "../lib/inbox";
+import type { InboxCursor, InboxRow, InboxStatus } from "../lib/inbox";
 import { useConversationsRefresh, useStore } from "../lib/store";
 import { dur, ease, useMotionSafe } from "../lib/motion";
 import { SetupChecklist } from "../components/SetupChecklist";
 
-type Status = "human" | "bot" | "closed";
-type Conv = {
-  id: string;
-  status: Status;
-  handoff_reason: string | null;
-  last_customer_message_at: string | null;
-  created_at: string;
-  customers: { display_name: string | null; platform_user_id: string } | null;
-  channels: { platform: string } | null;
-};
-type Preview = { body: string | null; created_at: string; direction: string };
+type Status = InboxStatus;
+type Conv = InboxRow;
+type Page = { rows: Conv[]; hasMore: boolean };
+type Counts = Record<Status, number>;
 
 const TABS: { status: Status; key: TKey; empty: TKey }[] = [
   { status: "human", key: "inbox.needsYou", empty: "inbox.emptyNeeds" },
@@ -62,10 +57,10 @@ function ListSkeleton() {
 // at the top with a short highlight; rows that re-mount (tab switch) appear without motion.
 type Entry = { kind: "none" } | { kind: "stagger"; index: number } | { kind: "new" };
 
-function ChatRow({ c, preview, active, showStatus, entry }: { c: Conv; preview?: Preview; active: boolean; showStatus: boolean; entry: Entry }) {
+function ChatRow({ c, active, showStatus, entry }: { c: Conv; active: boolean; showStatus: boolean; entry: Entry }) {
   const { t, lang } = useI18n();
   const reduced = useMotionSafe();
-  const name = c.customers?.display_name || c.customers?.platform_user_id || t("inbox.customer");
+  const name = c.customer_name || c.platform_user_id || t("inbox.customer");
   const initial = name.trim().charAt(0).toUpperCase();
   const isNew = entry.kind === "new";
   const animate = !reduced && entry.kind !== "none";
@@ -91,13 +86,13 @@ function ChatRow({ c, preview, active, showStatus, entry }: { c: Conv; preview?:
         </m.span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-semibold">{name}</span>
-          <span className="block truncate text-[13px] text-soft">{preview?.body ?? t("inbox.noMessages")}</span>
+          <span className="block truncate text-[13px] text-soft">{c.last_body ?? t("inbox.noMessages")}</span>
           {c.status === "human" && c.handoff_reason && (
             <span className="mt-0.5 block truncate text-[13px] font-semibold text-red">{c.handoff_reason}</span>
           )}
         </span>
         <span className="flex shrink-0 flex-col items-end gap-1">
-          <span className="text-xs text-soft" dir="ltr">{formatTime(preview?.created_at ?? c.last_customer_message_at, lang)}</span>
+          <span className="text-xs text-soft" dir="ltr">{formatTime(c.last_message_at ?? c.last_customer_message_at, lang)}</span>
           {showStatus && (
             <Chip size="sm" color={chipColor} variant="soft" className="whitespace-nowrap">
               <Chip.Label>{t(c.status === "human" ? "inbox.needsYou" : c.status === "bot" ? "inbox.assistant" : "inbox.closed")}</Chip.Label>
@@ -119,56 +114,120 @@ function PulseDot() {
   );
 }
 
+// Older chats, one page at a time.
+function LoadMore({ busy, onPress }: { busy: boolean; onPress: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex justify-center p-2">
+      <Button size="sm" variant="outline" isDisabled={busy} onPress={onPress}>{t("inbox.loadMore")}</Button>
+    </div>
+  );
+}
+
+// The ids already on screen, plus these. Kept across tab switches so a chat that comes back does not re-highlight.
+function addIds(seen: Set<string> | null, ids: string[]): Set<string> {
+  return new Set([...(seen ?? []), ...ids]);
+}
+
 export function Inbox() {
   const { t, lang } = useI18n();
   const { store } = useStore();
+  const storeId = store?.id;
   const reduced = useMotionSafe();
   const match = useMatch("/inbox/:id");
   const open = match !== null;
   const activeId = match?.params.id;
   const [tab, setTab] = useState<Status>("human");
-  const [convs, setConvs] = useState<Conv[] | null>(null);
-  const [previews, setPreviews] = useState<Record<string, Preview>>({});
+  const [query, setQuery] = useState("");
+  // The search term, 300 ms after the owner stops typing.
+  const [term, setTerm] = useState("");
+  // The chats in the list: the current tab, or every status while searching.
+  const [list, setList] = useState<Page | null>(null);
+  // Chats waiting for the owner, shown above the tabs when another tab is open (first page only).
+  const [waiting, setWaiting] = useState<Page | null>(null);
+  const [counts, setCounts] = useState<Counts | null>(null);
   const [failed, setFailed] = useState(false);
+  const [moreBusy, setMoreBusy] = useState(false);
   const [aiProblems, setAiProblems] = useState(0);
+  // Each load gets a number; only the newest one may write the screen (stale replies are dropped).
+  const seqRef = useRef(0);
+  const listRef = useRef<Page | null>(null);
   // Ids already on screen. null until the first list arrives, so the first load can stagger.
   const seenRef = useRef<Set<string> | null>(null);
   const seenSnapshot = seenRef.current;
+  const searching = term !== "";
+  const listStatus: Status | null = searching ? null : tab;
+  const humanOnTab = tab === "human" && !searching;
 
-  const load = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("conversations")
-      .select("id,status,handoff_reason,last_customer_message_at,created_at,customers(display_name,platform_user_id),channels(platform)")
-      .order("last_customer_message_at", { ascending: false, nullsFirst: false })
-      .limit(200);
-    if (error) { setFailed(true); return; }
-    // Messages the assistant could not answer (model outage) in the last day.
-    const since = new Date(Date.now() - 86_400_000).toISOString();
-    const { count } = await supabase.from("agent_runs").select("id", { count: "exact", head: true })
-      .eq("source", "customer").not("error", "is", null).gte("created_at", since);
-    setAiProblems(count ?? 0);
-    // Test chats from the Assistant page live in the same tables; they aren't customers.
-    const rows = (data as unknown as Conv[]).filter((c) => c.channels?.platform !== "playground");
-    setConvs(rows); setFailed(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setTerm(query.trim()), 300);
+    return () => window.clearTimeout(id);
+  }, [query]);
 
-    if (rows.length === 0) return;
-    const { data: msgs } = await supabase
-      .from("messages").select("conversation_id,body,created_at,direction")
-      .in("conversation_id", rows.map((r) => r.id))
-      .order("created_at", { ascending: false }).limit(500);
-    const latest: Record<string, Preview> = {};
-    for (const m of msgs ?? []) if (!latest[m.conversation_id]) latest[m.conversation_id] = m;
-    setPreviews(latest);
-  }, []);
+  useEffect(() => { listRef.current = list; }, [list]);
 
-  useEffect(() => { void load(); }, [load]);
+  // Reloads the screen. A reset starts over at one page. A refresh (realtime or polling) re-reads as many
+  // rows as are already loaded, so the owner's place in a long list survives.
+  const load = useCallback(async (reset: boolean) => {
+    if (!storeId) return;
+    const seq = ++seqRef.current;
+    const want = reset ? INBOX_PAGE : Math.max(INBOX_PAGE, listRef.current?.rows.length ?? 0);
+    if (reset) setList(null);
+    const sameTab = !searching && tab !== "human";
+    const aiProblemsSince = new Date(Date.now() - 86_400_000).toISOString();
+    try {
+      const [page, box, cnt, ai] = await Promise.all([
+        fetchInboxRows(storeId, listStatus, term, want, null),
+        sameTab ? fetchInboxRows(storeId, "human", "", INBOX_PAGE, null) : Promise.resolve(null),
+        Promise.all(TABS.map((x) => countConversations(storeId, x.status))),
+        // Messages the assistant could not answer (model outage) in the last day.
+        supabase.from("agent_runs").select("id", { count: "exact", head: true })
+          .eq("source", "customer").not("error", "is", null).gte("created_at", aiProblemsSince),
+      ]);
+      if (seq !== seqRef.current) return;
+      if (reset && seenRef.current) seenRef.current = addIds(seenRef.current, page.rows.map((r) => r.id));
+      setList(page);
+      setWaiting(box);
+      setCounts({ human: cnt[0] ?? 0, bot: cnt[1] ?? 0, closed: cnt[2] ?? 0 });
+      setAiProblems(ai.count ?? 0);
+      setFailed(false);
+    } catch {
+      if (seq === seqRef.current) setFailed(true);
+    }
+  }, [storeId, tab, term, searching, listStatus]);
+
+  // The first load, and a fresh load whenever the tab or the search changes.
+  useEffect(() => { void load(true); }, [load]);
   // Refreshes on realtime changes to this store's chats; polls every 60 s (15 s if realtime is down).
-  useConversationsRefresh(store?.id, load);
+  const refresh = useCallback(() => { void load(false); }, [load]);
+  useConversationsRefresh(storeId, refresh);
 
   // Remember what has been shown, after each render, so the next render can tell new rows apart.
   useEffect(() => {
-    if (convs) seenRef.current = new Set(convs.map((c) => c.id));
-  }, [convs]);
+    if (list) seenRef.current = addIds(seenRef.current, [...list.rows, ...(waiting?.rows ?? [])].map((c) => c.id));
+  }, [list, waiting]);
+
+  async function loadMore() {
+    const cur = listRef.current;
+    const last = cur?.rows[cur.rows.length - 1];
+    if (!storeId || !cur?.hasMore || !last || moreBusy) return;
+    const seq = seqRef.current;
+    setMoreBusy(true);
+    try {
+      const cursor: InboxCursor = { at: last.last_customer_message_at, id: last.id };
+      const next = await fetchInboxRows(storeId, listStatus, term, INBOX_PAGE, cursor);
+      if (seq === seqRef.current) {
+        setList((prev) => prev && {
+          hasMore: next.hasMore,
+          rows: [...prev.rows, ...next.rows.filter((r) => !prev.rows.some((p) => p.id === r.id))],
+        });
+      }
+    } catch {
+      setFailed(true);
+    } finally {
+      setMoreBusy(false);
+    }
+  }
 
   const entryFor = (id: string, index: number): Entry => {
     if (reduced) return { kind: "none" };
@@ -176,12 +235,13 @@ export function Inbox() {
     return seenSnapshot.has(id) ? { kind: "none" } : { kind: "new" };
   };
 
-  const counts = (s: Status) => (convs ?? []).filter((c) => c.status === s).length;
-  const human = (convs ?? []).filter((c) => c.status === "human");
-  // The "Needs you" box already lists those chats, so the Needs-you tab shows the box alone.
-  const listRows = tab === "human" ? [] : (convs ?? []).filter((c) => c.status === tab);
+  const counted = (s: Status) => (counts ? ` (${counts[s]})` : "");
+  const shown = list?.rows ?? [];
+  const boxPage = humanOnTab ? list : searching ? null : waiting;
+  const boxRows = boxPage?.rows ?? [];
   const current = TABS.find((x) => x.status === tab)!;
-  const showEmpty = convs !== null && (tab === "human" ? human.length === 0 : listRows.length === 0);
+  const showEmpty = list !== null && shown.length === 0;
+  const emptyKey: TKey = searching ? "inbox.noResults" : tab === "human" ? "inbox.emptyNeeds" : current.empty;
   const contentKey = activeId ?? "none";
   const slide = lang === "ar" ? -1 : 1;
 
@@ -204,58 +264,65 @@ export function Inbox() {
             <Alert.Content>
               <Alert.Description>
                 {t("common.error")}{" "}
-                <button type="button" className="font-semibold underline underline-offset-4" onClick={() => void load()}>{t("common.retry")}</button>
+                <button type="button" className="font-semibold underline underline-offset-4" onClick={() => void load(true)}>{t("common.retry")}</button>
               </Alert.Description>
             </Alert.Content>
           </Alert>
         )}
-        {!convs && !failed && <ListSkeleton />}
+        {!list && !failed && <ListSkeleton />}
 
-        {human.length > 0 && (
+        <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+          placeholder={t("inbox.search")} aria-label={t("inbox.search")} className="w-full" />
+
+        {boxRows.length > 0 && (
           <Card className="overflow-hidden rounded-wakil-lg border-2 border-ink bg-slip p-0 shadow-ink">
             <div className="flex h-11 items-center justify-between gap-2 border-b-2 border-ink bg-red/10 px-4">
               <div className="flex items-center gap-2">
                 <PulseDot />
                 <h2 className="m-0 text-sm font-bold text-red">{t("inbox.needsYou")}</h2>
               </div>
-              <span className="whitespace-nowrap text-[13px] font-semibold text-red">{t("inbox.waitingCount", { n: human.length })}</span>
+              <span className="whitespace-nowrap text-[13px] font-semibold text-red">{t("inbox.waitingCount", { n: counts?.human ?? boxRows.length })}</span>
             </div>
             <div className="flex flex-col p-1.5">
               <AnimatePresence initial={false}>
-                {human.map((c, i) => (
-                  <ChatRow key={c.id} c={c} preview={previews[c.id]} active={activeId === c.id} showStatus={false} entry={entryFor(c.id, i)} />
+                {boxRows.map((c, i) => (
+                  <ChatRow key={c.id} c={c} active={activeId === c.id} showStatus={false} entry={entryFor(c.id, i)} />
                 ))}
               </AnimatePresence>
             </div>
+            {humanOnTab && boxPage?.hasMore && <LoadMore busy={moreBusy} onPress={() => void loadMore()} />}
           </Card>
         )}
 
-        <Tabs selectedKey={tab} onSelectionChange={(k) => setTab(k as Status)} className="w-full">
-          <Tabs.ListContainer>
-            <Tabs.List aria-label={t("inbox.title")} className="flex-wrap">
-              {TABS.map((x) => (
-                <Tabs.Tab key={x.status} id={x.status} className="font-semibold">
-                  {t(x.key)}{convs ? ` (${counts(x.status)})` : ""}
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-              ))}
-            </Tabs.List>
-          </Tabs.ListContainer>
-        </Tabs>
+        {!searching && (
+          <Tabs selectedKey={tab} onSelectionChange={(k) => setTab(k as Status)} className="w-full">
+            <Tabs.ListContainer>
+              <Tabs.List aria-label={t("inbox.title")} className="flex-wrap">
+                {TABS.map((x) => (
+                  <Tabs.Tab key={x.status} id={x.status} className="font-semibold">
+                    {t(x.key)}{counted(x.status)}
+                    <Tabs.Indicator />
+                  </Tabs.Tab>
+                ))}
+              </Tabs.List>
+            </Tabs.ListContainer>
+          </Tabs>
+        )}
 
-        {showEmpty && (
+        {showEmpty && !(humanOnTab && boxRows.length > 0) && (
           <Card className="rounded-wakil-lg border-2 border-dashed border-ink/25 bg-transparent p-5 text-soft shadow-none">
-            {t(tab === "human" ? "inbox.emptyNeeds" : current.empty)}
+            {t(emptyKey)}
           </Card>
         )}
 
-        {listRows.length > 0 && (
+        {!humanOnTab && shown.length > 0 && (
           <Card className="overflow-hidden rounded-wakil-lg border-2 border-ink bg-slip p-1.5 shadow-ink">
             <AnimatePresence initial={false}>
-              {listRows.map((c, i) => (
-                <ChatRow key={c.id} c={c} preview={previews[c.id]} active={activeId === c.id} showStatus entry={entryFor(c.id, i)} />
+              {shown.map((c, i) => (
+                <ChatRow key={c.id} c={c} active={activeId === c.id} showStatus entry={entryFor(c.id, i)} />
               ))}
             </AnimatePresence>
+            {list?.hasMore && <LoadMore busy={moreBusy} onPress={() => void loadMore()} />}
           </Card>
         )}
       </section>

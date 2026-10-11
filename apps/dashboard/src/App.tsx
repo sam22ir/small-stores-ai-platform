@@ -27,6 +27,7 @@ const Thread = page(() => import("./pages/Thread"), "Thread");
 const Catalog = page(() => import("./pages/Catalog"), "Catalog");
 const Settings = page(() => import("./pages/Settings"), "Settings");
 const Orders = page(() => import("./pages/Orders"), "Orders");
+const Insights = page(() => import("./pages/Insights"), "Insights");
 const Assistant = page(() => import("./pages/Assistant"), "Assistant");
 const Legal = {
   Privacy: page(() => import("./pages/Legal"), "Privacy"),
@@ -66,6 +67,7 @@ export function App() {
                   </Route>
                   <Route path="/catalog" element={<Catalog />} />
                   <Route path="/orders" element={<Orders />} />
+                  <Route path="/insights" element={<Insights />} />
                   <Route path="/assistant" element={<Assistant />} />
                   <Route path="/channels" element={<Navigate to="/assistant" replace />} />
                   <Route path="/settings" element={<Settings />} />

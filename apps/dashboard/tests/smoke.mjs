@@ -2,7 +2,8 @@
 //   npm run test:ui          (needs a Chromium: set CHROMIUM_PATH, or run `npx playwright-core install chromium`)
 import { chromium } from "playwright-core";
 import { spawn } from "node:child_process";
-import { start, state, pushConversationChange } from "./mock.mjs";
+import { start, state, pushChange, pushConversationChange } from "./mock.mjs";
+import { insightsFixture } from "./mock.mjs";
 
 // TEST_PORT lets several checkouts run the smoke test at once.
 const PORT = Number(process.env.TEST_PORT || 4173);
@@ -60,6 +61,16 @@ async function newPage(opts = {}) {
   return { page, ctx, errors };
 }
 
+// Signs in with the demo owner's password and waits for the inbox.
+async function signIn(page) {
+  await page.goto(`http://127.0.0.1:${PORT}/login`);
+  await page.fill("#email", "owner@example.com");
+  await page.fill("#password", "password123");
+  await page.click("[data-testid=auth-submit]");
+  await page.waitForURL(/\/inbox/);
+  await page.waitForSelector("text=Customer chats");
+}
+
 try {
   // 1. login + inbox
   let { page, ctx, errors } = await newPage({ locale: "en-US" });
@@ -104,6 +115,7 @@ try {
   await page.screenshot({ path: OUT + "02-inbox.png" });
 
   await page.click("[role=tab]:has-text('Assistant')");
+  await page.waitForSelector("text=Sara", { timeout: 5000 }).catch(() => {});
   ok("assistant tab shows Sara on Instagram", await page.isVisible("text=Sara") && await page.isVisible("text=Instagram"));
 
   await page.click("a:has-text('Import a list')");
@@ -548,6 +560,175 @@ try {
     ok("signed-in visitor on the landing sees 'Go to inbox'", (await goInbox.count()) > 0);
     await goInbox.click();
     ok("'Go to inbox' navigates to /inbox", await page.waitForURL(/\/inbox/, { timeout: 5000 }).then(() => true, () => false));
+    await ctx.close();
+  }
+  // 13. inbox search (server-side, all statuses while searching), paging, long threads, realtime messages
+  {
+    ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
+    await signIn(page);
+    const search = "input[type=search]";
+    const gone = (sel) => page.waitForSelector(sel, { state: "detached", timeout: 3000 }).then(() => true, () => false);
+    const seen = (sel) => page.waitForSelector(sel, { timeout: 3000 }).then(() => true, () => false);
+    await page.fill(search, "Sara");
+    ok("inbox search by name finds a chat in any status", await seen("a:has-text('Sara')"));
+    ok("a search hides the other chats", await gone("a:has-text('Amine')"));
+    await page.fill(search, "hoodies");
+    ok("inbox search matches message text", await seen("a:has-text('Amine')") && await gone("a:has-text('Sara')"));
+    await page.fill(search, "هودي");
+    ok("inbox search matches an Arabic term in a message", await seen("a:has-text('Sara')") && await gone("a:has-text('Amine')"));
+    await page.fill(search, "zzz-no-such-chat");
+    ok("a search with no match says so", await seen("text=No chats match this search."));
+    await page.fill(search, "");
+    ok("clearing the search brings the 'Needs you' box back", await seen("text=Needs you") && await seen("a:has-text('Amine')"));
+
+    // Load more: 62 closed chats, 50 per page
+    state.bulk = true;
+    await page.reload();
+    await page.waitForSelector("text=Customer chats");
+    await page.click("[role=tab]:has-text('Closed')");
+    await page.waitForSelector("[role=tab]:has-text('Closed (62)')");
+    const rowLinks = () => page.locator("a[href^='/inbox/']").count();
+    ok("the first page of chats is 50 rows (plus one 'Needs you' row)", (await rowLinks()) === 51);
+    await page.click("button:has-text('Load more')");
+    await page.waitForFunction(() => document.querySelectorAll("a[href^='/inbox/']").length === 63, null, { timeout: 5000 }).catch(() => {});
+    ok("'Load more' appends the rest of the chats", (await rowLinks()) === 63);
+    state.bulk = false;
+    await page.screenshot({ path: OUT + "12-inbox-search.png" });
+
+    // A 250-message chat: the newest 100 show first, and "Load earlier" fetches the rest in pages
+    await page.goto(`http://127.0.0.1:${PORT}/inbox/c5`);
+    await page.waitForSelector("text=Long thread message 250");
+    ok("a 250-message chat opens at the newest message", await page.isVisible("text=Long thread message 250"));
+    ok("older messages are not loaded until asked for", !(await page.getByText("Long thread message 150", { exact: true }).isVisible()));
+    await page.click("button:has-text('Load earlier messages')");
+    await page.waitForSelector("text=Long thread message 150", { state: "attached", timeout: 5000 });
+    ok("'Load earlier' brings in the messages before the newest page", await page.getByText("Long thread message 150", { exact: true }).isVisible());
+    ok("the newest message is still the last one", await page.isVisible("text=Long thread message 250"));
+    await page.screenshot({ path: OUT + "12b-long-thread.png" });
+
+    // A new customer message arrives over realtime, with no reload and no poll
+    const joinsBefore = state.realtimeJoins;
+    await page.goto(`http://127.0.0.1:${PORT}/inbox/c1`);
+    await page.waitForSelector("text=The owner will reply to you personally.");
+    // Wait for this page's subscriptions (Layout, Inbox, and the thread's messages and header) before pushing.
+    for (let i = 0; i < 100 && state.realtimeJoins < joinsBefore + 4; i++) await new Promise((r) => setTimeout(r, 100));
+    state.messages.push({ id: "rt1", conversation_id: "c1", direction: "inbound", sender: "customer", body: "Realtime hello from the customer", created_at: new Date().toISOString(), delivery_status: null, delivery_error: null });
+    pushChange("messages");
+    ok("a realtime message update shows in the open chat within 5 s", await seen("text=Realtime hello from the customer"));
+    ok("the new customer message is announced to screen readers", await seen("[role=status]:has-text('New message from the customer: Realtime hello')"));
+
+    // A reply that is not delivered yet is retried by the 8 s timer, not left for the 60 s poll
+    state.deliverMode = "skip";
+    await page.fill("textarea", "Reply that waits to go out");
+    await page.click("button[type=submit]:has-text('Send')");
+    await page.waitForSelector("text=Not sent yet");
+    state.deliverMode = "ok";
+    const started = Date.now();
+    ok("a pending reply goes out on the retry without waiting for the 60 s poll",
+      await page.waitForSelector("text=Not sent yet", { state: "detached", timeout: 12000 }).then(() => true, () => false) && Date.now() - started < 12000);
+    ok("no runtime errors in the inbox search, paging, long thread and realtime checks", errors.length === 0);
+    if (errors.length) console.log(errors.join("\n"));
+    await ctx.close();
+  }
+  // 14. orders search
+  {
+    ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
+    await signIn(page);
+    await page.goto(`http://127.0.0.1:${PORT}/orders`);
+    await page.waitForSelector("[role=tab]:has-text('Shipped')");
+    await page.click("[role=tab]:has-text('Shipped')");
+    await page.fill("input[type=search]", "Lina");
+    ok("orders search finds a shipped order by name", await page.waitForSelector("text=Lina S", { timeout: 3000 }).then(() => true, () => false));
+    await page.fill("input[type=search]", "0661");
+    ok("orders search also matches the phone number", await page.waitForSelector("text=Lina S", { timeout: 3000 }).then(() => true, () => false));
+    await page.fill("input[type=search]", "nobody-here");
+    ok("an orders search with no match says so", await page.waitForSelector("text=No orders match this search.", { timeout: 3000 }).then(() => true, () => false));
+    ok("no runtime errors in the orders search checks", errors.length === 0);
+    await ctx.close();
+  }
+  // 15. insights: nav entry, range toggle, stat cards, empty state, Arabic, phone bottom bar
+  {
+    const card = async (pg, k) => ((await pg.textContent(`[data-testid=insights-stat-${k}] .text-2xl`)) || "").trim();
+    // Compares the stat cards with what the RPC fixture returns for the same window.
+    const cardsMatch = async (pg, want) => {
+      const t = want.totals;
+      const rate = t.conversations ? `${Math.round((100 * t.handoffs) / t.conversations)}%` : "0%";
+      return (await card(pg, "conversations")) === String(t.conversations)
+        && (await card(pg, "replies")) === String(t.replies)
+        && (await card(pg, "handoff")) === rate
+        && (await card(pg, "orders")) === String(t.orders)
+        && (await card(pg, "revenue")).replace(/\D/g, "") === String(t.revenue_cents / 100)
+        && (await card(pg, "credits")) === String(want.reply_credits);
+    };
+    const want7 = insightsFixture(7);
+    const want30 = insightsFixture(30);
+
+    ({ page, ctx, errors } = await newPage({ locale: "en-US" }));
+    await page.goto(`http://127.0.0.1:${PORT}/login`);
+    await page.fill("#email", "owner@example.com"); await page.fill("#password", "password123");
+    await page.click("[data-testid=auth-submit]");
+    await page.waitForURL(/\/inbox/);
+    await page.click("a:has-text('Insights')");
+    await page.waitForURL(/\/insights/);
+    await page.waitForSelector("[data-testid=insights-stat-orders] .text-2xl");
+    ok("insights page is reachable from the nav", await page.isVisible("h1:has-text('Insights')"));
+    ok("stat cards show the 7-day totals from store_insights", await cardsMatch(page, want7));
+    ok("first load asks for 7 days", await logged((l) => l.includes("/rest/v1/rpc/store_insights") && l.includes('"p_days":7')));
+    ok("the bar charts have accessible labels and a data table", await page.isVisible("svg[role=img][aria-label^='Conversations per day']") && await page.locator("table.sr-only tbody tr").count() === 14);
+    await page.click("[role=tab]:has-text('30 days')");
+    ok("30-day toggle asks for 30 days", await logged((l) => l.includes("/rest/v1/rpc/store_insights") && l.includes('"p_days":30')));
+    await page.waitForFunction((n) => document.querySelector("[data-testid=insights-stat-orders] .text-2xl")?.textContent?.trim() === n, String(want30.totals.orders), { timeout: 3000 }).catch(() => {});
+    ok("the 30-day window holds more orders than the 7-day one", want30.totals.orders > want7.totals.orders);
+    ok("stat cards show the 30-day totals after the toggle", await cardsMatch(page, want30));
+    await page.screenshot({ path: OUT + "11-insights-30d.png" });
+
+    // An empty window shows the empty state instead of charts.
+    state.insightsEmpty = true;
+    await page.reload();
+    await page.waitForSelector("[data-testid=insights-empty]", { timeout: 5000 }).catch(() => {});
+    ok("an all-zero window shows the empty state and no charts", await page.isVisible("[data-testid=insights-empty]") && (await card(page, "conversations")) === "0" && (await page.locator("svg[role=img]").count()) === 0);
+    state.insightsEmpty = false;
+    ok("no runtime errors on the insights page", errors.length === 0);
+    if (errors.length) console.log(errors.join("\n"));
+
+    // Arabic: right-to-left page, Latin digits in the cards.
+    await page.selectOption("aside select", "ar");
+    await page.click("a:has-text('الإحصاءات')");
+    await page.waitForSelector("h1:has-text('الإحصاءات')");
+    await page.waitForSelector("[data-testid=insights-stat-orders] .text-2xl");
+    ok("Arabic insights page is right-to-left", (await page.evaluate(() => document.documentElement.dir)) === "rtl");
+    ok("Arabic insights keep Latin digits in the cards", (await card(page, "conversations")) === String(want7.totals.conversations));
+    await page.screenshot({ path: OUT + "11-insights-ar.png" });
+    ok("no runtime errors on the Arabic insights page", errors.length === 0);
+    if (errors.length) console.log(errors.join("\n"));
+    await ctx.close();
+
+    // Phone: six bottom tabs on one row, labels not clipped, no horizontal scroll.
+    ({ page, ctx, errors } = await newPage({ viewport: { width: 375, height: 760 }, locale: "fr-FR", isMobile: true, hasTouch: true }));
+    await page.goto(`http://127.0.0.1:${PORT}/login`);
+    await page.fill("#email", "owner@example.com"); await page.fill("#password", "password123");
+    await page.click("[data-testid=auth-submit]");
+    await page.waitForURL(/\/inbox/);
+    await page.waitForSelector("nav.fixed a:has-text('Stats')");
+    const bar = await page.evaluate(() => {
+      const links = [...document.querySelectorAll("nav.fixed a")];
+      const labels = links.map((a) => a.querySelector("span.truncate")).filter(Boolean);
+      return {
+        count: links.length,
+        labels: labels.length,
+        rows: new Set(links.map((a) => Math.round(a.getBoundingClientRect().top))).size,
+        inView: links.every((a) => { const r = a.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 1; }),
+        clipped: labels.filter((l) => l.scrollWidth > l.clientWidth + 1).length,
+      };
+    });
+    ok("phone bottom bar holds six tabs on one row at 375px", bar.count === 6 && bar.rows === 1 && bar.inView);
+    ok("phone bottom bar labels are not clipped at 375px", bar.labels === 6 && bar.clipped === 0);
+    await page.click("nav.fixed a:has-text('Stats')");
+    await page.waitForSelector("h1:has-text('Statistiques')");
+    ok("no horizontal scroll on the insights page on a phone", !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
+    await page.screenshot({ path: OUT + "11-insights-phone-fr.png" });
+    ok("no runtime errors on the phone insights page", errors.length === 0);
+    if (errors.length) console.log(errors.join("\n"));
     await ctx.close();
   }
 } catch (e) {
