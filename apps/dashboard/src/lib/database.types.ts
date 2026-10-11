@@ -766,6 +766,14 @@ export type Database = {
       }
       is_store_member: { Args: { p_store_id: string }; Returns: boolean }
       is_store_owner: { Args: { p_store_id: string }; Returns: boolean }
+      adjust_stock: {
+        Args: { p_delta: number; p_variant_id: string }
+        Returns: number
+      }
+      save_product: {
+        Args: { p_product: Json; p_product_id: string | null; p_store_id: string; p_variants: Json }
+        Returns: string
+      }
       set_order_status: {
         Args: { p_order_id: string; p_status: string }
         Returns: string
