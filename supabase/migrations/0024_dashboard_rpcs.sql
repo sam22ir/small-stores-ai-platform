@@ -66,7 +66,7 @@ begin
            description = p_product->>'description',
            aliases = p_product->>'aliases',
            price_cents = (p_product->>'price_cents')::integer,
-           active = coalesce((p_product->>'active')::boolean, true),
+           active = coalesce((p_product->>'active')::boolean, active),
            updated_at = now()
      where id = v_id and store_id = p_store_id;
     if not found then
