@@ -16,7 +16,9 @@ ref="${SUPABASE_PROJECT_REF:-$(cat supabase/.temp/project-ref 2>/dev/null || tru
 if [ -z "$ref" ]; then read -rp "Supabase project ref: " ref; fi
 
 read -rsp "Chargily secret key (test_sk_... or live_sk_...), hidden: " key; echo
-key="$(printf '%s' "$key" | tr -d '[:space:]"'"'"'')"
+# Pasting into some terminals wraps the text in invisible "bracketed paste" codes (ESC[200~ ... ESC[201~).
+# Remove them, then keep only the characters a Chargily key can contain.
+key="$(printf '%s' "$key" | sed -E 's/\x1b\[[0-9;?]*[ -\/]*[@-~]//g; s/\[20[01]~//g' | tr -cd 'A-Za-z0-9_-')"
 case "$key" in
   *_pk_*) echo "That is a PUBLIC key. Use the SECRET key (test_sk_... / live_sk_...) from the Chargily Developers Corner." >&2; exit 1 ;;
   test_sk_*) mode=TEST; base="https://pay.chargily.net/test/api/v2" ;;
@@ -28,6 +30,8 @@ if [ "$mode" = LIVE ]; then
   read -rp "This is a LIVE key: real money will move. Type 'live' to continue: " ok
   [ "$ok" = live ] || { echo "Cancelled."; exit 1; }
 fi
+
+echo "Read a $mode key of ${#key} characters."
 
 # Ask Chargily whether it accepts the key before saving anything (a 401 means a wrong or cut-off key).
 if command -v curl >/dev/null; then
