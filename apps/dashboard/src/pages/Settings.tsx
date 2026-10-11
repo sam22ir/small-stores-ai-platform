@@ -167,7 +167,7 @@ export function Settings() {
           <SavedCheck show={saved} label={t("common.saved")} />
         </div>
       </form>
-      <BillingCard store={s} />
+      {s.trial_ends_at && <BillingCard store={s} />}
       <PasswordCard />
       <FaqEditor storeId={s.id} />
       <DeliveryFees storeId={s.id} currency={s.currency} />
@@ -176,7 +176,6 @@ export function Settings() {
   );
 }
 
-// Lets owners who joined by email link set a password for password sign-in.
 // Subscription status and the "Pay" button (Chargily checkout, see supabase/functions/billing-checkout).
 // Shown to owners only: the checkout function rejects other members anyway.
 function BillingCard({ store }: { store: { id: string; trial_ends_at: string; paid_until: string | null } }) {
@@ -228,6 +227,7 @@ function BillingCard({ store }: { store: { id: string; trial_ends_at: string; pa
   );
 }
 
+// Lets owners who joined by email link set a password for password sign-in.
 function PasswordCard() {
   const { t } = useI18n();
   const [password, setPassword] = useState("");
