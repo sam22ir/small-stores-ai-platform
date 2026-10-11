@@ -29,6 +29,16 @@ if [ "$mode" = LIVE ]; then
   [ "$ok" = live ] || { echo "Cancelled."; exit 1; }
 fi
 
+# Ask Chargily whether it accepts the key before saving anything (a 401 means a wrong or cut-off key).
+if command -v curl >/dev/null; then
+  code="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $key" "$base/balance" || true)"
+  case "$code" in
+    200) echo "Chargily accepted the key." ;;
+    401|403) echo "Chargily REJECTED this key ($code). Copy the full secret key again from the Developers Corner (same account, ${mode} mode). Nothing was saved." >&2; exit 1 ;;
+    *) echo "Could not verify the key (Chargily answered $code); continuing." ;;
+  esac
+fi
+
 default_url="https://store-assistant-dz.pages.dev"
 read -rp "Dashboard URL [$default_url]: " dash
 dash="${dash:-$default_url}"
