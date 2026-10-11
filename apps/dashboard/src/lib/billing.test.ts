@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { billingView } from "./billing.ts";
+import { REPLY_PACKS, billingView, formatDa, pricePerReply } from "./billing.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = new Date("2026-10-10T12:00:00.000Z");
@@ -37,4 +37,20 @@ test("expired: trial over and nothing paid", () => {
 test("expired: paid period ended more than 3 days ago", () => {
   const v = billingView({ trial_ends_at: at(NOW.getTime() - 60 * DAY), paid_until: at(NOW.getTime() - 4 * DAY) }, NOW);
   assert.equal(v.status, "expired");
+});
+
+test("reply packs: ascending by size, and the per-reply price falls as the pack grows", () => {
+  for (let i = 1; i < REPLY_PACKS.length; i++) {
+    assert.ok(REPLY_PACKS[i].credits > REPLY_PACKS[i - 1].credits);
+    assert.ok(pricePerReply(REPLY_PACKS[i]) < pricePerReply(REPLY_PACKS[i - 1]));
+  }
+});
+
+test("reply packs: the smallest pack costs 0.60 DA per reply", () => {
+  assert.equal(pricePerReply(REPLY_PACKS[0]), 0.6);
+});
+
+test("formatDa: groups thousands and keeps the requested decimals", () => {
+  assert.equal(formatDa(1000, "en-US"), "1,000");
+  assert.equal(formatDa(0.6, "en-US", 2), "0.60");
 });

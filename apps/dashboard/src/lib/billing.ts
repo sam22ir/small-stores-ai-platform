@@ -41,3 +41,29 @@ export function billingView(store: BillingFields, now = new Date()): BillingView
   const daysLeft = Math.max(0, Math.ceil((endsAt - t) / DAY_MS));
   return { status, endsAt: new Date(endsAt).toISOString(), daysLeft };
 }
+
+// Reply credit packs (see supabase/migrations/0023_reply_credits.sql). The price is set server-side in
+// supabase/functions/billing-checkout; the client only sends the pack size. Prices are in DZD.
+export interface ReplyPack {
+  credits: number;
+  price: number;
+}
+
+export const REPLY_PACKS: readonly ReplyPack[] = [
+  { credits: 500, price: 300 },
+  { credits: 2000, price: 1000 },
+  { credits: 5000, price: 2000 },
+];
+
+// Price of one reply in DZD, e.g. 300 / 500 = 0.6.
+export function pricePerReply(pack: ReplyPack): number {
+  return pack.price / pack.credits;
+}
+
+// A DA amount formatted for a locale, with the given number of decimals.
+export function formatDa(amount: number, locale: string, fractionDigits = 0): string {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(amount);
+}
