@@ -16,10 +16,12 @@ ref="${SUPABASE_PROJECT_REF:-$(cat supabase/.temp/project-ref 2>/dev/null || tru
 if [ -z "$ref" ]; then read -rp "Supabase project ref: " ref; fi
 
 read -rsp "Chargily secret key (test_sk_... or live_sk_...), hidden: " key; echo
+key="$(printf '%s' "$key" | tr -d '[:space:]"'"'"'')"
 case "$key" in
+  *_pk_*) echo "That is a PUBLIC key. Use the SECRET key (test_sk_... / live_sk_...) from the Chargily Developers Corner." >&2; exit 1 ;;
   test_sk_*) mode=TEST; base="https://pay.chargily.net/test/api/v2" ;;
   live_sk_*) mode=LIVE; base="https://pay.chargily.net/api/v2" ;;
-  *) echo "The key must start with test_sk_ or live_sk_." >&2; exit 1 ;;
+  *) echo "The key must start with test_sk_ or live_sk_ (got ${#key} characters starting \"${key:0:8}\"). Copy the secret key again." >&2; exit 1 ;;
 esac
 
 if [ "$mode" = LIVE ]; then
