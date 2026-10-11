@@ -84,3 +84,7 @@ supabase functions deploy assistant-chat
 ```
 
 Prefer the workflow for routine releases so each deploy is logged and serialized.
+
+## Chargily Pay secrets
+
+Run `scripts/set-chargily-secrets.sh` in your own terminal (after `supabase login`). It asks for the Chargily secret key with hidden input, picks the test or live API URL from the key prefix (`test_sk_` / `live_sk_`), asks for the dashboard URL, and sets `CHARGILY_SECRET_KEY`, `CHARGILY_API_BASE` and `DASHBOARD_URL` on the Supabase project. Run it again to switch from a test key to a live key. Cutting off unpaid stores stays off until `BILLING_ENFORCED` is set.
