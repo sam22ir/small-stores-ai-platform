@@ -31,6 +31,26 @@ async function logged(pred, ms = 3000) {
   return false;
 }
 
+// Waits until the mock has received a matching RPC call (RPC arguments are recorded in state.rpcCalls).
+async function rpcSeen(name, pred = () => true, ms = 3000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) { if (state.rpcCalls.some((c) => c.name === name && pred(c.args))) return true; await new Promise((r) => setTimeout(r, 100)); }
+  return false;
+}
+const saveCalls = () => state.rpcCalls.filter((c) => c.name === "save_product").length;
+// One variant row (option label) inside one product card.
+const variantRow = (page, product, label) => page.locator("li", { hasText: product }).locator("li", { has: page.getByText(label, { exact: true }) });
+// Polls the option's shown stock until it reads n (the number animates, so a single read can catch both digits).
+async function stockShows(page, product, label, n, ms = 3000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    const txt = await variantRow(page, product, label).textContent();
+    if (new RegExp("\u2212" + n + "(\u2713)?\\+").test(txt)) return true;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return false;
+}
+
 async function newPage(opts = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 }, ...opts });
   const page = await ctx.newPage();
@@ -177,7 +197,7 @@ try {
   ok("stock badges: out / low / in stock", await page.isVisible("text=Out of stock") && await page.isVisible("text=Low: 3 left") && await page.isVisible("text=24 in stock"));
   ok("hidden product marked", await page.isVisible("text=Hidden"));
   await page.click("li:has-text('Black Hoodie') li:has-text('M') button[aria-label='Increase stock']");
-  ok("stock + saves immediately", await logged((l) => l.startsWith("PATCH /rest/v1/product_variants") && l.includes('"stock_quantity":4')));
+  ok("stock + calls adjust_stock and shows the stored quantity", await rpcSeen("adjust_stock", (a) => a.p_variant_id === "v2" && a.p_delta === 1) && await variantRow(page, "Black Hoodie", "M").getByText("4", { exact: true }).isVisible());
   await page.screenshot({ path: OUT + "04-catalog.png" });
   await page.fill("input[type=search]", "wallet");
   await page.waitForSelector("li:has-text('Black Hoodie')", { state: "detached" }); // the row animates out
@@ -206,8 +226,11 @@ try {
   await page.screenshot({ path: OUT + "04c-import.png" });
   await page.click("[role=dialog] button:has-text('Import')");
   await page.waitForSelector("text=Done: 1 added, 1 updated.");
-  ok("import updates existing stock by product and option", await logged((l) => l.startsWith("PATCH /rest/v1/product_variants") && l.includes('"stock_quantity":5')) && await logged((l) => l.startsWith("PATCH /rest/v1/product_variants") && l.includes('"stock_quantity":30')));
-  ok("import creates new products with their price in cents", await logged((l) => l.startsWith("POST /rest/v1/products") && l.includes('"name":"Silk Scarf"') && l.includes('"price_cents":150000')));
+  // The existing product goes through one save_product call that still lists its untouched option (S).
+  ok("import updates existing stock by option and keeps the other options", await rpcSeen("save_product", (a) => a.p_product_id === "p1"
+    && a.p_variants.some((v) => v.id === "v2" && v.stock_quantity === 5) && a.p_variants.some((v) => v.id === "v3" && v.stock_quantity === 30)
+    && a.p_variants.some((v) => v.id === "v1" && v.label === "S") && a.p_variants.length === 3));
+  ok("import creates new products with their price in cents", await rpcSeen("save_product", (a) => a.p_product_id === null && a.p_product.name === "Silk Scarf" && a.p_product.price_cents === 150000));
   await page.click("[role=dialog] button:has-text('Cancel')");
 
   // 4. product editor validation + save
@@ -222,9 +245,39 @@ try {
   await page.fill("#palias", "linen, kittan");
   await page.fill("#pprice", "3 800");
   await page.screenshot({ path: OUT + "05-editor.png" });
+  const createdBefore = saveCalls();
   await page.click("[role=dialog] button[type=submit]");
   await page.waitForSelector("[role=dialog]", { state: "detached" });
-  ok("valid product is inserted (price 380000 cents) with its variant", await logged((l) => l.startsWith("POST /rest/v1/products") && l.includes('"price_cents":380000') && l.includes('"aliases":"linen, kittan"')) && state.log.some((l) => l.startsWith("POST /rest/v1/product_variants")));
+  ok("valid product is created with one save_product call (price 380000 cents, its variant)", saveCalls() - createdBefore === 1 && await rpcSeen("save_product", (a) => a.p_product_id === null && a.p_product.price_cents === 380000 && a.p_product.aliases === "linen, kittan" && a.p_variants.length === 1));
+
+  // 4b. editing: one atomic save; a forced failure keeps the editor open and changes nothing
+  const hoodie = () => page.locator("li", { hasText: "Black Hoodie" }).first();
+  const editedBefore = saveCalls();
+  await hoodie().getByRole("button", { name: "Edit" }).click();
+  await page.waitForSelector("[role=dialog]");
+  await page.fill("#pprice", "4 900");
+  await page.click("[role=dialog] button[type=submit]");
+  await page.waitForSelector("[role=dialog]", { state: "detached" });
+  ok("editing a product sends one save_product call and the list shows the new price", saveCalls() - editedBefore === 1 && await rpcSeen("save_product", (a) => a.p_product_id === "p1" && a.p_product.price_cents === 490000 && a.p_variants.length === 3) && /4[\s,. ]?900/.test(await hoodie().textContent()));
+
+  const snapshot = JSON.stringify(state.products);
+  state.failSaveProduct = true;
+  await hoodie().getByRole("button", { name: "Edit" }).click();
+  await page.waitForSelector("[role=dialog]");
+  await page.fill("#pname", "Broken Hoodie");
+  await page.click("[role=dialog] button[type=submit]");
+  await page.waitForSelector("[role=dialog] >> text=Something went wrong. Please try again.");
+  ok("a failed save keeps the editor open with the generic error", await page.isVisible("[role=dialog]") && await page.isVisible("[role=dialog] >> text=Something went wrong. Please try again."));
+  ok("a failed save writes nothing and the list is unchanged", JSON.stringify(state.products) === snapshot && await hoodie().count() === 1 && !(await page.textContent("body")).includes("Broken Hoodie"));
+  state.failSaveProduct = false;
+  await page.click("[role=dialog] button:has-text('Cancel')");
+  await page.waitForSelector("[role=dialog]", { state: "detached" });
+
+  // 4c. stock +/- go through adjust_stock and show the number it returns (L: 30)
+  await variantRow(page, "Black Hoodie", "L").getByRole("button", { name: "Increase stock" }).click();
+  ok("stock + calls adjust_stock with +1 and shows the stored quantity", await rpcSeen("adjust_stock", (a) => a.p_variant_id === "v3" && a.p_delta === 1) && await stockShows(page, "Black Hoodie", "L", 31));
+  await variantRow(page, "Black Hoodie", "L").getByRole("button", { name: "Decrease stock" }).click();
+  ok("stock - calls adjust_stock with -1 and shows the stored quantity", await rpcSeen("adjust_stock", (a) => a.p_variant_id === "v3" && a.p_delta === -1) && await stockShows(page, "Black Hoodie", "L", 30));
 
   // 5. settings + channels
   await page.click("a:has-text('Settings')");
@@ -341,6 +394,9 @@ try {
   // Messages leave with an exit animation, so wait for them to detach instead of checking once.
   await page.waitForSelector("text=Black Hoodie in M is available", { state: "detached" });
   ok("new test chat clears the conversation", !(await page.isDisabled("input[aria-label='Write as a customer…']")) && !(await page.isVisible("text=Black Hoodie in M is available")));
+  // The products this run created through save_product / import would finish the products step. Drop them
+  // so the checklist still starts with only the two seeded products (the step this section is about).
+  state.products = state.products.filter((p) => !p.id.startsWith("p-new-"));
   await page.click("a:has-text('Chats')");
   await page.waitForSelector("text=Customer chats");
   await page.waitForSelector("text=2 of 3 done");
