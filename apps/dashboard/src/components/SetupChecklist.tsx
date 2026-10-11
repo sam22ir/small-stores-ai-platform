@@ -78,6 +78,7 @@ export function SetupChecklist() {
               <span aria-hidden="true" className={`mt-0.5 grid size-5.5 shrink-0 place-items-center rounded-full text-xs font-bold ${s.done ? "bg-blue text-slip" : "border-2 border-ink/30 bg-slip text-soft"}`}>
                 {s.done ? "✓" : ""}
               </span>
+              <span className="sr-only">{s.done ? t("setup.doneSr") : t("setup.todoSr")}</span>
               <div className="min-w-0 grow">
                 <div className={`font-semibold text-ink ${s.done ? "text-soft line-through" : ""}`}>{t(s.title)}
                   {s.id === nextId && <span className="ms-2 inline-flex rounded-full border border-ink bg-red px-2 py-0.5 text-[11px] font-bold text-slip">{t("setup.next")}</span>}

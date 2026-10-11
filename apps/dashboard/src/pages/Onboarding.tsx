@@ -87,7 +87,7 @@ export function Onboarding() {
     e.preventDefault();
     setBusy(true); setError(null);
     const { error: err } = await supabase.rpc("create_store", { p_name: name.trim(), p_currency: currency });
-    if (err) { setError(err.message); setBusy(false); return; }
+    if (err) { setError(t("onboarding.errCreate")); setBusy(false); return; }
     await refresh();
     navigate("/inbox", { replace: true });
   }

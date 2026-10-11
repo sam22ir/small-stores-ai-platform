@@ -100,6 +100,7 @@ type LayoutProps = {
 export function AuthLayout({ title, subtitle, children, footer }: LayoutProps) {
   const landing = landingUrl();
   const reduced = useMotionSafe();
+  const { t } = useI18n();
 
   return (
     <div className="relative min-h-dvh overflow-x-clip bg-paper text-ink">
@@ -133,10 +134,10 @@ export function AuthLayout({ title, subtitle, children, footer }: LayoutProps) {
             </section>
           </motion.div>
 
-          <nav aria-label="Legal" className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-soft">
-            <Link className="rounded-wakil-sm underline-offset-4 hover:underline" to="/privacy">Privacy</Link>
-            <Link className="rounded-wakil-sm underline-offset-4 hover:underline" to="/terms">Terms</Link>
-            <Link className="rounded-wakil-sm underline-offset-4 hover:underline" to="/data-deletion">Data deletion</Link>
+          <nav aria-label={t("legal.nav")} className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-soft">
+            <Link className="rounded-wakil-sm underline-offset-4 hover:underline" to="/privacy">{t("auth.privacyShort")}</Link>
+            <Link className="rounded-wakil-sm underline-offset-4 hover:underline" to="/terms">{t("auth.termsShort")}</Link>
+            <Link className="rounded-wakil-sm underline-offset-4 hover:underline" to="/data-deletion">{t("legal.deletionLink")}</Link>
           </nav>
         </main>
       </div>
