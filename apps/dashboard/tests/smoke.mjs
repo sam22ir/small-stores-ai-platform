@@ -95,6 +95,7 @@ try {
   await page.screenshot({ path: OUT + "02-inbox.png" });
 
   await page.click("[role=tab]:has-text('Assistant')");
+  await page.waitForSelector("text=Sara", { timeout: 5000 }).catch(() => {});
   ok("assistant tab shows Sara on Instagram", await page.isVisible("text=Sara") && await page.isVisible("text=Instagram"));
 
   await page.click("a:has-text('Import a list')");
