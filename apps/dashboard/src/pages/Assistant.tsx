@@ -237,6 +237,10 @@ function ChannelsPanel() {
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
+  // The professional-account how-to opens by itself when Instagram refuses the account.
+  const [proHelpOpen, setProHelpOpen] = useState(false);
+  // Errors where trying again can work (not "only the owner" or "already used by another store").
+  const [canRetry, setCanRetry] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.from("channels").select("id,platform,display_name,status").order("created_at");
@@ -246,6 +250,8 @@ function ChannelsPanel() {
 
   const finishedCode = useRef<string | null>(null);
   const showResult = useCallback((r: { ok: boolean; warning?: string; reason?: string }) => {
+    setCanRetry(!r.ok && ["denied", "invalid_state", "instagram_error", "server_error", undefined].includes(r.reason));
+    if (!r.ok && r.reason === "instagram_error") setProHelpOpen(true);
     if (r.ok) {
       setNotice(r.warning === "subscribe_failed"
         ? { kind: "warn", text: t("channels.warnSubscribe") }
@@ -285,6 +291,7 @@ function ChannelsPanel() {
     if (error || !data?.url) {
       const status = (error as { context?: { status?: number } } | null)?.context?.status;
       setNotice({ kind: "error", text: status === 503 ? t("channels.error.not_configured") : t("common.error") });
+      setCanRetry(status !== 503); // a server that is not set up won't succeed on a second try
       setBusy(false);
       return;
     }
@@ -313,6 +320,9 @@ function ChannelsPanel() {
           <Alert status={noticeTone(notice.kind)}>
             <Alert.Content><Alert.Description>{notice.text}</Alert.Description></Alert.Content>
           </Alert>
+          {notice.kind === "error" && canRetry && (
+            <Button size="sm" variant="outline" className="mt-2" isDisabled={busy} onPress={() => void connect()}>{t("channels.retry")}</Button>
+          )}
         </div>
       )}
       <div className="grid gap-3 sm:grid-cols-2">
@@ -328,6 +338,15 @@ function ChannelsPanel() {
           <Button variant="outline" isDisabled className="shrink-0">{t("channels.soon")}</Button>
         </Card>
       </div>
+      <details open={proHelpOpen} onToggle={(e) => setProHelpOpen(e.currentTarget.open)}
+        className="rounded-wakil border border-ink/15 bg-paper/60 px-3 py-2.5 text-[14px] text-ink">
+        <summary className="cursor-pointer font-semibold">{t("channels.proHelpTitle")}</summary>
+        <ol className="mb-0 mt-3 flex list-decimal flex-col gap-1.5 ps-5">
+          <li>{t("channels.proStep1")}</li>
+          <li>{t("channels.proStep2")}</li>
+          <li>{t("channels.proStep3")}</li>
+        </ol>
+      </details>
       {failed && <Alert status="danger"><Alert.Content><Alert.Description>{t("common.error")}</Alert.Description></Alert.Content></Alert>}
       {channels && channels.length === 0 && <p className="m-0 text-[13px] text-soft">{t("channels.none")}</p>}
       <ul className="m-0 flex list-none flex-col gap-2 p-0">

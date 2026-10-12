@@ -44,7 +44,7 @@ export function Catalog() {
   const [editing, setEditing] = useState<{ product?: Product } | null>(null);
   const [params, setParams] = useSearchParams();
   const [importing, setImporting] = useState(params.get("import") === "1");
-  const { data: setup } = useSetupData();
+  const { data: setup } = useSetupData(store!.id);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
