@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Switch } from "@heroui/react";
 import { useI18n } from "../../lib/i18n";
 import { NOTIFY_KEY, SOUND_KEY, readPref, writePref } from "../../lib/handoffAlerts";
@@ -13,11 +13,14 @@ function notificationsSupported(): boolean {
 function AlertRow({ label, help, checked, onChange, disabled = false }: {
   label: string; help: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean;
 }) {
+  const labelId = useId();
+  const helpId = useId();
   return (
-    <Switch isSelected={checked} onChange={onChange} isDisabled={disabled} className="flex w-full items-start justify-between gap-4">
+    <Switch isSelected={checked} onChange={onChange} isDisabled={disabled} aria-labelledby={labelId} aria-describedby={helpId}
+      className="flex w-full items-start justify-between gap-4">
       <span className="min-w-0 flex-1">
-        <Switch.Content className="block text-[15px] font-bold text-ink">{label}</Switch.Content>
-        <span className="mt-1 block text-[13px] text-soft">{help}</span>
+        <Switch.Content className="block text-[15px] font-bold text-ink"><span id={labelId}>{label}</span></Switch.Content>
+        <span id={helpId} className="mt-1 block text-[13px] text-soft">{help}</span>
       </span>
       <Switch.Control><Switch.Thumb /></Switch.Control>
     </Switch>

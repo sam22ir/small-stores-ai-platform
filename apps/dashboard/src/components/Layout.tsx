@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import type { ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { AnimatePresence, LazyMotion, domAnimation, m } from "motion/react";
@@ -11,7 +11,7 @@ import { useConversationsRefresh, useStore } from "../lib/store";
 import { useHandoffAlerts } from "../lib/useHandoffAlerts";
 import { dur, ease, useMotionSafe } from "../lib/motion";
 import { LangSwitch } from "./LangSwitch";
-import { BoxIcon, ChatIcon, GearIcon, InsightsIcon, LogoutIcon, OrdersIcon, SparkIcon } from "./icons";
+import { BoxIcon, ChatIcon, GearIcon, InsightsIcon, OrdersIcon, SparkIcon } from "./icons";
 
 const NAV: { to: string; key: TKey; icon: ReactNode }[] = [
   { to: "/inbox", key: "nav.inbox", icon: <ChatIcon /> },
@@ -27,6 +27,7 @@ function PauseSwitch({ compact = false }: { compact?: boolean }) {
   const { t } = useI18n();
   const { store, patchStore } = useStore();
   const [failed, setFailed] = useState(false);
+  const labelId = useId();
   if (!store) return null;
   const on = store.agent_enabled;
   const storeId = store.id;
@@ -46,13 +47,15 @@ function PauseSwitch({ compact = false }: { compact?: boolean }) {
         onChange={(next) => void toggle(next)}
         size={compact ? "sm" : "md"}
         data-testid="agent-toggle"
-        className={`relative items-center rounded-full border-2 border-ink bg-slip text-sm font-semibold text-ink shadow-ink-sm data-[selected=true]:bg-blue data-[selected=true]:text-slip ${compact ? "min-h-9 w-36 text-xs" : "min-h-11 min-w-40"}`}
+        aria-labelledby={labelId}
+        className={`relative flex items-center justify-start rounded-full border-2 border-ink bg-slip font-semibold text-ink shadow-ink-sm data-[selected=true]:bg-blue data-[selected=true]:text-slip ${compact ? "min-h-9 w-40 text-xs" : "min-h-11 min-w-44 text-sm"}`}
       >
-        <Switch.Control className="ms-1.5">
+        {/* The knob is pinned to the start edge; the label starts past it (see below), so they cannot overlap. */}
+        <Switch.Control className="absolute start-1.5 top-1/2 -translate-y-1/2">
           <Switch.Thumb />
         </Switch.Control>
-        {/* The label fills the whole pill so a click anywhere on it toggles the switch. */}
-        <Switch.Content className={`absolute inset-0 flex cursor-pointer items-center text-start [color:inherit] ${compact ? "ps-9 pe-2" : "ps-12 pe-3"}`}>{on ? t("agent.on") : t("agent.paused")}</Switch.Content>
+        {/* The label fills the whole pill so a click anywhere on it toggles the switch. Its padding starts past the knob, so the text never sits under it. */}
+        <Switch.Content className={`absolute inset-0 flex min-w-0 cursor-pointer items-center text-start [color:inherit] ${compact ? "ps-13 pe-2" : "ps-14 pe-3"}`}><span id={labelId} className="truncate">{on ? t("agent.on") : t("agent.paused")}</span></Switch.Content>
       </Switch>
       <AnimatePresence>
         {failed && (
@@ -169,21 +172,17 @@ export function Layout() {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Phone header (< 1024px) */}
-          <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-2 border-b-2 border-ink bg-slip px-4 py-2 lg:hidden">
-            <div className="flex min-w-0 items-center gap-2.5">
+          {/* Phone header (< 1024px). Language and sign-out live in Settings, so the store name keeps its room. */}
+          <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b-2 border-ink bg-slip px-4 py-2 lg:hidden">
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
               <StoreAvatar name={store?.name} size="sm" />
-              <div className="min-w-0">
-                <div className="truncate text-[15px] font-bold leading-tight text-ink">{store?.name}</div>
+              <div className="min-w-24 flex-1">
+                <div className="truncate text-[15px] font-bold leading-tight text-ink" data-testid="header-store-name">{store?.name}</div>
                 <div className="truncate text-xs text-soft">{t("app.name")}</div>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center">
               <PauseSwitch compact />
-              <LangSwitch />
-              <Button isIconOnly variant="ghost" size="sm" aria-label={t("auth.signOut")} onPress={signOut}>
-                <LogoutIcon />
-              </Button>
             </div>
           </header>
 
@@ -200,17 +199,20 @@ export function Layout() {
         {/* Phone bottom tab bar (< 1024px) */}
         <nav aria-label={t("app.name")} className="pb-[env(safe-area-inset-bottom)] fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t-2 border-ink bg-slip lg:hidden">
           {NAV.map((n) => (
+            // The link name is the label; the count is folded into the Chats name because the badge is aria-hidden.
             <NavLink key={n.to} to={n.to}
-              className={({ isActive }) => `relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0 py-1.5 text-[10px] leading-tight no-underline transition-colors duration-150 ${isActive ? "font-bold text-blue" : "font-medium text-soft"}`}>
+              aria-label={n.to === "/inbox" && needs > 0 ? `${t(n.key)}, ${t("inbox.needsYou")}: ${needs}` : t(n.key)}
+              className={({ isActive }) => `relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-[10px] leading-tight no-underline transition-colors duration-150 ${isActive ? "font-bold text-blue" : "font-medium text-soft"}`}>
               {({ isActive }) => (
                 <>
                   {isActive && <m.span layoutId="tab-active" aria-hidden="true" className="absolute inset-x-3 top-0 h-[3px] rounded-full bg-red"
                     transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
-                  <span className="relative block h-6 w-6 [&>svg]:size-6">
+                  <span aria-hidden="true" className="relative block h-6 w-6 [&>svg]:size-6">
                     {n.icon}
                     {n.to === "/inbox" && <NeedsBadge count={needs} className="absolute -top-1.5 -end-2.5" />}
                   </span>
-                  <span className="max-w-full truncate">{t(n.key)}</span>
+                  {/* Labels wrap instead of truncating, so long Arabic names stay readable on 320px phones. */}
+                  <span className="block max-w-full break-words text-center">{t(n.key)}</span>
                 </>
               )}
             </NavLink>

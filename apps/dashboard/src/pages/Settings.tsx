@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import { m } from "motion/react";
 import { Alert, Button, toast } from "@heroui/react";
 import { supabase } from "../lib/supabase";
@@ -7,10 +8,11 @@ import { useI18n } from "../lib/i18n";
 import { useStore } from "../lib/store";
 import { dur, ease, useMotionSafe } from "../lib/motion";
 import { FaqEditor } from "../components/FaqEditor";
+import { LangSwitch } from "../components/LangSwitch";
 import { composeInfo, fieldsFromStore } from "../lib/storeInfo";
 import type { InfoFields, InfoKey } from "../lib/storeInfo";
-import { SavedCheck } from "../components/settings/shared";
-import { StoreSection } from "../components/settings/StoreSection";
+import { CARD, SECTION_TITLE, SavedCheck } from "../components/settings/shared";
+import { AssistantFields, StoreFields } from "../components/settings/StoreSection";
 import { BillingCard } from "../components/settings/BillingCard";
 import { ReplyCreditsCard } from "../components/settings/ReplyCreditsCard";
 import { PasswordCard } from "../components/settings/PasswordCard";
@@ -18,12 +20,37 @@ import { TELEGRAM_BOT, TelegramAlerts } from "../components/settings/TelegramAle
 import { DeliveryFees } from "../components/settings/DeliveryFees";
 import { AlertsCard } from "../components/settings/AlertsCard";
 
-// Page shell: owns the store fields and the one save bar. Each card is its own component.
+// Settings is split into tabs. Store and Assistant hold the store form (one Save bar); the other tabs
+// have their own saves. Every panel stays mounted, so an unsaved store form survives a tab switch.
+const TAB_IDS = ["store", "assistant", "delivery", "billing", "account"] as const;
+type TabId = (typeof TAB_IDS)[number];
+const STORE_TABS: TabId[] = ["store", "assistant"];
+
 export function Settings() {
   const { t } = useI18n();
   const reduced = useMotionSafe();
   const { store, refresh } = useStore();
+  const [params, setParams] = useSearchParams();
   const s = store!;
+  const hasBilling = Boolean(s.trial_ends_at);
+  const tabs = TAB_IDS.filter((id) => id !== "billing" || hasBilling);
+
+  // ?tab= keeps the section in the URL. A Chargily return (?billing=...) opens the billing tab.
+  const asked = params.get("tab") as TabId | null;
+  const [tab, setTab] = useState<TabId>(() => {
+    if (asked && tabs.includes(asked)) return asked;
+    return hasBilling && params.get("billing") ? "billing" : "store";
+  });
+
+  function selectTab(id: TabId) {
+    setTab(id);
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", id);
+      return next;
+    }, { replace: true });
+  }
+
   const [name, setName] = useState(s.name);
   const [currency, setCurrency] = useState(s.currency);
   const [timezone, setTimezone] = useState(s.timezone);
@@ -39,7 +66,7 @@ export function Settings() {
 
   async function save(e: FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim()) { selectTab("store"); return; }
     setBusy(true); setError(null); setSaved(false);
     const { error: err } = await supabase.from("stores").update({
       name: name.trim(), currency, timezone, business_info: composeInfo(info) || null, business_info_fields: info,
@@ -51,6 +78,10 @@ export function Settings() {
     setBusy(false);
   }
 
+  // Inactive panels are hidden with classes (not the hidden attribute), so a Tailwind display class cannot override them.
+  const show = (id: TabId, cls = "flex flex-col gap-4") => (tab === id ? cls : "hidden");
+  const storeTab = STORE_TABS.includes(tab);
+
   return (
     <m.div
       className="mx-auto flex max-w-[760px] flex-col gap-4"
@@ -59,28 +90,77 @@ export function Settings() {
       transition={{ duration: dur.base, ease: ease.out }}
     >
       <h1 className="mb-0 mt-1 text-[22px] font-extrabold text-ink">{t("settings.title")}</h1>
-      <form onSubmit={save} className="flex flex-col gap-4">
-        <StoreSection
-          name={name} onNameChange={setName}
-          currency={currency} onCurrencyChange={setCurrency}
-          timezone={timezone} onTimezoneChange={setTimezone}
-          info={info} onInfoChange={(k: InfoKey, v: string) => setInfo((f) => ({ ...f, [k]: v }))}
-          agentOn={agentOn} onAgentChange={setEnabled}
-          ordersOn={ordersOn} onOrdersChange={setOrdersOn}
-        />
+      <div role="tablist" aria-label={t("settings.tabs")} className="-mx-1 flex gap-2 overflow-x-auto px-1 py-1">
+        {tabs.map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            id={`tab-${id}`}
+            aria-selected={tab === id}
+            aria-controls={`panel-${id}`}
+            onClick={() => selectTab(id)}
+            className={`min-h-11 shrink-0 rounded-full border-2 border-ink px-4 text-sm font-bold transition-colors duration-150 ${tab === id ? "bg-ink text-slip shadow-ink-sm" : "bg-slip text-ink hover:bg-ink/5"}`}
+          >
+            {t(`settings.tab.${id}`)}
+          </button>
+        ))}
+      </div>
+
+      <form onSubmit={save} noValidate className={storeTab ? "flex flex-col gap-4" : "hidden"}>
+        <div role="tabpanel" id="panel-store" aria-labelledby="tab-store" className={show("store")}>
+          <StoreFields
+            name={name} onNameChange={setName}
+            currency={currency} onCurrencyChange={setCurrency}
+            timezone={timezone} onTimezoneChange={setTimezone}
+          />
+        </div>
+        <div role="tabpanel" id="panel-assistant" aria-labelledby="tab-assistant" className={show("assistant")}>
+          <AssistantFields
+            info={info} onInfoChange={(k: InfoKey, v: string) => setInfo((f) => ({ ...f, [k]: v }))}
+            agentOn={agentOn} onAgentChange={setEnabled}
+            ordersOn={ordersOn} onOrdersChange={setOrdersOn}
+          />
+        </div>
         {error && <Alert status="danger"><Alert.Content><Alert.Description role="alert">{error}</Alert.Description></Alert.Content></Alert>}
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" variant="primary" isDisabled={busy}>{t("common.save")}</Button>
           <SavedCheck show={saved} label={t("common.saved")} />
         </div>
       </form>
-      {s.trial_ends_at && <BillingCard store={s} />}
-      {s.trial_ends_at && <ReplyCreditsCard store={s} />}
-      <PasswordCard />
-      <FaqEditor storeId={s.id} />
-      <DeliveryFees storeId={s.id} currency={s.currency} />
-      <AlertsCard />
-      {TELEGRAM_BOT && <TelegramAlerts storeId={s.id} />}
+      {/* FAQ has its own dialog and saves, so it sits outside the store form. It shows with the assistant tab. */}
+      <div className={show("assistant")}>
+        <FaqEditor storeId={s.id} />
+      </div>
+
+      <div role="tabpanel" id="panel-delivery" aria-labelledby="tab-delivery" className={show("delivery")}>
+        <DeliveryFees storeId={s.id} currency={s.currency} />
+      </div>
+
+      {hasBilling && (
+        <div role="tabpanel" id="panel-billing" aria-labelledby="tab-billing" className={show("billing")}>
+          <BillingCard store={s} />
+          <ReplyCreditsCard store={s} />
+        </div>
+      )}
+
+      <div role="tabpanel" id="panel-account" aria-labelledby="tab-account" className={show("account")}>
+        <PasswordCard />
+        <AlertsCard />
+        {TELEGRAM_BOT && <TelegramAlerts storeId={s.id} />}
+        <section className={CARD} aria-labelledby="sec-session">
+          <h2 id="sec-session" className={SECTION_TITLE}>{t("settings.tab.account")}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-[15px] font-bold text-ink">{t("common.language")}</span>
+            <LangSwitch />
+          </div>
+          <div>
+            <Button variant="outline" className="font-semibold text-red" onPress={() => void supabase.auth.signOut()}>
+              {t("auth.signOut")}
+            </Button>
+          </div>
+        </section>
+      </div>
     </m.div>
   );
 }
