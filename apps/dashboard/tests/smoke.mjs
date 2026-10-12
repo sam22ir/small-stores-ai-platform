@@ -277,6 +277,7 @@ try {
   await page.fill("#pprice", "4 900");
   await page.click("[role=dialog] button[type=submit]");
   await page.waitForSelector("[role=dialog]", { state: "detached" });
+  await page.locator("li", { hasText: "Black Hoodie" }).filter({ hasText: /4[\s,. ]?900/ }).first().waitFor({ timeout: 5000 }).catch(() => {});
   ok("editing a product sends one save_product call and the list shows the new price", saveCalls() - editedBefore === 1 && await rpcSeen("save_product", (a) => a.p_product_id === "p1" && a.p_product.price_cents === 490000 && a.p_variants.length === 3) && /4[\s,. ]?900/.test(await hoodie().textContent()));
 
   const snapshot = JSON.stringify(state.products);
@@ -297,6 +298,25 @@ try {
   ok("stock + calls adjust_stock with +1 and shows the stored quantity", await rpcSeen("adjust_stock", (a) => a.p_variant_id === "v3" && a.p_delta === 1) && await stockShows(page, "Black Hoodie", "L", 31));
   await variantRow(page, "Black Hoodie", "L").getByRole("button", { name: "Decrease stock" }).click();
   ok("stock - calls adjust_stock with -1 and shows the stored quantity", await rpcSeen("adjust_stock", (a) => a.p_variant_id === "v3" && a.p_delta === -1) && await stockShows(page, "Black Hoodie", "L", 30));
+
+  // 4d. a failed import leaves the earlier groups saved; retrying must not create them twice
+  {
+    await page.click("button:has-text('Import stock list')");
+    await page.waitForSelector("[role=dialog]");
+    await page.fill("[role=dialog] textarea", "name, price, stock, option\nCotton Cap, 1000, 4, \nWool Hat, 2000, 3, ");
+    state.failSaveProductOnCall = 2; // the second group fails
+    await page.click("[role=dialog] button:has-text('Import')");
+    await page.waitForSelector("[role=dialog] >> text=Something went wrong. Please try again.");
+    ok("a failed import shows the error", await page.isVisible("[role=dialog] >> text=Something went wrong. Please try again."));
+    ok("the first group was saved before the failure", state.products.filter((x) => x.name === "Cotton Cap").length === 1 && !state.products.some((x) => x.name === "Wool Hat"));
+    await page.click("[role=dialog] button:has-text('Import')");
+    await page.waitForSelector("text=Done:");
+    ok("retrying the import does not duplicate the product saved the first time",
+      state.products.filter((x) => x.name === "Cotton Cap").length === 1 && state.products.filter((x) => x.name === "Wool Hat").length === 1);
+    await page.click("[role=dialog] button:has-text('Cancel')");
+    state.failSaveProductOnCall = 0;
+    state.products = state.products.filter((x) => x.name !== "Cotton Cap" && x.name !== "Wool Hat");
+  }
 
   // 5. settings + channels
   await page.click("a:has-text('Settings')");
@@ -687,6 +707,20 @@ try {
     await page.fill("input[type=search]", "nobody-here");
     ok("an orders search with no match says so", await page.waitForSelector("text=No orders match this search.", { timeout: 3000 }).then(() => true, () => false));
     ok("no runtime errors in the orders search checks", errors.length === 0);
+    await ctx.close();
+  }
+  // 14b. orders status chips stay on one horizontal row on a 390px phone
+  {
+    ({ page, ctx, errors } = await newPage({ viewport: { width: 390, height: 780 }, locale: "en-US", isMobile: true, hasTouch: true }));
+    await signIn(page);
+    await page.goto(`http://127.0.0.1:${PORT}/orders`);
+    await page.waitForSelector("[role=tab]:has-text('Shipped')");
+    const sameRow = () => {
+      const tops = [...document.querySelectorAll("[role=tablist] [role=tab]")].map((el) => el.offsetTop);
+      return tops.length === 5 && new Set(tops).size === 1;
+    };
+    ok("orders status chips share one row at 390px", await page.waitForFunction(sameRow, null, { timeout: 3000 }).then(() => true, () => false));
+    ok("no runtime errors in the orders chip row check", errors.length === 0);
     await ctx.close();
   }
   // 15. insights: nav entry, range toggle, stat cards, empty state, Arabic, phone bottom bar
@@ -1188,6 +1222,34 @@ try {
       }
     } finally {
       restoreChats();
+    }
+  }
+  // 23. close and reopen: reopening a chat that once had a handoff must not look like a new handoff
+  {
+    const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+    const waitTitle = (p, re, ms = 6000) => p.waitForFunction((src) => new RegExp(src).test(document.title), re.source, { timeout: ms }).then(() => true, () => false);
+    const keep = ["c1", "c2", "c3"].map((id) => [id, { ...state.conversations.find((x) => x.id === id) }]);
+    const { page: rp, ctx: rctx, errors: rerrors } = await newPage({ locale: "en-US" });
+    try {
+      for (const id of ["c1", "c3"]) Object.assign(state.conversations.find((x) => x.id === id), { status: "bot", handoff_reason: null });
+      Object.assign(state.conversations.find((x) => x.id === "c2"), { status: "human", handoff_reason: "Wants a refund" });
+      state.applyConversationPatch = true;
+      await signIn(rp);
+      await rp.goto(`http://127.0.0.1:${PORT}/inbox/c2`);
+      ok("a chat waiting with a handoff reason shows (1) in the title", await waitTitle(rp, /^\(1\) Store Assistant$/));
+      await rp.click("button:has-text('Close')");
+      ok("closing drops the handoff reason along with the status", await logged((l) => l.startsWith("PATCH /rest/v1/conversations") && l.includes('"status":"closed"') && l.includes('"handoff_reason":null')));
+      ok("closing clears the count from the title", await waitTitle(rp, /^Store Assistant$/));
+      await rp.click("button:has-text('Reopen')");
+      await rp.waitForSelector("button:has-text('Hand back to the assistant')");
+      await pause(1500);
+      ok("reopening a closed chat does not put the count back in the title", (await rp.title()) === "Store Assistant");
+      ok("no runtime errors in the close and reopen checks", rerrors.length === 0);
+    } finally {
+      state.applyConversationPatch = false;
+      for (const [id, v] of keep) Object.assign(state.conversations.find((x) => x.id === id), v);
+      pushConversationChange();
+      await rctx.close();
     }
   }
 } catch (e) {

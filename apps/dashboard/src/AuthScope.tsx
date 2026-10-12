@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from "./lib/auth";
 import { useI18n } from "./lib/i18n";
 import { StoreProvider, useStore } from "./lib/store";
 import { configured } from "./lib/supabase";
+import { AppShellSkeleton } from "./components/AppShellSkeleton";
 
 const Layout = lazy(() => import("./components/Layout").then((m) => ({ default: m.Layout })));
 
@@ -22,7 +23,7 @@ export function Protected() {
   const { session, loading } = useAuth();
   const { t } = useI18n();
   if (!configured) return <Centered><Alert status="danger"><Alert.Content><Alert.Description>{t("setup.missing")}</Alert.Description></Alert.Content></Alert></Centered>;
-  if (loading) return <Centered><p className="text-soft">{t("common.loading")}</p></Centered>;
+  if (loading) return <AppShellSkeleton />;
   if (!session) return <Navigate to="/login" replace />;
   return (
     <StoreProvider key={session.user.id} userId={session.user.id}>
@@ -34,7 +35,7 @@ export function Protected() {
 export function WithStore() {
   const { store, loading, failed, refresh } = useStore();
   const { t } = useI18n();
-  if (loading) return <Centered><p className="text-soft">{t("common.loading")}</p></Centered>;
+  if (loading) return <AppShellSkeleton />;
   if (failed) {
     return (
       <Centered>
