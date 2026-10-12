@@ -7,8 +7,9 @@ import { useI18n } from "./lib/i18n";
 import { StoreProvider, useStore } from "./lib/store";
 import { configured } from "./lib/supabase";
 import { AppShellSkeleton } from "./components/AppShellSkeleton";
+import { importWithReload } from "./lib/chunkReload";
 
-const Layout = lazy(() => import("./components/Layout").then((m) => ({ default: m.Layout })));
+const Layout = lazy(() => importWithReload(() => import("./components/Layout")).then((m) => ({ default: m.Layout })));
 
 export function Centered({ children }: { children: React.ReactNode }) {
   return <div className="grid min-h-screen place-items-center p-6 text-center">{children}</div>;

@@ -4,20 +4,21 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { I18nProvider } from "./lib/i18n";
 import { AppShellSkeleton } from "./components/AppShellSkeleton";
 import { NotFound } from "./pages/NotFound";
+import { importWithReload } from "./lib/chunkReload";
 
 // Every route is its own chunk, so the public landing page never loads dashboard code.
 function page<K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) {
-  return lazy(async () => ({ default: (await load())[name] }));
+  return lazy(async () => ({ default: (await importWithReload(load))[name] }));
 }
 
 // Auth, the Supabase client and the store live in one module. Only the auth and app routes load it,
 // so the landing page (/, /fr, /en) downloads none of it.
-const authModule = () => import("./AuthScope");
+const authModule = () => importWithReload(() => import("./AuthScope"));
 const AuthScope = lazy(() => authModule().then((m) => ({ default: m.AuthScope })));
 const Protected = lazy(() => authModule().then((m) => ({ default: m.Protected })));
 const WithStore = lazy(() => authModule().then((m) => ({ default: m.WithStore })));
 
-const LandingRoute = lazy(() => import("./pages/landing/Landing").then((m) => ({ default: m.LandingRoute })));
+const LandingRoute = lazy(() => importWithReload(() => import("./pages/landing/Landing")).then((m) => ({ default: m.LandingRoute })));
 const Login = page(() => import("./pages/Login"), "Login");
 const SignUp = page(() => import("./pages/SignUp"), "SignUp");
 const ResetPassword = page(() => import("./pages/ResetPassword"), "ResetPassword");
