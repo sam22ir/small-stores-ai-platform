@@ -184,6 +184,15 @@ export function pushChange(table) {
 }
 export const pushConversationChange = () => pushChange("conversations");
 
+// Changes one seeded chat's fields (status, handoff_reason), as the agent or the owner would, and tells
+// the dashboard over realtime. Used for handoffs (a reason set) and owner replies (status human, reason null).
+export function flipConversation(id, patch) {
+  const c = state.conversations.find((x) => x.id === id);
+  if (!c) throw new Error(`no conversation ${id}`);
+  Object.assign(c, patch);
+  pushConversationChange();
+}
+
 // The conversations the dashboard can see: the seeded ones, plus the bulk ones when state.bulk is set.
 const convs = () => (state.bulk ? [...state.conversations, ...bulkChats] : state.conversations);
 
@@ -418,6 +427,9 @@ export function start(port = Number(process.env.MOCK_PORT || 54321)) {
           let rows = convs();
           if (id) rows = rows.filter((c) => `eq.${c.id}` === id);
           if (status) rows = rows.filter((c) => `eq.${c.status}` === status);
+          // The handoff alert query: chats with a handoff reason, test chats left out.
+          if (url.searchParams.get("handoff_reason") === "not.is.null") rows = rows.filter((c) => c.handoff_reason !== null);
+          if (url.searchParams.get("channels.platform") === "neq.playground") rows = rows.filter((c) => c.channels?.platform !== "playground");
           return pick(rows);
         }
         if (table === "messages") {
