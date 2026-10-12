@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import type { ComponentType } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { I18nProvider } from "./lib/i18n";
+import { AppShellSkeleton } from "./components/AppShellSkeleton";
 import { NotFound } from "./pages/NotFound";
 
 // Every route is its own chunk, so the public landing page never loads dashboard code.
@@ -35,15 +36,11 @@ const Legal = {
   DataDeletion: page(() => import("./pages/Legal"), "DataDeletion"),
 };
 
-function Centered({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-screen grid place-items-center p-6 text-center">{children}</div>;
-}
-
 export function App() {
   return (
     <BrowserRouter>
       <I18nProvider>
-        <Suspense fallback={<Centered><p className="text-soft">…</p></Centered>}>
+        <Suspense fallback={<AppShellSkeleton />}>
           <Routes>
             {/* Public landing page: Arabic at the root, French and English under their own paths. */}
             <Route path="/" element={<LandingRoute locale="ar" />} />
