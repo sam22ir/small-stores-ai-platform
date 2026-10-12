@@ -259,6 +259,7 @@ try {
   await page.fill("#pprice", "4 900");
   await page.click("[role=dialog] button[type=submit]");
   await page.waitForSelector("[role=dialog]", { state: "detached" });
+  await page.locator("li", { hasText: "Black Hoodie" }).filter({ hasText: /4[\s,. ]?900/ }).first().waitFor({ timeout: 5000 }).catch(() => {});
   ok("editing a product sends one save_product call and the list shows the new price", saveCalls() - editedBefore === 1 && await rpcSeen("save_product", (a) => a.p_product_id === "p1" && a.p_product.price_cents === 490000 && a.p_variants.length === 3) && /4[\s,. ]?900/.test(await hoodie().textContent()));
 
   const snapshot = JSON.stringify(state.products);
