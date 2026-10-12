@@ -60,8 +60,7 @@ export function ProductRow({ p, currency, onEdit, onRemove, onToggleActive, onMa
           <div className="mt-1 text-[15px] font-bold">{formatMoney(p.price_cents, currency, lang)}{!p.active && <span className="text-[13px] font-normal text-soft"> · {t("catalog.hidden")}</span>}</div>
         </div>
         <div className="flex shrink-0 gap-2">
-          <Button size="sm" variant="outline" onPress={onEdit}>{t("common.edit")}</Button>
-          <Button size="sm" variant="ghost" className="text-red" onPress={onRemove}>{t("common.delete")}</Button>
+          <Button size="sm" variant="outline" className="min-h-11" onPress={onEdit}>{t("common.edit")}</Button>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -90,11 +89,13 @@ export function ProductRow({ p, currency, onEdit, onRemove, onToggleActive, onMa
           <Switch.Control><Switch.Thumb /></Switch.Control>
           <Switch.Content className="text-[13px] text-soft">{t("catalog.active")}</Switch.Content>
         </Switch>
-        <div className="flex flex-wrap gap-2">
-          {stale && <Button size="sm" variant="outline" onPress={onMarkChecked}>{t("catalog.markChecked")}</Button>}
-          <Button size="sm" variant="outline" onPress={onToggleSoldOut}>
+        <div className="flex flex-wrap items-center gap-2">
+          {stale && <Button size="sm" variant="outline" className="min-h-11" onPress={onMarkChecked}>{t("catalog.markChecked")}</Button>}
+          <Button size="sm" variant="outline" className="min-h-11" onPress={onToggleSoldOut}>
             {soldOut ? t("catalog.backInStock") : t("catalog.soldOutToday")}
           </Button>
+          <span aria-hidden="true" className="mx-1 hidden h-6 w-px bg-ink/15 sm:block" />
+          <Button size="sm" variant="ghost" className="min-h-11 text-[13px] font-semibold text-red/80" onPress={onRemove}>{t("common.delete")}</Button>
         </div>
       </div>
     </m.li>
