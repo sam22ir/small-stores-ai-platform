@@ -62,6 +62,24 @@ async function newPage(opts = {}) {
   return { page, ctx, errors };
 }
 
+// A row in the Delivery fees list (scoped: other sections, such as FAQ, can mention the same wilaya).
+const FEE_LI = (wilaya) => `section[aria-labelledby=sec-fees] li:has-text('${wilaya}')`;
+
+// Checkboxes and switches in <main>: how many there are and how many have no accessible name.
+// Every Settings panel stays mounted (hidden by tab), so one pass covers all of them.
+async function unnamedToggles(page) {
+  return page.evaluate(() => {
+    const els = [...new Set(document.querySelectorAll("main input[type=checkbox], main [role=switch]"))];
+    const unnamed = els.filter((el) => {
+      const byIds = (el.getAttribute("aria-labelledby") || "").split(/\s+/).filter(Boolean)
+        .map((id) => document.getElementById(id)?.textContent?.trim() || "").join(" ").trim();
+      const byLabel = [...(el.labels || [])].map((l) => l.textContent.trim()).join(" ").trim();
+      return !(el.getAttribute("aria-label") || byIds || byLabel);
+    });
+    return { total: els.length, unnamed: unnamed.length };
+  });
+}
+
 // Signs in with the demo owner's password and waits for the inbox.
 async function signIn(page) {
   await page.goto(`http://127.0.0.1:${PORT}/login`);
@@ -303,6 +321,7 @@ try {
   // 5. settings + channels
   await page.click("a:has-text('Settings')");
   await page.waitForSelector("text=Store settings");
+  await page.click("#tab-assistant");
   ok("settings shows the structured store-info fields", await page.isVisible("label:has-text('Opening hours')") && await page.isVisible("label:has-text('Returns and exchanges')"));
   await page.fill("#info-hours", "Every day 10:00-18:00");
   await page.fill("#info-delivery", "3-5 days");
@@ -322,6 +341,14 @@ try {
   ok("settings save does not overwrite a header toggle", state.store.agent_enabled === false && state.log.slice(mark).some((l) => l.startsWith("PATCH /rest/v1/stores") && !l.includes('"agent_enabled"')));
   await toggle.click();
   await page.waitForSelector("aside [data-testid=agent-toggle]:has-text('Assistant on')", { timeout: 3000 });
+  // Settings tabs: an unsaved store-form edit survives a trip to another tab (the reset keeps later tests on the demo name).
+  await page.click("#tab-store");
+  await page.fill("#sname", "Boutique test");
+  await page.click("#tab-delivery");
+  await page.click("#tab-store");
+  ok("settings tabs keep an unsaved store name", (await page.inputValue("#sname")) === "Boutique test");
+  await page.fill("#sname", "Demo Boutique");
+  await page.click("#tab-assistant");
 
   // 5a. FAQ the assistant knows
   await page.waitForSelector("text=Answers the assistant knows");
@@ -339,16 +366,29 @@ try {
   ok("deleting an answer asks first and then calls DELETE", await logged((l) => l.startsWith("DELETE /rest/v1/faq_entries")));
 
   // 5b. delivery fees
-  await page.waitForSelector("text=Delivery fees");
-  ok("existing delivery fee is listed", await page.isVisible("li:has-text('Alger')"));
-  await page.fill("#fw", "Oran");
-  await page.click("form:has(#fw) button[type=submit]");
+  await page.click("#tab-delivery");
+  // Scoped to the section: the Assistant tab's help text also says "delivery fees" (hidden) and would match first.
+  await page.waitForSelector("section[aria-labelledby=sec-fees] >> text=Delivery fees");
+  ok("delivery fees explain the rule once on the page", (await page.getByText("Once you add any", { exact: false }).count()) === 1);
+  ok("a lone fee is not a default, so the first wilaya stays listed", await page.isVisible(FEE_LI("Alger")) && !(await page.isVisible("text=use the default fee of")));
+  await page.selectOption("#fee-wilaya", "Oran");
+  await page.click("form:has(#fee-wilaya) button[type=submit]");
   ok("adding a fee without an amount is rejected", await page.isVisible("text=Enter a valid fee."));
   await page.fill("#ff", "600");
-  await page.click("form:has(#fw) button[type=submit]");
+  await page.click("form:has(#fee-wilaya) button[type=submit]");
   ok("fee is inserted in cents", await logged((l) => l.startsWith("POST /rest/v1/delivery_fees") && l.includes('"wilaya":"Oran"') && l.includes('"fee_cents":60000')));
+  await page.fill("#fee-default", "400");
   await page.click("button:has-text('Add all 58 wilayas')");
   ok("bulk add skips wilayas that already exist", await logged((l) => l.startsWith("POST /rest/v1/delivery_fees") && l.includes('"wilaya":"Adrar"') && !l.includes('"wilaya":"Oran"')));
+  await page.waitForSelector("text=use the default fee of");
+  ok("the custom list keeps Oran and not the default-fee wilayas", await page.isVisible(FEE_LI("Oran")) && !(await page.isVisible(FEE_LI("Adrar"))));
+  // The row leaves with an exit animation, so wait for it to detach before asserting it is gone.
+  await page.waitForSelector(FEE_LI("Alger"), { state: "detached", timeout: 5000 }).catch(() => {});
+  ok("once a default exists, its summary line shows", await page.isVisible("text=use the default fee of"));
+  ok("once a default exists, wilayas on it are not listed", !(await page.isVisible(FEE_LI("Alger"))));
+  await page.click("button:has-text('Show all')");
+  ok("show all lists the wilayas on the default fee too", await page.isVisible(FEE_LI("Alger")));
+  await page.click("button:has-text('Show custom fees only')");
   await page.screenshot({ path: OUT + "06-settings-fees.png", fullPage: true });
 
   // 5c. orders
@@ -473,7 +513,7 @@ try {
   ok("French is picked from the browser locale", await page.isVisible("text=Discussions clients"));
   await page.waitForSelector("text=Amine");
   ok("mobile card shows a message preview, not the empty text", !(await page.isVisible("text=Aucun message")));
-  ok("sign-out is a single compact button", (await page.locator("header button[aria-label='Se déconnecter']").count()) === 1);
+  ok("the phone header has no sign-out button (it moved to Settings)", (await page.locator("header button[aria-label='Se déconnecter']").count()) === 0);
   ok("pause switch is in the phone header", await page.isVisible("header [data-testid=agent-toggle]:has-text('Assistant actif')"));
   ok("Chats tab in the bottom bar shows the badge", await page.waitForSelector("nav [data-testid=needs-badge]:has-text('1')", { timeout: 3000 }).then(() => true, () => false));
   await page.click("header [data-testid=agent-toggle]");
@@ -749,7 +789,7 @@ try {
     await page.waitForSelector("nav.fixed a:has-text('Stats')");
     const bar = await page.evaluate(() => {
       const links = [...document.querySelectorAll("nav.fixed a")];
-      const labels = links.map((a) => a.querySelector("span.truncate")).filter(Boolean);
+      const labels = links.map((a) => a.querySelector(":scope > span:last-child")).filter(Boolean);
       return {
         count: links.length,
         labels: labels.length,
@@ -760,6 +800,26 @@ try {
     });
     ok("phone bottom bar holds six tabs on one row at 375px", bar.count === 6 && bar.rows === 1 && bar.inView);
     ok("phone bottom bar labels are not clipped at 375px", bar.labels === 6 && bar.clipped === 0);
+    const head = await page.evaluate(() => {
+      const name = document.querySelector("header [data-testid=header-store-name]");
+      const toggle = document.querySelector("header [data-testid=agent-toggle]");
+      const label = toggle.querySelector("span[id]");
+      const control = label.parentElement.previousElementSibling;
+      const pill = toggle.getBoundingClientRect();
+      const lr = label.getBoundingClientRect();
+      const cr = control.getBoundingClientRect();
+      return {
+        name: name.textContent.trim(),
+        nameWidth: name.getBoundingClientRect().width,
+        nameClipped: name.scrollWidth > name.clientWidth + 1,
+        overlap: cr.right > lr.left + 0.5,
+        knobRight: cr.right, knobLeft: cr.left, labelLeft: lr.left, pillLeft: pill.left, pillRight: pill.right,
+        inPill: lr.right <= pill.right + 0.5 && lr.left >= pill.left - 0.5,
+      };
+    });
+    ok("header shows the full store name at 375px", head.name === "Demo Boutique" && !head.nameClipped && head.nameWidth >= 96);
+    ok("pause switch knob and label do not overlap at 375px", !head.overlap && head.inPill);
+    ok("bottom-nav links have accessible names at 375px", await page.evaluate(() => [...document.querySelectorAll("nav.fixed a")].every((a) => (a.getAttribute("aria-label") || "").trim().length > 0)));
     await page.click("nav.fixed a:has-text('Stats')");
     await page.waitForSelector("h1:has-text('Statistiques')");
     ok("no horizontal scroll on the insights page on a phone", !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
@@ -767,6 +827,34 @@ try {
     ok("no runtime errors on the phone insights page", errors.length === 0);
     if (errors.length) console.log(errors.join("\n"));
     await ctx.close();
+
+    // Arabic phone bottom bar: six labelled tabs that fit and are not clipped, at 375px and 320px.
+    for (const width of [375, 320]) {
+      ({ page, ctx, errors } = await newPage({ viewport: { width, height: 700 }, locale: "ar-DZ", isMobile: true, hasTouch: true }));
+      await page.goto(`http://127.0.0.1:${PORT}/login`);
+      await page.fill("#email", "owner@example.com"); await page.fill("#password", "password123");
+      await page.click("[data-testid=auth-submit]");
+      await page.waitForURL(/\/inbox/);
+      await page.waitForSelector("nav.fixed a:has-text('الإحصاءات')");
+      const arBar = await page.evaluate(() => {
+        const links = [...document.querySelectorAll("nav.fixed a")];
+        const labels = links.map((a) => a.querySelector(":scope > span:last-child")).filter(Boolean);
+        return {
+          count: links.length,
+          labels: labels.length,
+          inView: links.every((a) => { const r = a.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 1; }),
+          clipped: labels.filter((l) => l.scrollWidth > l.clientWidth + 1).length,
+          named: links.every((a) => (a.getAttribute("aria-label") || "").trim().length > 0),
+          noScroll: document.documentElement.scrollWidth <= window.innerWidth + 1,
+        };
+      });
+      ok(`Arabic bottom bar fits on one row at ${width}px`, arBar.count === 6 && arBar.inView && arBar.noScroll);
+      ok(`Arabic bottom bar labels are not clipped at ${width}px`, arBar.labels === 6 && arBar.clipped === 0);
+      ok(`Arabic bottom bar links have accessible names at ${width}px`, arBar.named);
+      ok(`no runtime errors on the Arabic phone bar at ${width}px`, errors.length === 0);
+      await page.screenshot({ path: OUT + `13-bottom-bar-ar-${width}.png` });
+      await ctx.close();
+    }
   }
   // 16. settings cards: password, delivery-fee delete (asks first), reply credits, Telegram (when configured)
   {
@@ -775,7 +863,13 @@ try {
       await signIn(sp);
       state.fees.push({ id: "fx1", wilaya: "Testville", fee_cents: 50000 });
       await sp.click("a:has-text('Settings')");
+      await sp.waitForSelector("text=Store settings");
+      ok("Settings opens on the Store tab", await sp.isVisible("#sname") && !(await sp.isVisible("#pw-new")));
+      const toggles = await unnamedToggles(sp);
+      ok("every Settings checkbox and switch has an accessible name", toggles.total >= 4 && toggles.unnamed === 0);
+      await sp.click("#tab-account");
       await sp.waitForSelector("section[aria-labelledby=sec-password]");
+      ok("the Account tab hides the store form", !(await sp.isVisible("#sname")));
 
       const pwCard = sp.locator("section[aria-labelledby=sec-password]");
       await sp.fill("#pw-new", "newpass123");
@@ -788,6 +882,7 @@ try {
       await sp.waitForSelector("text=Password updated.");
       ok("password change calls the auth user endpoint with the new password", state.log.slice(pwMark).some((l) => l.startsWith("PUT /auth/v1/user") && l.includes('"password":"newpass123"')));
 
+      await sp.click("#tab-delivery");
       await sp.waitForSelector("li:has-text('Testville')");
       const feeRow = sp.locator("li", { hasText: "Testville" });
       const cancelMark = state.log.length;
@@ -801,6 +896,7 @@ try {
       await feeRow.waitFor({ state: "detached" });
       ok("accepting the delivery-fee delete removes the fee", state.log.slice(acceptMark).some((l) => l.startsWith("DELETE /rest/v1/delivery_fees") && l.includes("fx1")) && !state.fees.some((f) => f.id === "fx1"));
 
+      await sp.click("#tab-billing");
       const packMark = state.log.length;
       state.checkoutUrl = `http://127.0.0.1:${PORT}/settings?billing=success`;
       try {
@@ -813,6 +909,7 @@ try {
       }
 
       if (process.env.VITE_TELEGRAM_BOT_USERNAME) {
+        await sp.click("#tab-account");
         await sp.waitForSelector("text=Telegram alerts");
         ok("Telegram card offers to connect when not linked", await sp.isVisible("button:has-text('Connect Telegram')"));
         state.telegramConnected = true;
@@ -923,7 +1020,7 @@ try {
       await mp.fill("#email", "owner@example.com"); await mp.fill("#password", "password123");
       await mp.click("[data-testid=auth-submit]");
       await mp.waitForURL(/\/inbox/);
-      await mp.goto(`http://127.0.0.1:${PORT}/settings`);
+      await mp.goto(`http://127.0.0.1:${PORT}/settings?tab=assistant`);
       await mp.waitForSelector("button:has-text('إضافة جواب')");
       await mp.click("button:has-text('إضافة جواب')");
       await mp.waitForSelector("[role=dialog]");
@@ -1007,6 +1104,7 @@ try {
           await signIn(gp);
           await waitJoins(j + 3);
           await gp.click("a:has-text('Settings')");
+          await gp.click("#tab-account");
           await gp.waitForSelector("section[aria-labelledby=sec-alerts]");
           await alertsCard(gp).locator("label").nth(0).click();
           await reloadAndJoin(gp);
@@ -1086,6 +1184,7 @@ try {
           await signIn(dp);
           await waitJoins(j + 3);
           await dp.click("a:has-text('Settings')");
+          await dp.click("#tab-account");
           await dp.waitForSelector("section[aria-labelledby=sec-alerts]");
           await alertsCard(dp).locator("label").nth(1).click();
           await dp.waitForSelector("section[aria-labelledby=sec-alerts] [role=status]:has-text('blocked')", { timeout: 5000 });
@@ -1110,7 +1209,7 @@ try {
           await ap.fill("#email", "owner@example.com"); await ap.fill("#password", "password123");
           await ap.click("[data-testid=auth-submit]");
           await ap.waitForURL(/\/inbox/);
-          await ap.goto(`http://127.0.0.1:${PORT}/settings`);
+          await ap.goto(`http://127.0.0.1:${PORT}/settings?tab=account`);
           await ap.waitForSelector("section[aria-labelledby=sec-alerts]");
           ok("Arabic Settings shows the alerts card", (await alertsCard(ap).textContent()).includes("تنبيهات على هذا الجهاز"));
           ok("the Arabic alerts card has two labelled switches",
