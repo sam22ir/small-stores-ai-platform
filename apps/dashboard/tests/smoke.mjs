@@ -529,7 +529,14 @@ try {
   ok("no horizontal scroll on the catalog either", !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
   await page.screenshot({ path: OUT + "10-mobile-catalog-fr.png" });
   for (const [label, wait] of [["Commandes", "h1:has-text('Commandes')"], ["Assistant", "text=Essayez votre assistant"]]) {
-    await page.click(`nav a:has-text('${label}')`);
+    if (label === "Assistant") {
+      // Assistant is not a bar tab: open More, then pick it in the sheet. The sheet closes on choosing a link.
+      await page.click("nav button[aria-haspopup=dialog]");
+      await page.click("[data-testid=more-sheet] a:has-text('Assistant')");
+      ok("the More sheet closes after choosing a link", await page.waitForSelector("[data-testid=more-sheet]", { state: "detached", timeout: 3000 }).then(() => true, () => false));
+    } else {
+      await page.click(`nav a:has-text('${label}')`);
+    }
     await page.waitForSelector(wait);
     ok(`no horizontal scroll on ${label}`, !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
   }
@@ -780,26 +787,28 @@ try {
     if (errors.length) console.log(errors.join("\n"));
     await ctx.close();
 
-    // Phone: six bottom tabs on one row, labels not clipped, no horizontal scroll.
+    // Phone: three bottom tabs plus More on one row, labels not clipped, no horizontal scroll.
     ({ page, ctx, errors } = await newPage({ viewport: { width: 375, height: 760 }, locale: "fr-FR", isMobile: true, hasTouch: true }));
     await page.goto(`http://127.0.0.1:${PORT}/login`);
     await page.fill("#email", "owner@example.com"); await page.fill("#password", "password123");
     await page.click("[data-testid=auth-submit]");
     await page.waitForURL(/\/inbox/);
-    await page.waitForSelector("nav.fixed a:has-text('Stats')");
+    await page.waitForSelector("nav.fixed button[aria-haspopup=dialog]");
     const bar = await page.evaluate(() => {
+      const items = [...document.querySelectorAll("nav.fixed a, nav.fixed button")];
       const links = [...document.querySelectorAll("nav.fixed a")];
-      const labels = links.map((a) => a.querySelector(":scope > span:last-child")).filter(Boolean);
+      const labels = items.map((a) => a.querySelector(":scope > span:last-child")).filter(Boolean);
       return {
-        count: links.length,
+        count: items.length,
+        links: links.length,
         labels: labels.length,
-        rows: new Set(links.map((a) => Math.round(a.getBoundingClientRect().top))).size,
-        inView: links.every((a) => { const r = a.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 1; }),
+        rows: new Set(items.map((a) => Math.round(a.getBoundingClientRect().top))).size,
+        inView: items.every((a) => { const r = a.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 1; }),
         clipped: labels.filter((l) => l.scrollWidth > l.clientWidth + 1).length,
       };
     });
-    ok("phone bottom bar holds six tabs on one row at 375px", bar.count === 6 && bar.rows === 1 && bar.inView);
-    ok("phone bottom bar labels are not clipped at 375px", bar.labels === 6 && bar.clipped === 0);
+    ok("phone bottom bar holds three tabs and More on one row at 375px", bar.count === 4 && bar.links === 3 && bar.rows === 1 && bar.inView);
+    ok("phone bottom bar labels are not clipped at 375px", bar.labels === 4 && bar.clipped === 0);
     const head = await page.evaluate(() => {
       const name = document.querySelector("header [data-testid=header-store-name]");
       const toggle = document.querySelector("header [data-testid=agent-toggle]");
@@ -819,8 +828,16 @@ try {
     });
     ok("header shows the full store name at 375px", head.name === "Demo Boutique" && !head.nameClipped && head.nameWidth >= 96);
     ok("pause switch knob and label do not overlap at 375px", !head.overlap && head.inPill);
-    ok("bottom-nav links have accessible names at 375px", await page.evaluate(() => [...document.querySelectorAll("nav.fixed a")].every((a) => (a.getAttribute("aria-label") || "").trim().length > 0)));
-    await page.click("nav.fixed a:has-text('Stats')");
+    ok("bottom-nav links have accessible names at 375px", await page.evaluate(() => [...document.querySelectorAll("nav.fixed a, nav.fixed button")].every((a) => (a.getAttribute("aria-label") || "").trim().length > 0)));
+    await page.click("nav.fixed button[aria-haspopup=dialog]");
+    await page.waitForSelector("[data-testid=more-sheet]");
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: OUT + "10c-more-sheet-fr.png" });
+    ok("the More button reports it opens a dialog", await page.evaluate(() => document.querySelector("nav.fixed button[aria-haspopup=dialog]")?.getAttribute("aria-expanded") === "true"));
+    await page.keyboard.press("Escape");
+    ok("Escape closes the More sheet", await page.waitForSelector("[data-testid=more-sheet]", { state: "detached", timeout: 3000 }).then(() => true, () => false));
+    await page.click("nav.fixed button[aria-haspopup=dialog]");
+    await page.click("[data-testid=more-sheet] a:has-text('Stats')");
     await page.waitForSelector("h1:has-text('Statistiques')");
     ok("no horizontal scroll on the insights page on a phone", !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
     await page.screenshot({ path: OUT + "11-insights-phone-fr.png" });
@@ -828,33 +845,77 @@ try {
     if (errors.length) console.log(errors.join("\n"));
     await ctx.close();
 
-    // Arabic phone bottom bar: six labelled tabs that fit and are not clipped, at 375px and 320px.
+    // Arabic phone bottom bar: three labelled tabs plus More that fit and are not clipped, at 375px and 320px.
     for (const width of [375, 320]) {
       ({ page, ctx, errors } = await newPage({ viewport: { width, height: 700 }, locale: "ar-DZ", isMobile: true, hasTouch: true }));
       await page.goto(`http://127.0.0.1:${PORT}/login`);
       await page.fill("#email", "owner@example.com"); await page.fill("#password", "password123");
       await page.click("[data-testid=auth-submit]");
       await page.waitForURL(/\/inbox/);
-      await page.waitForSelector("nav.fixed a:has-text('الإحصاءات')");
+      await page.waitForSelector("nav.fixed button[aria-haspopup=dialog]");
       const arBar = await page.evaluate(() => {
-        const links = [...document.querySelectorAll("nav.fixed a")];
-        const labels = links.map((a) => a.querySelector(":scope > span:last-child")).filter(Boolean);
+        const items = [...document.querySelectorAll("nav.fixed a, nav.fixed button")];
+        const labels = items.map((a) => a.querySelector(":scope > span:last-child")).filter(Boolean);
         return {
-          count: links.length,
+          count: items.length,
           labels: labels.length,
-          inView: links.every((a) => { const r = a.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 1; }),
+          inView: items.every((a) => { const r = a.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 1; }),
           clipped: labels.filter((l) => l.scrollWidth > l.clientWidth + 1).length,
-          named: links.every((a) => (a.getAttribute("aria-label") || "").trim().length > 0),
+          named: items.every((a) => (a.getAttribute("aria-label") || "").trim().length > 0),
           noScroll: document.documentElement.scrollWidth <= window.innerWidth + 1,
         };
       });
-      ok(`Arabic bottom bar fits on one row at ${width}px`, arBar.count === 6 && arBar.inView && arBar.noScroll);
-      ok(`Arabic bottom bar labels are not clipped at ${width}px`, arBar.labels === 6 && arBar.clipped === 0);
+      ok(`Arabic bottom bar fits on one row at ${width}px`, arBar.count === 4 && arBar.inView && arBar.noScroll);
+      ok(`Arabic bottom bar labels are not clipped at ${width}px`, arBar.labels === 4 && arBar.clipped === 0);
       ok(`Arabic bottom bar links have accessible names at ${width}px`, arBar.named);
       ok(`no runtime errors on the Arabic phone bar at ${width}px`, errors.length === 0);
       await page.screenshot({ path: OUT + `13-bottom-bar-ar-${width}.png` });
       await ctx.close();
     }
+  }
+  // 15b. desktop sidebar: AI switch at the top, paused hint under it, compact footer. 1280px, 1024px and Arabic RTL.
+  for (const [width, locale, tag] of [[1280, "en-US", "en"], [1024, "fr-FR", "fr"], [1280, "ar-DZ", "ar"]]) {
+    ({ page, ctx, errors } = await newPage({ viewport: { width, height: 800 }, locale }));
+    await page.goto(`http://127.0.0.1:${PORT}/login`);
+    await page.fill("#email", "owner@example.com"); await page.fill("#password", "password123");
+    await page.click("[data-testid=auth-submit]");
+    await page.waitForURL(/\/inbox/);
+    await page.waitForSelector("aside [data-testid=agent-toggle]");
+    const measure = () => page.evaluate(() => {
+      const aside = document.querySelector("aside");
+      const box = (el) => el.getBoundingClientRect();
+      const name = aside.querySelector(".truncate.font-bold");
+      const toggle = aside.querySelector("[data-testid=agent-toggle]");
+      const nav = aside.querySelector("[role=navigation]");
+      const footer = aside.querySelector(".mt-auto");
+      const hint = aside.querySelector("span.text-amber");
+      const a = box(aside);
+      return {
+        overflowX: document.documentElement.scrollWidth > window.innerWidth + 1,
+        nameClipped: name.scrollWidth > name.clientWidth + 1,
+        toggleAboveNav: box(toggle).bottom <= box(nav).top + 1,
+        navAboveFooter: box(nav).bottom <= box(footer).top + 1,
+        hintAboveNav: !hint || box(hint).bottom <= box(nav).top + 1,
+        insideAside: box(toggle).right <= a.right + 1 && box(footer).right <= a.right + 1,
+        hintShown: !!hint,
+      };
+    });
+    const on = await measure();
+    ok(`desktop sidebar (${tag} ${width}px): name not clipped, AI switch above nav, footer below, no overflow`,
+      !on.nameClipped && on.toggleAboveNav && on.navAboveFooter && on.insideAside && !on.overflowX && !on.hintShown);
+    await page.screenshot({ path: OUT + `14-desktop-${tag}-${width}-on.png` });
+    await page.click("aside [data-testid=agent-toggle]");
+    await page.waitForSelector("aside span.text-amber");
+    const paused = await measure();
+    ok(`paused hint sits under the AI switch (${tag} ${width}px) and above the nav`,
+      paused.hintShown && paused.hintAboveNav && paused.toggleAboveNav && !paused.overflowX);
+    await page.screenshot({ path: OUT + `14-desktop-${tag}-${width}-paused.png` });
+    await page.click("aside [data-testid=agent-toggle]");
+    await page.waitForSelector("aside span.text-amber", { state: "detached" });
+    for (let i = 0; i < 50 && state.store.agent_enabled !== true; i++) await new Promise((r) => setTimeout(r, 100));
+    ok(`no runtime errors in the desktop sidebar checks (${tag} ${width}px)`, errors.length === 0);
+    if (errors.length) console.log(errors.join("\n"));
+    await ctx.close();
   }
   // 16. settings cards: password, delivery-fee delete (asks first), reply credits, Telegram (when configured)
   {

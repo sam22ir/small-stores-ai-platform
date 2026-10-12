@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { AnimatePresence, LazyMotion, domAnimation, m } from "motion/react";
@@ -11,16 +11,20 @@ import { useConversationsRefresh, useStore } from "../lib/store";
 import { useHandoffAlerts } from "../lib/useHandoffAlerts";
 import { dur, ease, useMotionSafe } from "../lib/motion";
 import { LangSwitch } from "./LangSwitch";
-import { BoxIcon, ChatIcon, GearIcon, InsightsIcon, OrdersIcon, SparkIcon } from "./icons";
+import { BoxIcon, ChatIcon, GearIcon, InsightsIcon, MoreIcon, OrdersIcon, SparkIcon } from "./icons";
 
-const NAV: { to: string; key: TKey; icon: ReactNode }[] = [
-  { to: "/inbox", key: "nav.inbox", icon: <ChatIcon /> },
-  { to: "/orders", key: "nav.orders", icon: <OrdersIcon /> },
-  { to: "/catalog", key: "nav.catalog", icon: <BoxIcon /> },
-  { to: "/assistant", key: "nav.assistant", icon: <SparkIcon /> },
-  { to: "/settings", key: "nav.settings", icon: <GearIcon /> },
-  { to: "/insights", key: "nav.insights", icon: <InsightsIcon /> },
+// One list drives the desktop sidebar, the phone bottom bar and the phone "More" sheet.
+// group: the sidebar divider sits where the group changes. tab: shown in the phone bottom bar; the rest live in "More".
+const NAV: { to: string; key: TKey; icon: ReactNode; group: "daily" | "config"; tab: boolean }[] = [
+  { to: "/inbox", key: "nav.inbox", icon: <ChatIcon />, group: "daily", tab: true },
+  { to: "/orders", key: "nav.orders", icon: <OrdersIcon />, group: "daily", tab: true },
+  { to: "/catalog", key: "nav.catalog", icon: <BoxIcon />, group: "daily", tab: true },
+  { to: "/insights", key: "nav.insights", icon: <InsightsIcon />, group: "daily", tab: false },
+  { to: "/assistant", key: "nav.assistant", icon: <SparkIcon />, group: "config", tab: false },
+  { to: "/settings", key: "nav.settings", icon: <GearIcon />, group: "config", tab: false },
 ];
+const TAB_ITEMS = NAV.filter((n) => n.tab);
+const MORE_ITEMS = NAV.filter((n) => !n.tab);
 
 // Pause / resume the assistant. The switch flips at once and reverts if the write fails.
 function PauseSwitch({ compact = false }: { compact?: boolean }) {
@@ -48,15 +52,17 @@ function PauseSwitch({ compact = false }: { compact?: boolean }) {
         size={compact ? "sm" : "md"}
         data-testid="agent-toggle"
         aria-labelledby={labelId}
-        className={`relative flex items-center justify-start rounded-full border-2 border-ink bg-slip font-semibold text-ink shadow-ink-sm data-[selected=true]:bg-blue data-[selected=true]:text-slip ${compact ? "min-h-9 w-40 text-xs" : "min-h-11 min-w-44 text-sm"}`}
+        className={`relative flex items-center justify-start rounded-full border-2 border-ink bg-slip font-semibold text-ink shadow-ink-sm data-[selected=true]:bg-blue data-[selected=true]:text-slip ${compact ? "min-h-9 w-36 text-xs" : "min-h-11 min-w-44 text-sm"}`}
       >
         {/* The knob is pinned to the start edge; the label starts past it (see below), so they cannot overlap. */}
         <Switch.Control className="absolute start-1.5 top-1/2 -translate-y-1/2">
           <Switch.Thumb />
         </Switch.Control>
         {/* The label fills the whole pill so a click anywhere on it toggles the switch. Its padding starts past the knob, so the text never sits under it. */}
-        <Switch.Content className={`absolute inset-0 flex min-w-0 cursor-pointer items-center text-start [color:inherit] ${compact ? "ps-13 pe-2" : "ps-14 pe-3"}`}><span id={labelId} className="truncate">{on ? t("agent.on") : t("agent.paused")}</span></Switch.Content>
+        <Switch.Content className={`absolute inset-0 flex min-w-0 cursor-pointer items-center text-start [color:inherit] ${compact ? "ps-11 pe-1" : "ps-14 pe-3"}`}><span id={labelId} className="truncate">{on ? t("agent.on") : t("agent.paused")}</span></Switch.Content>
       </Switch>
+      {/* Desktop only: while paused, say what it costs the customer. Not shown in the cramped phone header. */}
+      {!compact && !on && <span className="text-xs font-semibold text-amber">{t("agent.pausedHint")}</span>}
       <AnimatePresence>
         {failed && (
           <m.span key="failed" role="alert" className="text-xs font-semibold text-red"
@@ -117,6 +123,20 @@ export function Layout() {
   const location = useLocation();
   const reduced = useMotionSafe();
   const [needs, setNeeds] = useState(0);
+  // The "More" sheet is open for the navigation whose key is stored here. Every navigation gets a new key,
+  // so the sheet closes on any route change (including back and forward) without an effect that sets state.
+  const [moreKey, setMoreKey] = useState<string | null>(null);
+  const moreOpen = moreKey === location.key;
+  const moreActive = MORE_ITEMS.some((n) => location.pathname === n.to || location.pathname.startsWith(`${n.to}/`));
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    sheetRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMoreKey(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [moreOpen]);
 
   // Chats that are waiting for the owner. Test chats (playground channel) are not customers.
   const loadNeeds = useCallback(async () => {
@@ -147,23 +167,29 @@ export function Layout() {
               <div className="truncate text-xs text-soft">{t("app.name")}</div>
             </div>
           </div>
+          {/* The assistant on/off state sits at the top, right under the store, so it is always in view. */}
+          <div className="mt-3">
+            <PauseSwitch />
+          </div>
           {/* A div, not a nav: the phone bottom bar is the only <nav> the mobile layout exposes. */}
           <div role="navigation" className="mt-3 flex flex-col gap-1" aria-label={t("app.name")}>
-            {NAV.map((n) => (
-              <NavLink key={n.to} to={n.to} className={({ isActive }) => navClass(isActive, "min-h-11")}>
-                {({ isActive }) => (
-                  <>
-                    {isActive && <ActivePill />}
-                    <span className="inline-flex shrink-0 [&>svg]:size-5">{n.icon}</span>
-                    <span className="min-w-0 flex-1 truncate">{t(n.key)}</span>
-                    {n.to === "/inbox" && <NeedsBadge count={needs} className="shrink-0" />}
-                  </>
-                )}
-              </NavLink>
+            {NAV.map((n, i) => (
+              <Fragment key={n.to}>
+                {i > 0 && NAV[i - 1].group !== n.group && <div role="presentation" className="my-2 border-t border-ink/15" />}
+                <NavLink to={n.to} className={({ isActive }) => navClass(isActive, "min-h-11")}>
+                  {({ isActive }) => (
+                    <>
+                      {isActive && <ActivePill />}
+                      <span className="inline-flex shrink-0 [&>svg]:size-5">{n.icon}</span>
+                      <span className="min-w-0 flex-1 truncate">{t(n.key)}</span>
+                      {n.to === "/inbox" && <NeedsBadge count={needs} className="shrink-0" />}
+                    </>
+                  )}
+                </NavLink>
+              </Fragment>
             ))}
           </div>
-          <div className="mt-auto flex flex-col items-start gap-3 border-t border-ink/15 pt-4">
-            <PauseSwitch />
+          <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-ink/15 pt-4">
             <LangSwitch />
             <Button variant="ghost" size="sm" className="font-semibold text-red" onPress={signOut}>
               {t("auth.signOut")}
@@ -172,13 +198,12 @@ export function Layout() {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Phone header (< 1024px). Language and sign-out live in Settings, so the store name keeps its room. */}
+          {/* Phone header (< 1024px). Language and sign-out live in Settings and the More sheet, so the store name keeps its room. */}
           <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b-2 border-ink bg-slip px-4 py-2 lg:hidden">
             <div className="flex min-w-0 flex-1 items-center gap-2.5">
               <StoreAvatar name={store?.name} size="sm" />
               <div className="min-w-24 flex-1">
                 <div className="truncate text-[15px] font-bold leading-tight text-ink" data-testid="header-store-name">{store?.name}</div>
-                <div className="truncate text-xs text-soft">{t("app.name")}</div>
               </div>
             </div>
             <div className="flex shrink-0 items-center">
@@ -196,13 +221,13 @@ export function Layout() {
           </main>
         </div>
 
-        {/* Phone bottom tab bar (< 1024px) */}
-        <nav aria-label={t("app.name")} className="pb-[env(safe-area-inset-bottom)] fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t-2 border-ink bg-slip lg:hidden">
-          {NAV.map((n) => (
+        {/* Phone bottom bar (< 1024px): three tabs plus More, which opens the sheet below. */}
+        <nav aria-label={t("app.name")} className="pb-[env(safe-area-inset-bottom)] fixed inset-x-0 bottom-0 z-40 grid min-h-14 grid-cols-4 border-t-2 border-ink bg-slip lg:hidden">
+          {TAB_ITEMS.map((n) => (
             // The link name is the label; the count is folded into the Chats name because the badge is aria-hidden.
             <NavLink key={n.to} to={n.to}
               aria-label={n.to === "/inbox" && needs > 0 ? `${t(n.key)}, ${t("inbox.needsYou")}: ${needs}` : t(n.key)}
-              className={({ isActive }) => `relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-[10px] leading-tight no-underline transition-colors duration-150 ${isActive ? "font-bold text-blue" : "font-medium text-soft"}`}>
+              className={({ isActive }) => `relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-[11px] leading-tight no-underline transition-colors duration-150 ${isActive ? "font-bold text-blue" : "font-medium text-soft"}`}>
               {({ isActive }) => (
                 <>
                   {isActive && <m.span layoutId="tab-active" aria-hidden="true" className="absolute inset-x-3 top-0 h-[3px] rounded-full bg-red"
@@ -217,7 +242,47 @@ export function Layout() {
               )}
             </NavLink>
           ))}
+          <button type="button" data-testid="nav-more" aria-label={t("nav.more")} aria-haspopup="dialog" aria-expanded={moreOpen}
+            onClick={() => setMoreKey(moreOpen ? null : location.key)}
+            className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-[11px] leading-tight transition-colors duration-150 ${moreActive ? "font-bold text-blue" : "font-medium text-soft"}`}>
+            {moreActive && <m.span layoutId="tab-active" aria-hidden="true" className="absolute inset-x-3 top-0 h-[3px] rounded-full bg-red"
+              transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
+            <span aria-hidden="true" className="relative block h-6 w-6 [&>svg]:size-6"><MoreIcon /></span>
+            <span className="block max-w-full break-words text-center">{t("nav.more")}</span>
+          </button>
         </nav>
+
+        {/* "More" bottom sheet. Mounted only while open, so its links are not in the bar and are not announced when closed. */}
+        <AnimatePresence>
+          {moreOpen && (
+            <m.div key="more-backdrop" aria-hidden="true" className="fixed inset-0 z-[45] bg-ink/40" onClick={() => setMoreKey(null)}
+              initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: dur.short, ease: ease.out }} />
+          )}
+          {moreOpen && (
+            <m.div key="more-sheet" ref={sheetRef} role="dialog" aria-modal="true" aria-label={t("nav.more")} tabIndex={-1} data-testid="more-sheet"
+              className="pb-[calc(1rem+env(safe-area-inset-bottom))] fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-wakil-lg border-2 border-b-0 border-ink bg-slip px-4 pt-3 shadow-ink outline-none"
+              initial={reduced ? false : { y: "100%" }} animate={{ y: 0 }} exit={reduced ? { opacity: 0 } : { y: "100%" }}
+              transition={{ duration: dur.short, ease: ease.out }}>
+              <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-ink/20" aria-hidden="true" />
+              <div className="flex flex-col gap-1">
+                {MORE_ITEMS.map((n) => (
+                  <NavLink key={n.to} to={n.to} onClick={() => setMoreKey(null)}
+                    className={({ isActive }) => `flex min-h-12 items-center gap-3 rounded-wakil px-3 text-base font-semibold no-underline transition-colors duration-150 ${isActive ? "bg-ink text-slip shadow-ink-sm" : "text-ink hover:bg-ink/5"}`}>
+                    <span className="inline-flex shrink-0 [&>svg]:size-5">{n.icon}</span>
+                    <span className="min-w-0 flex-1 truncate">{t(n.key)}</span>
+                  </NavLink>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-col items-start gap-3 border-t border-ink/15 pt-3">
+                <LangSwitch />
+                <Button variant="ghost" className="min-h-12 font-semibold text-red" onPress={signOut}>
+                  {t("auth.signOut")}
+                </Button>
+              </div>
+            </m.div>
+          )}
+        </AnimatePresence>
       </div>
     </LazyMotion>
   );

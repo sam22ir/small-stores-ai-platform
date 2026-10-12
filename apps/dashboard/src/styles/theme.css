@@ -9,6 +9,8 @@
   --color-red: oklch(0.5558 0.1685 31.51);
   --color-soft: oklch(0.5038 0.0334 268.02);
   --color-slip: oklch(0.9937 0.0095 93.57);
+  /* Warning hint (paused assistant). Darker than a pure amber so it reads on paper. */
+  --color-amber: oklch(0.5 0.11 62);
 
   --font-sans: "IBM Plex Sans Arabic", system-ui, sans-serif;
 
