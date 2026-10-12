@@ -16,6 +16,9 @@ verify_jwt = false
 [functions.deliver-messages]
 verify_jwt = false
 
+[functions.delivery-carrier]
+verify_jwt = false
+
 [functions.instagram-connect]
 verify_jwt = false
 

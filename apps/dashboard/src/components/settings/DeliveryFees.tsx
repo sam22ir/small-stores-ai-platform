@@ -9,7 +9,7 @@ import { centsToInput, formatMoney, parsePrice } from "../../lib/format";
 import { WILAYAS } from "../../lib/wilayas";
 import { CARD, SECTION_TITLE } from "./shared";
 
-type Fee = { id: string; wilaya: string; fee_cents: number };
+type Fee = { id: string; wilaya: string; fee_cents: number; source: string };
 
 // The store's default fee is the most common configured fee (ties go to the lower fee), but only once it
 // covers at least 2 wilayas: a lone fee is a custom fee, never a hidden default. The table only stores
@@ -41,7 +41,7 @@ export function DeliveryFees({ storeId, currency }: { storeId: string; currency:
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const { data, error: err } = await supabase.from("delivery_fees").select("id,wilaya,fee_cents").order("wilaya");
+    const { data, error: err } = await supabase.from("delivery_fees").select("id,wilaya,fee_cents,source").order("wilaya");
     if (err) { setFailed(true); return; }
     setFees(data); setFailed(false);
   }, []);
@@ -162,7 +162,10 @@ export function DeliveryFees({ storeId, currency }: { storeId: string; currency:
                   transition={{ duration: dur.short, ease: ease.out }}
                   className="flex items-center gap-2 border-b border-ink/10 py-1 last:border-b-0"
                 >
-                  <span className="min-w-0 grow truncate text-[15px] font-bold text-ink">{f.wilaya}</span>
+                  <span className="min-w-0 grow truncate text-[15px] font-bold text-ink">
+                    {f.wilaya}
+                    {f.source === "yalidine" && <span className="ms-2 text-[11px] font-semibold text-soft">{t("yalidine.syncedTag")}</span>}
+                  </span>
                   <Input className="w-24" inputMode="decimal" defaultValue={centsToInput(f.fee_cents)} key={`${f.id}-${f.fee_cents}`}
                     aria-label={`${t("fees.fee")} ${f.wilaya} (${formatMoney(f.fee_cents, currency, lang)})`}
                     onBlur={(e) => void update(f, e.target.value)} />

@@ -4,10 +4,10 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test supabase/functions/_shared/agent/*.test.ts supabase/functions/_shared/*.test.ts supabase/functions/_shared/meta/*.test.ts",
+    "test": "node --test supabase/functions/_shared/agent/*.test.ts supabase/functions/_shared/*.test.ts supabase/functions/_shared/meta/*.test.ts supabase/functions/_shared/carriers/*.test.ts",
     "eval": "node scripts/eval-agent.mjs",
     "lint": "eslint .",
-    "test:coverage": "node --test --experimental-test-coverage supabase/functions/_shared/agent/*.test.ts supabase/functions/_shared/*.test.ts supabase/functions/_shared/meta/*.test.ts"
+    "test:coverage": "node --test --experimental-test-coverage supabase/functions/_shared/agent/*.test.ts supabase/functions/_shared/*.test.ts supabase/functions/_shared/meta/*.test.ts supabase/functions/_shared/carriers/*.test.ts"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

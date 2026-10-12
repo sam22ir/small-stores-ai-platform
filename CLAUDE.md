@@ -12,7 +12,7 @@ Telegram is used for owner alerts and linking (`supabase/functions/_shared/teleg
 
 ## Repo layout
 
-- `supabase/functions/` Edge Functions (Deno): `assistant-chat`, `deliver-messages`, `instagram-connect`,
+- `supabase/functions/` Edge Functions (Deno): `assistant-chat`, `deliver-messages`, `delivery-carrier`, `instagram-connect`,
   `meta-webhook`, `playground-chat` (410 stub), `telegram-webhook`. Each has `index.ts` and `deno.json`.
 - `supabase/functions/_shared/` shared code: `pipeline/` (inbound handling, reply, usage), `agent/` (model
   providers, tools, prompt, language), `meta/` (Instagram connect, webhook, ingest, delivery, crypto),

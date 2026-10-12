@@ -18,6 +18,7 @@ import { ReplyCreditsCard } from "../components/settings/ReplyCreditsCard";
 import { PasswordCard } from "../components/settings/PasswordCard";
 import { TELEGRAM_BOT, TelegramAlerts } from "../components/settings/TelegramAlerts";
 import { DeliveryFees } from "../components/settings/DeliveryFees";
+import { YalidineCard } from "../components/settings/YalidineCard";
 import { AlertsCard } from "../components/settings/AlertsCard";
 
 // Settings is split into tabs. Store and Assistant hold the store form (one Save bar); the other tabs
@@ -63,6 +64,8 @@ export function Settings() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // Bumped when Yalidine syncs fees, so DeliveryFees remounts and reloads its list.
+  const [feesVersion, setFeesVersion] = useState(0);
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -134,7 +137,8 @@ export function Settings() {
       </div>
 
       <div role="tabpanel" id="panel-delivery" aria-labelledby="tab-delivery" className={show("delivery")}>
-        <DeliveryFees storeId={s.id} currency={s.currency} />
+        <YalidineCard storeId={s.id} currency={s.currency} onSynced={() => setFeesVersion((v) => v + 1)} />
+        <DeliveryFees key={feesVersion} storeId={s.id} currency={s.currency} />
       </div>
 
       {hasBilling && (
