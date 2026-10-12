@@ -93,7 +93,8 @@ export function Settings() {
       transition={{ duration: dur.base, ease: ease.out }}
     >
       <h1 className="mb-0 mt-1 text-[22px] font-extrabold text-ink">{t("settings.title")}</h1>
-      <div role="tablist" aria-label={t("settings.tabs")} className="-mx-1 flex gap-2 overflow-x-auto px-1 py-1">
+      {/* Phone: a two-column grid, so every tab is visible without scrolling. Desktop: one row. */}
+      <div role="tablist" aria-label={t("settings.tabs")} className="-mx-1 grid grid-cols-2 gap-2 px-1 py-1 lg:flex lg:overflow-x-auto">
         {tabs.map((id) => (
           <button
             key={id}
@@ -103,7 +104,7 @@ export function Settings() {
             aria-selected={tab === id}
             aria-controls={`panel-${id}`}
             onClick={() => selectTab(id)}
-            className={`min-h-11 shrink-0 rounded-full border-2 border-ink px-4 text-sm font-bold transition-colors duration-150 ${tab === id ? "bg-ink text-slip shadow-ink-sm" : "bg-slip text-ink hover:bg-ink/5"}`}
+            className={`min-h-11 w-full shrink-0 rounded-full border-2 border-ink px-4 text-sm font-bold lg:w-auto transition-colors duration-150 ${tab === id ? "bg-ink text-slip shadow-ink-sm" : "bg-slip text-ink hover:bg-ink/5"}`}
           >
             {t(`settings.tab.${id}`)}
           </button>
@@ -126,7 +127,8 @@ export function Settings() {
           />
         </div>
         {error && <Alert status="danger"><Alert.Content><Alert.Description role="alert">{error}</Alert.Description></Alert.Content></Alert>}
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Phone: a sticky bar just above the bottom nav (3.5rem tall plus its 2px top border), so Save stays in reach. Desktop: inline as before. */}
+        <div data-testid="settings-save-bar" className="sticky bottom-[calc(3.5rem+2px+env(safe-area-inset-bottom))] z-30 -mx-4 flex flex-wrap items-center gap-3 border-t-2 border-ink bg-slip px-4 py-3 lg:static lg:z-auto lg:mx-0 lg:border-t-0 lg:bg-transparent lg:p-0">
           <Button type="submit" variant="primary" isDisabled={busy}>{t("common.save")}</Button>
           <SavedCheck show={saved} label={t("common.saved")} />
         </div>

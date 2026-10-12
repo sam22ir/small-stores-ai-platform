@@ -129,13 +129,38 @@ export function Layout() {
   const moreOpen = moreKey === location.key;
   const moreActive = MORE_ITEMS.some((n) => location.pathname === n.to || location.pathname.startsWith(`${n.to}/`));
   const sheetRef = useRef<HTMLDivElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
 
+  // While the sheet is open: focus moves in, Tab stays inside, the page behind does not scroll,
+  // and focus goes back to the More button on close (Escape, backdrop, a link, or unmount).
   useEffect(() => {
     if (!moreOpen) return;
-    sheetRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMoreKey(null); };
+    const sheet = sheetRef.current;
+    const moreButton = moreButtonRef.current;
+    const root = document.documentElement;
+    const prevOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    sheet?.focus();
+    const FOCUSABLE = ["a[href]", "button", "input", "select", "textarea", "[tabindex]"]
+      .map((s) => `${s}:not([disabled]):not([tabindex="-1"])`).join(",");
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setMoreKey(null); return; }
+      if (e.key !== "Tab" || !sheet) return;
+      const items = [...sheet.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.getClientRects().length > 0);
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      const inside = active !== null && sheet.contains(active);
+      if (e.shiftKey && (!inside || active === first || active === sheet)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (!inside || active === last)) { e.preventDefault(); first.focus(); }
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      root.style.overflow = prevOverflow;
+      moreButton?.focus();
+    };
   }, [moreOpen]);
 
   // Chats that are waiting for the owner. Test chats (playground channel) are not customers.
@@ -242,7 +267,7 @@ export function Layout() {
               )}
             </NavLink>
           ))}
-          <button type="button" data-testid="nav-more" aria-label={t("nav.more")} aria-haspopup="dialog" aria-expanded={moreOpen}
+          <button ref={moreButtonRef} type="button" data-testid="nav-more" aria-label={t("nav.more")} aria-haspopup="dialog" aria-expanded={moreOpen}
             onClick={() => setMoreKey(moreOpen ? null : location.key)}
             className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-[11px] leading-tight transition-colors duration-150 ${moreActive ? "font-bold text-blue" : "font-medium text-soft"}`}>
             {moreActive && <m.span layoutId="tab-active" aria-hidden="true" className="absolute inset-x-3 top-0 h-[3px] rounded-full bg-red"

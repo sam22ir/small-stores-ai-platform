@@ -836,6 +836,19 @@ try {
     ok("the More button reports it opens a dialog", await page.evaluate(() => document.querySelector("nav.fixed button[aria-haspopup=dialog]")?.getAttribute("aria-expanded") === "true"));
     await page.keyboard.press("Escape");
     ok("Escape closes the More sheet", await page.waitForSelector("[data-testid=more-sheet]", { state: "detached", timeout: 3000 }).then(() => true, () => false));
+    ok("focus returns to the More button after Escape", await page.waitForFunction(() => document.activeElement?.getAttribute("data-testid") === "nav-more", null, { timeout: 2000 }).then(() => true, () => false));
+    ok("background scroll is restored after the sheet closes", await page.waitForFunction(() => document.documentElement.style.overflow === "", null, { timeout: 2000 }).then(() => true, () => false));
+    await page.click("nav.fixed button[aria-haspopup=dialog]");
+    await page.waitForSelector("[data-testid=more-sheet]");
+    ok("background scroll is locked while the sheet is open", await page.waitForFunction(() => document.documentElement.style.overflow === "hidden", null, { timeout: 2000 }).then(() => true, () => false));
+    await page.waitForFunction(() => !!document.activeElement?.closest("[data-testid=more-sheet]"), null, { timeout: 2000 });
+    // Tab and Shift+Tab (12 presses each) never leave the sheet, and Shift+Tab wraps backward.
+    const trapped = [];
+    for (let i = 0; i < 12; i++) { await page.keyboard.press("Tab"); trapped.push(await page.evaluate(() => !!document.activeElement?.closest("[data-testid=more-sheet]"))); }
+    for (let i = 0; i < 12; i++) { await page.keyboard.press("Shift+Tab"); trapped.push(await page.evaluate(() => !!document.activeElement?.closest("[data-testid=more-sheet]"))); }
+    ok("Tab and Shift+Tab stay inside the More sheet", trapped.length === 24 && trapped.every(Boolean));
+    await page.keyboard.press("Escape");
+    await page.waitForSelector("[data-testid=more-sheet]", { state: "detached", timeout: 3000 });
     await page.click("nav.fixed button[aria-haspopup=dialog]");
     await page.click("[data-testid=more-sheet] a:has-text('Stats')");
     await page.waitForSelector("h1:has-text('Statistiques')");
@@ -844,6 +857,70 @@ try {
     ok("no runtime errors on the phone insights page", errors.length === 0);
     if (errors.length) console.log(errors.join("\n"));
     await ctx.close();
+
+    // Settings on a 375px phone, English and Arabic: the tabs fit a grid with none clipped, the Save bar is pinned
+    // above the bottom nav, and the last form control can be scrolled above the bar.
+    for (const locale of ["en-US", "ar-DZ"]) {
+      ({ page, ctx, errors } = await newPage({ viewport: { width: 375, height: 760 }, locale, isMobile: true, hasTouch: true }));
+      await page.goto(`http://127.0.0.1:${PORT}/login`);
+      await page.fill("#email", "owner@example.com"); await page.fill("#password", "password123");
+      await page.click("[data-testid=auth-submit]");
+      await page.waitForURL(/\/inbox/);
+      await page.waitForSelector("nav.fixed button[aria-haspopup=dialog]");
+      await page.click("nav.fixed button[aria-haspopup=dialog]");
+      await page.click("[data-testid=more-sheet] a[href='/settings']");
+      await page.waitForSelector("[role=tablist]");
+      await page.click("#tab-assistant");
+      await page.waitForTimeout(300);
+      const tabs = await page.evaluate(() => {
+        const list = document.querySelector("[role=tablist]");
+        const items = [...list.querySelectorAll("[role=tab]")];
+        return {
+          count: items.length,
+          inView: items.every((t) => { const r = t.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 1; }),
+          tall: items.every((t) => t.getBoundingClientRect().height >= 43.5),
+          noScroll: list.scrollWidth <= list.clientWidth + 1,
+        };
+      });
+      if (process.env.SMOKE_DEBUG) console.log("DEBUG tabs", JSON.stringify(tabs), await page.evaluate(() => [...document.querySelectorAll("[role=tab]")].map((t) => { const r = t.getBoundingClientRect(); return [t.textContent, Math.round(r.left), Math.round(r.right), Math.round(r.height)]; })), await page.evaluate(() => [window.innerWidth, document.documentElement.scrollWidth]));
+      ok(`Settings tabs are all visible without horizontal scroll at 375px (${locale})`, tabs.count >= 4 && tabs.inView && tabs.tall && tabs.noScroll);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(200);
+      const pinned = await page.evaluate(() => {
+        const barEl = document.querySelector("[data-testid=settings-save-bar]");
+        const navEl = document.querySelector("nav.fixed");
+        if (!barEl || !navEl) return { gap: NaN, overlaps: true, inView: false, missing: `bar=${!!barEl} nav=${!!navEl}` };
+        const bar = barEl.getBoundingClientRect();
+        const nav = navEl.getBoundingClientRect();
+        return {
+          gap: Math.abs(bar.bottom - nav.top),
+          overlaps: bar.bottom > nav.top + 0.5 && bar.top < nav.bottom,
+          inView: bar.top >= 0 && bar.bottom <= window.innerHeight + 0.5,
+        };
+      });
+      ok(`Save bar is pinned just above the bottom nav at 375px (${locale})`, pinned.gap < 2 && !pinned.overlaps && pinned.inView);
+      await page.screenshot({ path: OUT + `settings-375-${locale}.png` });
+      // Scroll until the bottom-most control in the store form sits above the bar.
+      const lastBottom = () => page.evaluate(() => {
+        const bar = document.querySelector("[data-testid=settings-save-bar]");
+        const controls = [...bar.parentElement.querySelectorAll("input, textarea, select, button, a")]
+          .filter((el) => !bar.contains(el) && el.getBoundingClientRect().height >= 8);
+        const bottom = Math.max(...controls.map((el) => el.getBoundingClientRect().bottom));
+        return { over: bottom - bar.getBoundingClientRect().top, bottom };
+      });
+      for (let i = 0; i < 8; i++) {
+        const { over } = await lastBottom();
+        if (over <= 0.5) break;
+        await page.evaluate((d) => window.scrollBy(0, d), over + 8);
+        await page.waitForTimeout(50);
+      }
+      const reach = await lastBottom();
+      ok(`the last form control is not hidden under the Save bar at 375px (${locale})`, reach.over <= 0.5 && reach.bottom > 0);
+      await page.screenshot({ path: OUT + `settings-375-${locale}-end.png` });
+      ok(`no runtime errors on Settings at 375px (${locale})`, errors.length === 0);
+      if (errors.length) console.log(errors.join("\n"));
+      await ctx.close();
+    }
 
     // Arabic phone bottom bar: three labelled tabs plus More that fit and are not clipped, at 375px and 320px.
     for (const width of [375, 320]) {
