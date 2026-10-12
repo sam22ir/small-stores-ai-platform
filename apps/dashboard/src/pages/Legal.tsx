@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { m } from "motion/react";
+import { LazyMotion, domAnimation, m } from "motion/react";
 import { legal } from "../lib/legal";
 import { dur, ease, useMotionSafe } from "../lib/motion";
 import { useI18n } from "../lib/i18n";
@@ -12,6 +12,7 @@ function Page({ title, children }: { title: string; children: ReactNode }) {
   const reduced = useMotionSafe();
   const { t } = useI18n();
   return (
+    <LazyMotion features={domAnimation}>
     <div className="min-h-screen bg-paper px-4 py-10">
       <m.main
         className="mx-auto max-w-[65ch] text-[15px] leading-relaxed text-ink"
@@ -30,6 +31,7 @@ function Page({ title, children }: { title: string; children: ReactNode }) {
         </nav>
       </m.main>
     </div>
+    </LazyMotion>
   );
 }
 

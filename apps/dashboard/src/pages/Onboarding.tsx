@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, LazyMotion, domAnimation, m } from "motion/react";
 import { Alert, Button, Input, Label, ListBox, Select, TextField } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useStore } from "../lib/store";
@@ -94,7 +94,9 @@ export function Onboarding() {
 
   const step: 1 | 2 = name.trim() ? 2 : 1;
 
+  // Onboarding sits outside Layout, so it needs its own LazyMotion; without it `m` never leaves `initial` (opacity 0).
   return (
+    <LazyMotion features={domAnimation}>
     <m.div
       className="flex min-h-screen flex-col items-center justify-center bg-paper px-4 py-8"
       initial={reduced ? false : { opacity: 0, y: 14 }}
@@ -132,5 +134,6 @@ export function Onboarding() {
         </form>
       </div>
     </m.div>
+    </LazyMotion>
   );
 }
