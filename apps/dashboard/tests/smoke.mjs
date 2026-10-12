@@ -589,6 +589,8 @@ try {
     await page.click("[role=tab]:has-text('Closed')");
     await page.waitForSelector("[role=tab]:has-text('Closed (62)')");
     const rowLinks = () => page.locator("a[href^='/inbox/']").count();
+    // The tab count comes from a head query; the rows come from inbox_list a moment later.
+    await page.waitForFunction(() => document.querySelectorAll("a[href^='/inbox/']").length >= 51, null, { timeout: 5000 }).catch(() => {});
     ok("the first page of chats is 50 rows (plus one 'Needs you' row)", (await rowLinks()) === 51);
     await page.click("button:has-text('Load more')");
     await page.waitForFunction(() => document.querySelectorAll("a[href^='/inbox/']").length === 63, null, { timeout: 5000 }).catch(() => {});
