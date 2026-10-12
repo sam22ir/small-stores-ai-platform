@@ -1,11 +1,15 @@
 // Yalidine Express REST client, fee quotes only (parcels and tracking come later).
 //
-// Confirmed from open-source clients: base https://api.yalidine.app/v1, headers X-API-ID and X-API-TOKEN,
-// list responses { has_more, total_data, data[] } paged with page and page_size, quota headers
-// second/minute/hour/day-quota-left and retry-after on 429.
-// NOT confirmed against Yalidine's own docs (they need a merchant login): the fees path ("deliveryfees"
-// or "fees") and the per-commune price field names. The code therefore tries both paths and reads the
-// prices tolerantly. Check both against a real account before relying on this in production.
+// Confirmed from the community SDK (npm "yalidine", feeefapp/yalidine): base https://api.yalidine.app/v1,
+// headers X-API-ID and X-API-TOKEN, list responses { has_more, total_data, data[] } paged with page and
+// page_size, quota headers and retry-after on 429, and the DeliveryFees shape: from_wilaya_name,
+// to_wilaya_name, zone, per_commune { <id>: { express_home, express_desk, economic_home, economic_desk } }.
+// Note that shape names the destination wilaya but carries no wilaya id, so it is resolved from the name.
+// NOT confirmed (the SDK's published build has no fees implementation, Yalidine's own docs need a merchant
+// login): the fees path ("deliveryfees" or "fees") and whether from_wilaya_id filters the list. The code
+// tries both paths and checks the origin itself. Verify against a real account before relying on it.
+
+import { normalizeWilaya } from "../agent/wilaya.ts";
 
 export type FeeType = "home" | "desk";
 
@@ -98,7 +102,7 @@ export class YalidineClient {
     if (!items) throw lastErr;
     const out = new Map<number, number>();
     for (const item of items) {
-      const fee = parseWilayaFee(item, type);
+      const fee = parseWilayaFee(item, type, fromWilayaId);
       if (fee) out.set(fee.toWilayaId, fee.feeDa);
     }
     return out;
@@ -131,10 +135,25 @@ function priceOf(obj: Record<string, unknown>, type: FeeType): number | null {
 // One wilaya-level price. Fees can differ by commune, so take the most common price among the communes
 // (the lowest when tied): that is what a typical customer in the wilaya pays. Quotes are an estimate;
 // the carrier's real price is applied when the parcel is created.
-export function parseWilayaFee(item: unknown, type: FeeType): { toWilayaId: number; feeDa: number } | null {
+// The destination is read from an id when the item has one, otherwise from its name (the documented shape
+// has only to_wilaya_name). When fromWilayaId is given, an item that names a different origin is skipped,
+// in case the server ignores the from_wilaya_id filter and returns every origin.
+export function parseWilayaFee(
+  item: unknown,
+  type: FeeType,
+  fromWilayaId?: number,
+): { toWilayaId: number; feeDa: number } | null {
   const o = rec(item);
   if (!o) return null;
-  const toWilayaId = num(o.to_wilaya_id ?? o.wilaya_id);
+  if (fromWilayaId !== undefined && typeof o.from_wilaya_name === "string") {
+    const from = normalizeWilaya(o.from_wilaya_name);
+    if (from !== null && Number(from) !== fromWilayaId) return null;
+  }
+  let toWilayaId = num(o.to_wilaya_id ?? o.wilaya_id);
+  if (toWilayaId === null && typeof o.to_wilaya_name === "string") {
+    const code = normalizeWilaya(o.to_wilaya_name);
+    toWilayaId = code === null ? null : Number(code);
+  }
   if (toWilayaId === null || !Number.isInteger(toWilayaId)) return null;
 
   const communes = Array.isArray(o.per_commune) ? o.per_commune : rec(o.per_commune) ? Object.values(o.per_commune as object) : [];

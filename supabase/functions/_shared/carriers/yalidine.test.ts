@@ -62,3 +62,25 @@ test("errors: 401 is bad credentials, 429 carries retry-after", async () => {
     (e: unknown) => e instanceof YalidineError && e.status === 429 && e.retryAfter === 12,
   );
 });
+
+test("parseWilayaFee reads the documented shape: destination by name, prices per commune", () => {
+  const item = {
+    from_wilaya_name: "Alger",
+    to_wilaya_name: "Oran",
+    zone: 2,
+    retour_fee: 200,
+    per_commune: {
+      "3101": { commune_id: 3101, commune_name: "Oran", express_home: 800, express_desk: 450, economic_home: null, economic_desk: null },
+      "3102": { commune_id: 3102, commune_name: "Es Senia", express_home: 800, express_desk: 450, economic_home: null, economic_desk: null },
+    },
+  };
+  assert.deepEqual(parseWilayaFee(item, "home", 16), { toWilayaId: 31, feeDa: 800 });
+  assert.deepEqual(parseWilayaFee(item, "desk", 16), { toWilayaId: 31, feeDa: 450 });
+});
+
+test("parseWilayaFee skips rows for another origin, and names it cannot resolve", () => {
+  const row = (from: string, to: string) => ({ from_wilaya_name: from, to_wilaya_name: to, per_commune: [{ express_home: 600 }] });
+  assert.equal(parseWilayaFee(row("Oran", "Alger"), "home", 16), null);
+  assert.equal(parseWilayaFee(row("Alger", "Atlantis"), "home", 16), null);
+  assert.deepEqual(parseWilayaFee(row("Alger", "Béjaïa"), "home", 16), { toWilayaId: 6, feeDa: 600 });
+});
