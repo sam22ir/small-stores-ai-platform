@@ -352,6 +352,16 @@ const ar: Dict = {
   "settings.pw.help": "ادخل ببريدك وكلمة المرور هذه، دون رابط عبر البريد.",
   "settings.pw.save": "تحديث كلمة المرور",
   "settings.pw.saved": "تم تحديث كلمة المرور.",
+  "alerts.title": "تنبيهات على هذا الجهاز",
+  "alerts.help": "تنطبق هذه الإعدادات على هذا المتصفح فقط. تنبيهات تيليجرام منفصلة.",
+  "alerts.sound": "الصوت",
+  "alerts.soundHelp": "تشغيل نغمة قصيرة عندما يحتاج عميل إليك.",
+  "alerts.notify": "إشعارات المتصفح",
+  "alerts.notifyHelp": "عرض إشعار عندما يحتاج عميل إليك، حتى من تبويب آخر.",
+  "alerts.denied": "الإشعارات محظورة لهذا الموقع. اسمح بها من إعدادات المتصفح ثم حاول مرة أخرى.",
+  "alerts.unsupported": "هذا المتصفح لا يدعم الإشعارات.",
+  "alerts.notifyTitle": "محادثة عميل جديدة",
+  "alerts.unknownCustomer": "عميل",
 };
 
 export default ar;

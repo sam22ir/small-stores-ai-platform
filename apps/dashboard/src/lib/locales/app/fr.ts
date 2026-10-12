@@ -352,6 +352,16 @@ const fr: Dict = {
   "settings.pw.help": "Connectez-vous avec votre e-mail et ce mot de passe, sans lien par e-mail.",
   "settings.pw.save": "Mettre à jour le mot de passe",
   "settings.pw.saved": "Mot de passe mis à jour.",
+  "alerts.title": "Alertes sur cet appareil",
+  "alerts.help": "Ces réglages ne valent que pour ce navigateur. Les alertes Telegram sont séparées.",
+  "alerts.sound": "Son",
+  "alerts.soundHelp": "Jouer un bref bip quand un client a besoin de vous.",
+  "alerts.notify": "Notifications du navigateur",
+  "alerts.notifyHelp": "Afficher une notification quand un client a besoin de vous, même depuis un autre onglet.",
+  "alerts.denied": "Les notifications sont bloquées pour ce site. Autorisez-les dans les réglages de votre navigateur, puis réessayez.",
+  "alerts.unsupported": "Ce navigateur ne prend pas en charge les notifications.",
+  "alerts.notifyTitle": "Nouvelle conversation client",
+  "alerts.unknownCustomer": "Client",
 };
 
 export default fr;

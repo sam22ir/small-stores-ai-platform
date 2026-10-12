@@ -8,6 +8,7 @@ import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { countConversations } from "../lib/inbox";
 import { useConversationsRefresh, useStore } from "../lib/store";
+import { useHandoffAlerts } from "../lib/useHandoffAlerts";
 import { dur, ease, useMotionSafe } from "../lib/motion";
 import { LangSwitch } from "./LangSwitch";
 import { BoxIcon, ChatIcon, GearIcon, InsightsIcon, LogoutIcon, OrdersIcon, SparkIcon } from "./icons";
@@ -123,6 +124,8 @@ export function Layout() {
 
   useEffect(() => { void loadNeeds(); }, [loadNeeds]);
   useConversationsRefresh(storeId, loadNeeds);
+  // Tab title count, and optional sound / browser notification for new handoffs.
+  useHandoffAlerts(storeId);
 
   const signOut = () => void supabase.auth.signOut();
   // Each top-level section fades in as the route changes. The inbox handles its own list-to-chat motion.

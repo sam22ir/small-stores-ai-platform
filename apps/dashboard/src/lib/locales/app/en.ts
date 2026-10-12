@@ -350,6 +350,16 @@ const en = {
   "settings.pw.help": "Sign in with your email and this password, without an email link.",
   "settings.pw.save": "Update password",
   "settings.pw.saved": "Password updated.",
+  "alerts.title": "Alerts on this device",
+  "alerts.help": "These settings apply to this browser only. Telegram alerts are separate.",
+  "alerts.sound": "Sound",
+  "alerts.soundHelp": "Play a short beep when a customer needs you.",
+  "alerts.notify": "Browser notifications",
+  "alerts.notifyHelp": "Show a notification when a customer needs you, even from another tab.",
+  "alerts.denied": "Notifications are blocked for this site. Allow them in your browser settings, then try again.",
+  "alerts.unsupported": "This browser does not support notifications.",
+  "alerts.notifyTitle": "New customer chat",
+  "alerts.unknownCustomer": "Customer",
 } as const;
 
 export type Key = keyof typeof en;

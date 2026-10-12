@@ -3,6 +3,7 @@
 import { chromium } from "playwright-core";
 import { spawn } from "node:child_process";
 import { start, state, pushChange, pushConversationChange } from "./mock.mjs";
+import { flipConversation } from "./mock.mjs";
 import { insightsFixture } from "./mock.mjs";
 
 // TEST_PORT lets several checkouts run the smoke test at once.
@@ -893,6 +894,199 @@ try {
       ok("Arabic dialog close button is labelled إغلاق", await mp.isVisible("[role=dialog] button[aria-label='إغلاق']"));
     } finally {
       await mctx.close();
+    }
+  }
+  // 22. handoff alerts: tab title count (realtime), owner replies, baseline at load, Settings card,
+  // browser notifications with Notification stubbed, Arabic card
+  {
+    const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+    const orig = Object.fromEntries(["c1", "c2", "c3"].map((id) => {
+      const c = state.conversations.find((x) => x.id === id);
+      return [id, { status: c.status, handoff_reason: c.handoff_reason }];
+    }));
+    const restoreChats = () => {
+      for (const [id, v] of Object.entries(orig)) Object.assign(state.conversations.find((x) => x.id === id), v);
+      pushConversationChange();
+    };
+    // Waits until the dashboard has joined at least n realtime subscriptions (so a push is not missed).
+    const waitJoins = async (n, ms = 5000) => {
+      const end = Date.now() + ms;
+      while (Date.now() < end) { if (state.realtimeJoins >= n) return true; await pause(100); }
+      return false;
+    };
+    const waitTitle = (p, re, ms = 5000) => p.waitForFunction((src) => new RegExp(src).test(document.title), re.source, { timeout: ms }).then(() => true, () => false);
+    // Stands in for the Notification API: records each notification built, and reports a fixed permission.
+    const notificationStub = (permission) => `(() => {
+      window.__notes = []; window.__requests = 0;
+      class FakeNotification {
+        constructor(title, opts) { window.__notes.push({ title, body: opts && opts.body }); }
+        static get permission() { return ${JSON.stringify(permission)}; }
+        static requestPermission() { window.__requests++; return Promise.resolve(FakeNotification.permission); }
+      }
+      window.Notification = FakeNotification;
+    })();`;
+    const alertsCard = (p) => p.locator("section[aria-labelledby=sec-alerts]");
+    const notes = (p) => p.evaluate(() => window.__notes);
+    const reloadAndJoin = async (p) => {
+      const j = state.realtimeJoins;
+      await p.reload();
+      // Layout, the inbox and the alert hook each subscribe to conversations.
+      await waitJoins(j + 3);
+    };
+    try {
+      // Nothing is waiting at the start: Amine's chat (c1) is answered and the others are not handed over.
+      flipConversation("c1", { status: "bot", handoff_reason: null });
+
+      // a) title count from realtime
+      {
+        const { page: hp, ctx: hctx, errors: herrors } = await newPage({ locale: "en-US" });
+        try {
+          const j = state.realtimeJoins;
+          await signIn(hp);
+          await waitJoins(j + 3);
+          ok("no count in the title when no chat is waiting", /^Store Assistant$/.test(await hp.title()));
+          flipConversation("c2", { status: "human", handoff_reason: "Wants a refund" });
+          ok("a new handoff over realtime puts (1) in the tab title", await waitTitle(hp, /^\(1\) Store Assistant$/));
+          // An owner reply in a chat with no handoff reason: status human, reason null. Chat c2 still waits,
+          // so the count must stay at 1 (it would read 2 if the reply counted).
+          flipConversation("c3", { status: "human", handoff_reason: null });
+          await hp.waitForSelector("aside [data-testid=needs-badge]:text-is('2')", { timeout: 5000 });
+          await pause(400);
+          ok("an owner reply in a chat with no handoff reason leaves the title count alone", (await hp.title()) === "(1) Store Assistant");
+          flipConversation("c2", { status: "bot", handoff_reason: null });
+          ok("resolving the handed-over chat clears the count from the title", await waitTitle(hp, /^Store Assistant$/));
+          ok("no runtime errors in the title count checks", herrors.length === 0);
+          if (herrors.length) console.log(herrors.join("\n"));
+        } finally {
+          await hctx.close();
+        }
+      }
+
+      // b) browser notifications granted: toggles persist, one notification per new handoff, none when off
+      {
+        const { page: gp, ctx: gctx, errors: gerrors } = await newPage({ locale: "en-US" });
+        await gctx.addInitScript(notificationStub("granted"));
+        try {
+          const j = state.realtimeJoins;
+          await signIn(gp);
+          await waitJoins(j + 3);
+          await gp.click("a:has-text('Settings')");
+          await gp.waitForSelector("section[aria-labelledby=sec-alerts]");
+          await alertsCard(gp).locator("label").nth(0).click();
+          await reloadAndJoin(gp);
+          await gp.waitForSelector("section[aria-labelledby=sec-alerts]");
+          ok("the sound toggle stays on after a reload", await alertsCard(gp).getByRole("switch").nth(0).isChecked());
+          await alertsCard(gp).locator("label").nth(0).click();
+          await alertsCard(gp).locator("label").nth(1).click();
+          await gp.waitForFunction(() => window.__requests >= 1, null, { timeout: 5000 });
+          ok("turning on browser notifications asks the browser for permission", (await gp.evaluate(() => window.__requests)) >= 1);
+          await reloadAndJoin(gp);
+          await gp.waitForSelector("section[aria-labelledby=sec-alerts]");
+          ok("the notifications toggle stays on after a reload", await alertsCard(gp).getByRole("switch").nth(1).isChecked());
+          ok("the sound toggle is back off", !(await alertsCard(gp).getByRole("switch").nth(0).isChecked()));
+
+          flipConversation("c2", { status: "human", handoff_reason: "Wants a refund" });
+          await gp.waitForFunction(() => window.__notes.length >= 1, null, { timeout: 5000 }).catch(() => {});
+          const first = await notes(gp);
+          ok("a new handoff with notifications on sends exactly one notification", first.length === 1);
+          ok("the notification names the customer and the reason",
+            first.length === 1 && first[0].title === "New customer chat" && first[0].body === "Sara: Wants a refund");
+
+          // Owner reply in a chat with no reason: the badge reads 2 once the push lands, the notification count stays.
+          flipConversation("c3", { status: "human", handoff_reason: null });
+          await gp.waitForSelector("aside [data-testid=needs-badge]:text-is('2')", { timeout: 5000 });
+          await pause(400);
+          ok("an owner reply in a chat with no handoff reason sends no notification", (await notes(gp)).length === 1);
+
+          // Switch notifications off: a new handoff is still counted in the title but notifies nothing.
+          await alertsCard(gp).locator("label").nth(1).click();
+          ok("the notifications toggle turns off", !(await alertsCard(gp).getByRole("switch").nth(1).isChecked()));
+          flipConversation("c3", { status: "human", handoff_reason: "Second question" });
+          ok("with notifications off a new handoff still shows in the title", await waitTitle(gp, /^\(2\) Store Assistant$/));
+          ok("with notifications off a new handoff sends no notification", (await notes(gp)).length === 1);
+          ok("no runtime errors on the alerts card and notification checks", gerrors.length === 0);
+          if (gerrors.length) console.log(gerrors.join("\n"));
+        } finally {
+          await gctx.close();
+        }
+      }
+
+      // c) chats already waiting when the app opens do not alert; a later handoff alerts once
+      {
+        // Only c1 waits at load: (b) left c2 and c3 handed over.
+        flipConversation("c2", { status: "bot", handoff_reason: null });
+        flipConversation("c3", { status: "closed", handoff_reason: null });
+        flipConversation("c1", { status: "human", handoff_reason: "Customer wants to order 2 hoodies" });
+        const { page: bp, ctx: bctx, errors: berrors } = await newPage({ locale: "en-US" });
+        await bctx.addInitScript(notificationStub("granted"));
+        // Preset the preference only when nothing is stored yet, so a reload keeps what the owner chose.
+        await bctx.addInitScript(() => { try { if (localStorage.getItem("wakil.alerts.notify") === null) localStorage.setItem("wakil.alerts.notify", "1"); } catch { /* storage blocked */ } });
+        try {
+          const j = state.realtimeJoins;
+          await signIn(bp);
+          await waitJoins(j + 3);
+          ok("a chat already waiting at load shows (1) in the title", await waitTitle(bp, /^\(1\) Store Assistant$/));
+          await pause(400);
+          ok("a chat already waiting at load does not notify", (await notes(bp)).length === 0);
+          flipConversation("c2", { status: "human", handoff_reason: "Wants a refund" });
+          await bp.waitForFunction(() => window.__notes.length >= 1, null, { timeout: 5000 }).catch(() => {});
+          ok("after load, one new handoff notifies once (the waiting chat does not repeat)", (await notes(bp)).length === 1);
+          ok("no runtime errors in the load-time baseline checks", berrors.length === 0);
+          if (berrors.length) console.log(berrors.join("\n"));
+        } finally {
+          await bctx.close();
+        }
+      }
+
+      // d) permission denied: the toggle stays off, the reason is shown, nothing is sent
+      {
+        // Nothing waits at load: (c) left c1 and c2 handed over.
+        flipConversation("c1", { status: "bot", handoff_reason: null });
+        flipConversation("c2", { status: "bot", handoff_reason: null });
+        const { page: dp, ctx: dctx, errors: derrors } = await newPage({ locale: "en-US" });
+        await dctx.addInitScript(notificationStub("denied"));
+        try {
+          const j = state.realtimeJoins;
+          await signIn(dp);
+          await waitJoins(j + 3);
+          await dp.click("a:has-text('Settings')");
+          await dp.waitForSelector("section[aria-labelledby=sec-alerts]");
+          await alertsCard(dp).locator("label").nth(1).click();
+          await dp.waitForSelector("section[aria-labelledby=sec-alerts] [role=status]:has-text('blocked')", { timeout: 5000 });
+          ok("a denied permission keeps the notifications toggle off and says why",
+            !(await alertsCard(dp).getByRole("switch").nth(1).isChecked()));
+          ok("the browser was asked once", (await dp.evaluate(() => window.__requests)) === 1);
+          flipConversation("c2", { status: "human", handoff_reason: "Wants a refund" });
+          ok("a new handoff with permission denied shows in the title", await waitTitle(dp, /^\(1\) Store Assistant$/));
+          ok("a new handoff with permission denied sends no notification", (await notes(dp)).length === 0);
+          ok("no runtime errors in the denied-permission checks", derrors.length === 0);
+          if (derrors.length) console.log(derrors.join("\n"));
+        } finally {
+          await dctx.close();
+        }
+      }
+
+      // e) Arabic: the alerts card shows and the page logs no errors
+      {
+        const { page: ap, ctx: actx, errors: aerrors } = await newPage({ locale: "ar-DZ" });
+        try {
+          await ap.goto(`http://127.0.0.1:${PORT}/login`);
+          await ap.fill("#email", "owner@example.com"); await ap.fill("#password", "password123");
+          await ap.click("[data-testid=auth-submit]");
+          await ap.waitForURL(/\/inbox/);
+          await ap.goto(`http://127.0.0.1:${PORT}/settings`);
+          await ap.waitForSelector("section[aria-labelledby=sec-alerts]");
+          ok("Arabic Settings shows the alerts card", (await alertsCard(ap).textContent()).includes("تنبيهات على هذا الجهاز"));
+          ok("the Arabic alerts card has two labelled switches",
+            (await alertsCard(ap).getByRole("switch").count()) === 2);
+          ok("no runtime errors on the Arabic Settings alerts card", aerrors.length === 0);
+          if (aerrors.length) console.log(aerrors.join("\n"));
+        } finally {
+          await actx.close();
+        }
+      }
+    } finally {
+      restoreChats();
     }
   }
 } catch (e) {

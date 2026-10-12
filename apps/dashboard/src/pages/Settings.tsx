@@ -16,6 +16,7 @@ import { ReplyCreditsCard } from "../components/settings/ReplyCreditsCard";
 import { PasswordCard } from "../components/settings/PasswordCard";
 import { TELEGRAM_BOT, TelegramAlerts } from "../components/settings/TelegramAlerts";
 import { DeliveryFees } from "../components/settings/DeliveryFees";
+import { AlertsCard } from "../components/settings/AlertsCard";
 
 // Page shell: owns the store fields and the one save bar. Each card is its own component.
 export function Settings() {
@@ -78,6 +79,7 @@ export function Settings() {
       <PasswordCard />
       <FaqEditor storeId={s.id} />
       <DeliveryFees storeId={s.id} currency={s.currency} />
+      <AlertsCard />
       {TELEGRAM_BOT && <TelegramAlerts storeId={s.id} />}
     </m.div>
   );
