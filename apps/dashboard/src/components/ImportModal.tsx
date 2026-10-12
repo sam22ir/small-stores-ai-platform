@@ -4,11 +4,11 @@ import { Alert, Button, TextArea } from "@heroui/react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import { groupRows, parseImport } from "../lib/importer";
+import { planImportSave } from "../lib/catalog";
+import type { ExistingProduct } from "../lib/catalog";
 import { dur, ease, useMotionSafe } from "../lib/motion";
 import { CountUp } from "./wakil/CountUp";
 import { Modal } from "./Modal";
-
-type ExistingProduct = { id: string; name: string; product_variants: { id: string; label: string }[] };
 
 // Paste a stock list from a spreadsheet: existing products (matched by name and option) get their
 // stock updated, new ones are created. The fastest way to fix a whole catalog at once.
@@ -43,49 +43,22 @@ export function ImportModal({ storeId, existing, onClose, onDone }: {
     try {
       for (const g of groups) {
         const found = byName.get(g.name.trim().toLowerCase());
+        const plan = planImportSave(found, g, defaultLabel);
+        if (!plan) { noPrice++; continue; }
+        // One save_product call per product: the product and its options are written in one transaction.
+        const { error: err } = await supabase.rpc("save_product", {
+          p_store_id: storeId,
+          p_product_id: found?.id ?? null,
+          p_product: plan.product,
+          p_variants: plan.variants,
+        });
+        if (err) throw err;
         if (found) {
-          for (const o of g.options) {
-            const label = o.label.trim().toLowerCase();
-            const variant = label
-              ? found.product_variants.find((v) => v.label.trim().toLowerCase() === label)
-              : found.product_variants.length === 1 ? found.product_variants[0] : undefined;
-            if (variant) {
-              const patch: { stock_quantity?: number; price_cents?: number } = {};
-              if (o.stock !== null) patch.stock_quantity = o.stock;
-              if (o.priceCents !== null) patch.price_cents = o.priceCents;
-              if (Object.keys(patch).length) {
-                const { error: err } = await supabase.from("product_variants").update(patch).eq("id", variant.id);
-                if (err) throw err;
-              }
-            } else {
-              const { error: err } = await supabase.from("product_variants").insert({
-                store_id: storeId, product_id: found.id, label: o.label || defaultLabel,
-                stock_quantity: o.stock ?? 0, price_cents: o.priceCents,
-              });
-              if (err) throw err;
-            }
-          }
-          const patch: { stock_checked_at: string; price_cents?: number; aliases?: string; description?: string } = { stock_checked_at: now };
-          if (g.priceCents !== null) patch.price_cents = g.priceCents;
-          if (g.aliases) patch.aliases = g.aliases;
-          if (g.description) patch.description = g.description;
-          const { error: err } = await supabase.from("products").update(patch).eq("id", found.id);
-          if (err) throw err;
+          // save_product does not touch stock_checked_at: the import confirms the numbers it wrote.
+          const { error: checkErr } = await supabase.from("products").update({ stock_checked_at: now }).eq("id", found.id);
+          if (checkErr) throw checkErr;
           updated++;
         } else {
-          if (g.priceCents === null) { noPrice++; continue; }
-          const { data, error: err } = await supabase.from("products").insert({
-            store_id: storeId, name: g.name, price_cents: g.priceCents,
-            description: g.description || null, aliases: g.aliases || null,
-          }).select("id").single();
-          if (err) throw err;
-          const { error: vErr } = await supabase.from("product_variants").insert(
-            g.options.map((o) => ({
-              store_id: storeId, product_id: data.id, label: o.label || defaultLabel,
-              stock_quantity: o.stock ?? 0, price_cents: o.priceCents,
-            })),
-          );
-          if (vErr) throw vErr;
           added++;
         }
       }

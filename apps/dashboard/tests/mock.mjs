@@ -54,6 +54,8 @@ export const state = {
   testRuns: 0,
   realtimeJoins: 0, // postgres_changes subscriptions the dashboard has joined
   failStoreWrites: false, // true makes PATCH /stores fail, to test the pause switch's revert
+  failSaveProduct: false, // true makes the save_product RPC fail before writing anything
+  rpcCalls: [], // every RPC call as {name, args}, for checks that need the parsed arguments
   bulk: false, // true adds bulkChats to the conversation lists
   deliverMode: "ok", // "fail" makes deliver-messages report a closed 24-hour window; "skip" leaves replies pending
   startStatus: 200, // 503 = Instagram connection not configured on the server
@@ -276,6 +278,38 @@ export function start(port = Number(process.env.MOCK_PORT || 54321)) {
       if (url.pathname === "/functions/v1/billing-checkout") {
         if (req.method !== "POST") return send(204);
         return send(200, { checkout_url: state.checkoutUrl });
+      }
+      // save_product replaces the product's full state and drops variants missing from the list, like
+      // the real function. It builds the new state first and writes only when everything is valid.
+      if (url.pathname.startsWith("/rest/v1/rpc/save_product")) {
+        const args = JSON.parse(body || "{}");
+        state.rpcCalls.push({ name: "save_product", args });
+        if (state.failSaveProduct) return send(500, { code: "P0001", message: "simulated failure", details: null, hint: null });
+        const prev = state.products.find((x) => x.id === args.p_product_id);
+        const now = new Date().toISOString();
+        const variants = args.p_variants.map((v, i) => ({
+          id: v.id || `v-new-${state.products.length}-${i}`, label: v.label || "Default", price_cents: v.price_cents ?? null,
+          stock_quantity: v.stock_quantity ?? 0, sku: null, updated_at: now,
+        }));
+        const product = {
+          id: prev ? prev.id : `p-new-${state.products.length + 1}`,
+          name: args.p_product.name, description: args.p_product.description, aliases: args.p_product.aliases,
+          price_cents: args.p_product.price_cents, active: args.p_product.active ?? prev?.active ?? true,
+          stock_checked_at: prev ? prev.stock_checked_at : now, sold_out_until: prev ? prev.sold_out_until : null,
+          product_variants: variants,
+        };
+        if (prev) Object.assign(prev, product); else state.products.push(product);
+        return send(200, product.id);
+      }
+      // adjust_stock is a relative change, floored at zero. It returns the stored quantity.
+      if (url.pathname.startsWith("/rest/v1/rpc/adjust_stock")) {
+        const args = JSON.parse(body || "{}");
+        state.rpcCalls.push({ name: "adjust_stock", args });
+        const v = state.products.flatMap((p) => p.product_variants).find((x) => x.id === args.p_variant_id);
+        if (!v) return send(400, { code: "P0002", message: "variant not found", details: null, hint: null });
+        v.stock_quantity = Math.max(0, v.stock_quantity + args.p_delta);
+        v.updated_at = new Date().toISOString();
+        return send(200, v.stock_quantity);
       }
       if (url.pathname.startsWith("/rest/v1/rpc/inbox_list")) {
         const { p_status, p_search, p_limit, p_before_at, p_before_id } = JSON.parse(body || "{}");
