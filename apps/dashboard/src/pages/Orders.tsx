@@ -96,6 +96,7 @@ export function Orders() {
   // Each load gets a number; only the newest one may write the screen.
   const seqRef = useRef(0);
   const listRef = useRef<{ rows: Order[]; hasMore: boolean } | null>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
 
   const messageFor = (o: Order) => buildOrderMessage(o, {
     greeting: (name) => t("orders.msg.greeting", { name }),
@@ -120,6 +121,11 @@ export function Orders() {
   }, [query]);
 
   useEffect(() => { listRef.current = list; }, [list]);
+
+  // The status chips scroll sideways on a phone; keep the selected one in view.
+  useEffect(() => {
+    tabsRef.current?.querySelector<HTMLElement>("[aria-selected=true]")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [tab]);
 
   // Reloads the tab and the counts. A reset starts over at one page; a refresh re-reads the rows already
   // loaded, so "Load more" pages survive a realtime or polling refresh.
@@ -183,14 +189,14 @@ export function Orders() {
       transition={{ duration: dur.base, ease: ease.out }}
     >
       <h1 className="mb-4 mt-1 text-[22px] font-extrabold text-ink">{t("orders.title")}</h1>
-      <div role="tablist" className="mb-4 flex flex-wrap gap-2">
+      <div ref={tabsRef} role="tablist" className="mb-4 flex flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:thin]">
         {TABS.map((s) => (
           <button
             key={s}
             role="tab"
             aria-selected={tab === s}
             onClick={() => setTab(s)}
-            className={`relative min-h-10 rounded-full border-2 px-3.5 text-sm font-bold transition-colors ${tab === s ? "border-ink bg-ink text-slip" : "border-ink/20 bg-slip text-ink hover:border-ink"}`}
+            className={`relative min-h-11 shrink-0 whitespace-nowrap rounded-full border-2 px-3.5 text-sm font-bold transition-colors ${tab === s ? "border-ink bg-ink text-slip" : "border-ink/20 bg-slip text-ink hover:border-ink"}`}
           >
             {t(STATUS_KEY[s])}{countOf(s)}
           </button>

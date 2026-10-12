@@ -646,6 +646,20 @@ try {
     ok("no runtime errors in the orders search checks", errors.length === 0);
     await ctx.close();
   }
+  // 14b. orders status chips stay on one horizontal row on a 390px phone
+  {
+    ({ page, ctx, errors } = await newPage({ viewport: { width: 390, height: 780 }, locale: "en-US", isMobile: true, hasTouch: true }));
+    await signIn(page);
+    await page.goto(`http://127.0.0.1:${PORT}/orders`);
+    await page.waitForSelector("[role=tab]:has-text('Shipped')");
+    const sameRow = () => {
+      const tops = [...document.querySelectorAll("[role=tablist] [role=tab]")].map((el) => el.offsetTop);
+      return tops.length === 5 && new Set(tops).size === 1;
+    };
+    ok("orders status chips share one row at 390px", await page.waitForFunction(sameRow, null, { timeout: 3000 }).then(() => true, () => false));
+    ok("no runtime errors in the orders chip row check", errors.length === 0);
+    await ctx.close();
+  }
   // 15. insights: nav entry, range toggle, stat cards, empty state, Arabic, phone bottom bar
   {
     const card = async (pg, k) => ((await pg.textContent(`[data-testid=insights-stat-${k}] .text-2xl`)) || "").trim();
