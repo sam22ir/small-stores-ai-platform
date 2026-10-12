@@ -280,6 +280,25 @@ try {
   await variantRow(page, "Black Hoodie", "L").getByRole("button", { name: "Decrease stock" }).click();
   ok("stock - calls adjust_stock with -1 and shows the stored quantity", await rpcSeen("adjust_stock", (a) => a.p_variant_id === "v3" && a.p_delta === -1) && await stockShows(page, "Black Hoodie", "L", 30));
 
+  // 4d. a failed import leaves the earlier groups saved; retrying must not create them twice
+  {
+    await page.click("button:has-text('Import stock list')");
+    await page.waitForSelector("[role=dialog]");
+    await page.fill("[role=dialog] textarea", "name, price, stock, option\nCotton Cap, 1000, 4, \nWool Hat, 2000, 3, ");
+    state.failSaveProductOnCall = 2; // the second group fails
+    await page.click("[role=dialog] button:has-text('Import')");
+    await page.waitForSelector("[role=dialog] >> text=Something went wrong. Please try again.");
+    ok("a failed import shows the error", await page.isVisible("[role=dialog] >> text=Something went wrong. Please try again."));
+    ok("the first group was saved before the failure", state.products.filter((x) => x.name === "Cotton Cap").length === 1 && !state.products.some((x) => x.name === "Wool Hat"));
+    await page.click("[role=dialog] button:has-text('Import')");
+    await page.waitForSelector("text=Done:");
+    ok("retrying the import does not duplicate the product saved the first time",
+      state.products.filter((x) => x.name === "Cotton Cap").length === 1 && state.products.filter((x) => x.name === "Wool Hat").length === 1);
+    await page.click("[role=dialog] button:has-text('Cancel')");
+    state.failSaveProductOnCall = 0;
+    state.products = state.products.filter((x) => x.name !== "Cotton Cap" && x.name !== "Wool Hat");
+  }
+
   // 5. settings + channels
   await page.click("a:has-text('Settings')");
   await page.waitForSelector("text=Store settings");
@@ -1089,6 +1108,34 @@ try {
       }
     } finally {
       restoreChats();
+    }
+  }
+  // 23. close and reopen: reopening a chat that once had a handoff must not look like a new handoff
+  {
+    const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+    const waitTitle = (p, re, ms = 6000) => p.waitForFunction((src) => new RegExp(src).test(document.title), re.source, { timeout: ms }).then(() => true, () => false);
+    const keep = ["c1", "c2", "c3"].map((id) => [id, { ...state.conversations.find((x) => x.id === id) }]);
+    const { page: rp, ctx: rctx, errors: rerrors } = await newPage({ locale: "en-US" });
+    try {
+      for (const id of ["c1", "c3"]) Object.assign(state.conversations.find((x) => x.id === id), { status: "bot", handoff_reason: null });
+      Object.assign(state.conversations.find((x) => x.id === "c2"), { status: "human", handoff_reason: "Wants a refund" });
+      state.applyConversationPatch = true;
+      await signIn(rp);
+      await rp.goto(`http://127.0.0.1:${PORT}/inbox/c2`);
+      ok("a chat waiting with a handoff reason shows (1) in the title", await waitTitle(rp, /^\(1\) Store Assistant$/));
+      await rp.click("button:has-text('Close')");
+      ok("closing drops the handoff reason along with the status", await logged((l) => l.startsWith("PATCH /rest/v1/conversations") && l.includes('"status":"closed"') && l.includes('"handoff_reason":null')));
+      ok("closing clears the count from the title", await waitTitle(rp, /^Store Assistant$/));
+      await rp.click("button:has-text('Reopen')");
+      await rp.waitForSelector("button:has-text('Hand back to the assistant')");
+      await pause(1500);
+      ok("reopening a closed chat does not put the count back in the title", (await rp.title()) === "Store Assistant");
+      ok("no runtime errors in the close and reopen checks", rerrors.length === 0);
+    } finally {
+      state.applyConversationPatch = false;
+      for (const [id, v] of keep) Object.assign(state.conversations.find((x) => x.id === id), v);
+      pushConversationChange();
+      await rctx.close();
     }
   }
 } catch (e) {
