@@ -162,6 +162,44 @@ Response: `{"ok": true}`. Stops replies on that channel and deletes its stored t
 
 ---
 
+## delivery-carrier
+
+**Purpose.** Connects a store to its Yalidine Express account and keeps the store's `delivery_fees` in step with
+Yalidine's prices. Used by the dashboard (Settings, Delivery tab).
+
+**Method.** `POST` (JSON actions).
+
+**Auth.** `Authorization: Bearer <user JWT>` of a user whose `store_members.role` is `owner` for `store_id`.
+
+**Configuration.** Secret `CREDENTIALS_ENCRYPTION_KEY` (shared with `instagram-connect`). The API ID and token are
+stored AES-GCM encrypted in `store_carriers` (server-only, no policies). The dashboard reads the connection status
+through the `carrier_status(store_id)` RPC, which never returns the credentials.
+
+### POST `connect`
+
+`{"action":"connect","store_id","api_id","api_token","from_wilaya_id":16,"fee_type":"home"}` (`fee_type` is `home` or
+`desk`, default `home`). Checks the credentials with Yalidine, saves them, then syncs. Answers
+`{"ok":true,"added","updated","skipped"}` or `{"ok":false,"reason"}`.
+
+### POST `sync`
+
+`{"action":"sync","store_id","overwrite":false}`. Writes one price per wilaya (the most common commune price, in DA
+stored as cents) into `delivery_fees` with `source = 'yalidine'`. Fees the owner typed (`source = 'manual'`) are kept
+unless `overwrite` is `true`. Editing a synced fee in the dashboard turns it into a manual fee.
+
+### POST `disconnect`
+
+`{"action":"disconnect","store_id"}`. Deletes the stored credentials. Fees already copied stay.
+
+### Errors
+
+`400` bad input, `401` no or invalid JWT, `403` not an owner, `503 not_configured` (encryption key unusable).
+Sync failures answer `200` with `{"ok":false,"reason"}`: `bad_credentials`, `rate_limited` (with `retryAfter` seconds),
+`currency_mismatch` (store currency is not DZD), `not_connected`, `failed`. The last error is kept on the connection.
+
+**Unverified against Yalidine's own docs:** the fees path (`deliveryfees`, falling back to `fees`) and the per-commune
+price field names. Confirm them with a real merchant account before relying on synced prices.
+
 ## meta-webhook
 
 **Purpose.** Receives Instagram DM webhooks from Meta. (The source comment mentions Messenger "later"; the code handles only what `parseWebhook` returns.)

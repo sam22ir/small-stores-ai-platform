@@ -70,6 +70,10 @@ insert into store_telegram (store_id, chat_id) values
   ('11111111-0000-0000-0000-00000000000a', 111),
   ('22222222-0000-0000-0000-00000000000b', 222);
 
+insert into store_carriers (store_id, carrier, api_id_encrypted, api_token_encrypted, from_wilaya_id) values
+  ('11111111-0000-0000-0000-00000000000a', 'yalidine', 'enc-id-a', 'enc-token-a', 16),
+  ('22222222-0000-0000-0000-00000000000b', 'yalidine', 'enc-id-b', 'enc-token-b', 31);
+
 -- Helpers (pg_temp, dropped with the session). Each one treats a table-level denial as "no rows".
 create function pg_temp.visible_rows(t text) returns bigint language plpgsql as $$
 declare n bigint;
@@ -134,6 +138,7 @@ select is(pg_temp.visible_for_store('stores', 'id', '11111111-0000-0000-0000-000
 
 select is(pg_temp.visible_rows('channel_credentials'), 0::bigint, 'user A sees 0 channel_credentials rows');
 select is(pg_temp.visible_rows('store_telegram'), 0::bigint, 'user A sees 0 store_telegram rows');
+select is(pg_temp.visible_rows('store_carriers'), 0::bigint, 'user A sees 0 store_carriers rows (credentials are server-only)');
 
 -- Cross-store writes must be rejected, or match nothing.
 select ok(pg_temp.write_denied($$insert into products (store_id, name, price_cents)
@@ -190,7 +195,7 @@ set local role anon;
 select is(pg_temp.visible_rows(t.name), 0::bigint, format('anon sees nothing in %s', t.name))
 from (values ('stores'), ('store_members'), ('channels'), ('channel_credentials'), ('products'),
              ('product_variants'), ('customers'), ('conversations'), ('messages'), ('agent_runs'),
-             ('delivery_fees'), ('orders'), ('order_items'), ('faq_entries'), ('store_telegram')) as t(name);
+             ('delivery_fees'), ('orders'), ('order_items'), ('faq_entries'), ('store_telegram'), ('store_carriers')) as t(name);
 
 select ok(pg_temp.write_denied($$insert into products (store_id, name, price_cents)
   values ('11111111-0000-0000-0000-00000000000a', 'Anon', 1)$$),

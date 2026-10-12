@@ -262,6 +262,7 @@ export type Database = {
           created_at: string
           fee_cents: number
           id: string
+          source: string
           store_id: string
           wilaya: string
         }
@@ -269,6 +270,7 @@ export type Database = {
           created_at?: string
           fee_cents: number
           id?: string
+          source?: string
           store_id: string
           wilaya: string
         }
@@ -276,6 +278,7 @@ export type Database = {
           created_at?: string
           fee_cents?: number
           id?: string
+          source?: string
           store_id?: string
           wilaya?: string
         }
@@ -760,6 +763,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      carrier_status: { Args: { p_store_id: string }; Returns: Json }
       create_store: {
         Args: { p_currency?: string; p_name: string }
         Returns: string

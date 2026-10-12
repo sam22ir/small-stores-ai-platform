@@ -123,3 +123,8 @@ export function matchWilaya(input: string, storeNames: string[]): string | null 
 }
 
 export const WILAYA_CODES = WILAYAS.map((w) => w.code);
+
+// The Latin name the dashboard uses for a wilaya code (1..58), or null.
+export function wilayaName(code: number): string | null {
+  return WILAYAS.find((w) => w.code === String(code).padStart(2, "0"))?.names[0] ?? null;
+}
