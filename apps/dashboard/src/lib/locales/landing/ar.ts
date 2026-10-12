@@ -100,6 +100,7 @@ const landingAr: LandingDict = {
     terms: "شروط الاستخدام",
     dataDeletion: "حذف البيانات",
     copyright: "© Wakil",
+    legal: "قانوني",
   },
   notFound: {
     title: "هذه الصفحة غير موجودة",

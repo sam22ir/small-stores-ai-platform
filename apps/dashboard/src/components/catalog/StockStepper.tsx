@@ -23,7 +23,7 @@ export function StockStepper({ v, onStep }: { v: Variant; onStep: (delta: number
 
   return (
     <div className="flex items-center gap-2 shrink-0">
-      <Button isIconOnly variant="outline" size="sm" className="rounded-full" aria-label={t("catalog.decrease")} onPress={() => void step(-1)}>−</Button>
+      <Button isIconOnly variant="outline" size="sm" className="size-11 min-h-11 min-w-11 rounded-full" aria-label={t("catalog.decrease")} onPress={() => void step(-1)}>−</Button>
       <span className="relative min-w-10 text-center" aria-live="polite">
         <AnimatePresence initial={false} mode="popLayout">
           <m.span
@@ -45,7 +45,7 @@ export function StockStepper({ v, onStep }: { v: Variant; onStep: (delta: number
             transition={{ duration: dur.short, ease: ease.stamp }}>✓</m.span>
         )}
       </AnimatePresence>
-      <Button isIconOnly variant="outline" size="sm" className="rounded-full" aria-label={t("catalog.increase")} onPress={() => void step(1)}>+</Button>
+      <Button isIconOnly variant="outline" size="sm" className="size-11 min-h-11 min-w-11 rounded-full" aria-label={t("catalog.increase")} onPress={() => void step(1)}>+</Button>
     </div>
   );
 }

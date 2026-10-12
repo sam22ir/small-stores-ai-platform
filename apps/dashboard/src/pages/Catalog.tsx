@@ -150,7 +150,7 @@ export function Catalog() {
         )}
         {products && products.length > 0 && shown.length === 0 && <p className="text-soft">{t("catalog.noMatch")}</p>}
 
-        <ul className="m-0 grid list-none gap-3 p-0 lg:grid-cols-2">
+        <ul className="m-0 grid list-none grid-cols-[minmax(0,1fr)] gap-3 p-0 lg:grid-cols-2">
           <AnimatePresence initial={false}>
             {shown.map((p) => (
               <ProductRow

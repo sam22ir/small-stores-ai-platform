@@ -3,12 +3,14 @@ import { Link } from "react-router-dom";
 import { m } from "motion/react";
 import { legal } from "../lib/legal";
 import { dur, ease, useMotionSafe } from "../lib/motion";
+import { useI18n } from "../lib/i18n";
 
 // Public pages (no sign-in): Meta requires a privacy policy, terms and a way to delete data
 // before an app can go live. English only; these are reviewed by Meta and by store owners.
 
 function Page({ title, children }: { title: string; children: ReactNode }) {
   const reduced = useMotionSafe();
+  const { t } = useI18n();
   return (
     <div className="min-h-screen bg-paper px-4 py-10">
       <m.main
@@ -21,10 +23,10 @@ function Page({ title, children }: { title: string; children: ReactNode }) {
         <h1 className="mb-1 mt-4 text-2xl font-extrabold text-ink">{title}</h1>
         <p className="mb-8 mt-0 text-[13px] text-soft">Last updated: {legal.updated}</p>
         <div className="flex flex-col gap-3">{children}</div>
-        <nav className="mt-12 flex flex-wrap gap-4 border-t border-ink/10 pt-6 text-sm text-soft" aria-label="Legal">
-          <Link to="/privacy">Privacy policy</Link>
-          <Link to="/terms">Terms of service</Link>
-          <Link to="/data-deletion">Data deletion</Link>
+        <nav className="mt-12 flex flex-wrap gap-4 border-t border-ink/10 pt-6 text-sm text-soft" aria-label={t("legal.nav")}>
+          <Link to="/privacy">{t("legal.privacyLink")}</Link>
+          <Link to="/terms">{t("legal.termsLink")}</Link>
+          <Link to="/data-deletion">{t("legal.deletionLink")}</Link>
         </nav>
       </m.main>
     </div>
