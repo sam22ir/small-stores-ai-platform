@@ -11,7 +11,7 @@ const ago = (days) => new Date(Date.now() - days * 86400000).toISOString();
 
 // Chat c5 has 250 messages, one a minute, so the newest page (100) and "Load earlier" both get exercised.
 const longChat = { id: "c5", store_id: "s1", channel_id: "ch1", status: "closed", handoff_reason: null, last_customer_message_at: "2026-10-03T09:00:00Z", created_at: "2026-10-02T09:00:00Z", customers: { display_name: "Yasmine Long", platform_user_id: "ig-5" }, channels: { platform: "instagram" } };
-const longThread = Array.from({ length: 250 }, (_, i) => ({ id: `L${i + 1}`, conversation_id: "c5", direction: i % 2 ? "outbound" : "inbound", sender: i % 2 ? "owner" : "customer", body: `Long thread message ${i + 1}`, created_at: new Date(Date.UTC(2026, 9, 2, 9, 0) + i * 60000).toISOString(), delivery_status: i % 2 ? "sent" : null, delivery_error: null }));
+const longThread = Array.from({ length: 250 }, (_, i) => ({ id: `L${i + 1}`, conversation_id: "c5", direction: i % 2 ? "outbound" : "inbound", sender: i % 2 ? "owner" : "customer", body: `Long thread message ${i + 1}`, created_at: new Date(Date.UTC(2026, 9, 2, 9, 0) + (i === 149 ? 150 : i) * 60000).toISOString(), delivery_status: i % 2 ? "sent" : null, delivery_error: null }));
 // 60 more closed chats, added when state.bulk is set, so the inbox list needs "Load more".
 const bulkChats = Array.from({ length: 60 }, (_, i) => ({ id: `b${i + 1}`, store_id: "s1", channel_id: "ch1", status: "closed", handoff_reason: null, last_customer_message_at: new Date(Date.UTC(2026, 8, 30) - i * 60000).toISOString(), created_at: "2026-09-30T00:00:00Z", customers: { display_name: `Bulk customer ${String(i + 1).padStart(2, "0")}`, platform_user_id: `bulk-${i + 1}` }, channels: { platform: "instagram" } }));
 
@@ -54,6 +54,8 @@ export const state = {
   testRuns: 0,
   realtimeJoins: 0, // postgres_changes subscriptions the dashboard has joined
   failStoreWrites: false, // true makes PATCH /stores fail, to test the pause switch's revert
+  applyConversationPatch: false, // true makes PATCH /conversations change the stored chat (and push realtime)
+  failSaveProductOnCall: 0, // n > 0 makes the n-th save_product call from now on fail (0 = off)
   failSaveProduct: false, // true makes the save_product RPC fail before writing anything
   rpcCalls: [], // every RPC call as {name, args}, for checks that need the parsed arguments
   bulk: false, // true adds bulkChats to the conversation lists
@@ -293,6 +295,7 @@ export function start(port = Number(process.env.MOCK_PORT || 54321)) {
       if (url.pathname.startsWith("/rest/v1/rpc/save_product")) {
         const args = JSON.parse(body || "{}");
         state.rpcCalls.push({ name: "save_product", args });
+        if (state.failSaveProductOnCall > 0 && --state.failSaveProductOnCall === 0) return send(500, { code: "P0001", message: "simulated failure", details: null, hint: null });
         if (state.failSaveProduct) return send(500, { code: "P0001", message: "simulated failure", details: null, hint: null });
         const prev = state.products.find((x) => x.id === args.p_product_id);
         const now = new Date().toISOString();
@@ -441,6 +444,10 @@ export function start(port = Number(process.env.MOCK_PORT || 54321)) {
           const desc = (url.searchParams.get("order") || "").includes("created_at.desc");
           const before = url.searchParams.get("created_at");
           if (before?.startsWith("lt.")) rows = rows.filter((m) => m.created_at < before.slice(3));
+          // or=(created_at.lt."X",and(created_at.eq."X",id.lt."Y")): older than X, or same time with a smaller id.
+          const orp = url.searchParams.get("or");
+          const om = orp && orp.match(/^\(created_at\.lt\."([^"]+)",and\(created_at\.eq\."([^"]+)",id\.lt\."([^"]+)"\)\)$/);
+          if (om) rows = rows.filter((m) => m.created_at < om[1] || (m.created_at === om[2] && m.id < om[3]));
           rows = [...rows].sort((a, b) => (a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)) * (desc ? -1 : 1));
           const limit = url.searchParams.get("limit");
           return pick(limit ? rows.slice(0, Number(limit)) : rows);
@@ -478,6 +485,12 @@ export function start(port = Number(process.env.MOCK_PORT || 54321)) {
       if (req.method === "PATCH" && table === "stores") {
         if (state.failStoreWrites) return send(500, { message: "write failed" });
         Object.assign(state.store, JSON.parse(body));
+        return send(204);
+      }
+      if (req.method === "PATCH" && table === "conversations" && state.applyConversationPatch) {
+        const cid = (url.searchParams.get("id") || "").replace(/^eq\./, "");
+        const c = state.conversations.find((x) => x.id === cid);
+        if (c) { Object.assign(c, JSON.parse(body || "{}")); pushConversationChange(); }
         return send(204);
       }
       if (req.method === "PATCH" || req.method === "POST" || req.method === "DELETE") return send(204);

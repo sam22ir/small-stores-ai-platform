@@ -66,6 +66,9 @@ export function ImportModal({ storeId, existing, onClose, onDone }: {
       await onDone();
     } catch {
       setError(t("common.error"));
+      // Groups saved before the failure are real: reload the list so a retry sees them as existing
+      // products instead of creating them again.
+      try { await onDone(); } catch { /* the error above is already shown */ }
     }
     setBusy(false);
   }

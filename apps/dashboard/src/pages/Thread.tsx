@@ -194,7 +194,9 @@ function ThreadView({ id }: { id: string | undefined }) {
     setLoadingOlder(true);
     const { data, error: err } = await supabase.from("messages")
       .select("id,direction,sender,body,created_at,delivery_status,delivery_error")
-      .eq("conversation_id", id).lt("created_at", oldest.created_at)
+      .eq("conversation_id", id)
+      // Same-timestamp rows (one request inserts several) are ordered by id, so the page boundary can fall inside them.
+      .or(`created_at.lt."${oldest.created_at}",and(created_at.eq."${oldest.created_at}",id.lt."${oldest.id}")`)
       .order("created_at", { ascending: false }).order("id", { ascending: false }).limit(PAGE);
     setLoadingOlder(false);
     if (err) { setError(t("common.error")); return; }
@@ -206,7 +208,9 @@ function ThreadView({ id }: { id: string | undefined }) {
   async function setStatus(status: Conv["status"]) {
     if (!conv) return;
     setBusy(true); setError(null);
-    const patch = status === "bot" ? { status, handoff_reason: null } : { status };
+    // Leaving "human" through hand-back or close drops the reason, so reopening a chat later does not look
+    // like a fresh handoff to the alert hook.
+    const patch = status === "bot" || status === "closed" ? { status, handoff_reason: null } : { status };
     const { error: err } = await supabase.from("conversations").update(patch).eq("id", conv.id);
     if (err) setError(t("common.error"));
     await loadNewest();
