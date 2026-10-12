@@ -110,7 +110,7 @@ export function Insights() {
     setLoading(true);
     supabase.rpc("store_insights", { p_store_id: storeId, p_days: range }).then(({ data: raw, error }) => {
       if (stale) return;
-      if (error) { setFailed(true); setLoading(false); return; }
+      if (error) { setFailed(true); setData(null); setLoading(false); return; }
       setData(parseInsights(raw));
       setFailed(false);
       setLoading(false);

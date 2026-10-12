@@ -100,6 +100,7 @@ const landingFr: LandingDict = {
     terms: "Conditions",
     dataDeletion: "Suppression des données",
     copyright: "© Wakil",
+    legal: "Mentions légales",
   },
   notFound: {
     title: "Page introuvable",

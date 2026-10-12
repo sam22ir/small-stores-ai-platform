@@ -60,6 +60,10 @@ export const state = {
   deliverMode: "ok", // "fail" makes deliver-messages report a closed 24-hour window; "skip" leaves replies pending
   startStatus: 200, // 503 = Instagram connection not configured on the server
   insightsEmpty: false, // true makes store_insights report an empty window
+  createStoreFail: false, // true makes create_store fail with a 500 (onboarding error alert)
+  checkoutUrl: null, // URL that billing-checkout hands back (smoke points it at /settings?billing=success)
+  telegramConnected: false, // telegram_link / telegram_unlink, only exercised when VITE_TELEGRAM_BOT_USERNAME is set
+  usageExtra: 0, // replies sent in test chats; added to the assistant usage meter's base of 7
   log: [],
 };
 
@@ -265,7 +269,16 @@ export function start(port = Number(process.env.MOCK_PORT || 54321)) {
       if (url.pathname === "/auth/v1/signup") return send(200, { ...user, identities: [] });
       if (url.pathname === "/auth/v1/logout") return send(204);
 
-      if (url.pathname.startsWith("/rest/v1/rpc/create_store")) { state.hasStore = true; return send(200, "s1"); }
+      if (url.pathname.startsWith("/rest/v1/rpc/create_store")) {
+        if (state.createStoreFail) return send(500, { message: "create failed" });
+        state.hasStore = true; return send(200, "s1");
+      }
+      if (url.pathname.startsWith("/rest/v1/rpc/telegram_link")) return send(200, { connected: state.telegramConnected, code: "tg-code-123" });
+      if (url.pathname.startsWith("/rest/v1/rpc/telegram_unlink")) { state.telegramConnected = false; return send(204); }
+      if (url.pathname === "/functions/v1/billing-checkout") {
+        if (req.method !== "POST") return send(204);
+        return send(200, { checkout_url: state.checkoutUrl });
+      }
       // save_product replaces the product's full state and drops variants missing from the list, like
       // the real function. It builds the new state first and writes only when everything is valid.
       if (url.pathname.startsWith("/rest/v1/rpc/save_product")) {
@@ -315,9 +328,10 @@ export function start(port = Number(process.env.MOCK_PORT || 54321)) {
       if (url.pathname === "/functions/v1/assistant-chat") {
         if (req.method !== "POST") return send(204);
         const payload = JSON.parse(body || "{}");
-        if (payload.action === "usage") return send(200, { usage: { used: 7, limit: 1000, remaining: 993, exceeded: false, nearLimit: false, conversations: 3 } });
+        if (payload.action === "usage") return send(200, { usage: { used: 7 + state.usageExtra, limit: 1000, remaining: 993 - state.usageExtra, exceeded: false, nearLimit: false, conversations: 3 } });
         const { text = "" } = payload;
         state.testRuns++;
+        state.usageExtra++;
         if (/human/i.test(text)) return send(200, { ok: true, reply: "Thanks! I've passed this to the owner.", status: "human", handoff: "asked for a human", tool_calls: ["handoff_to_owner"], fast_path: false });
         if (/hello/i.test(text)) return send(200, { ok: true, reply: "Hi, welcome to Demo Boutique! How can I help you?", status: "bot", tool_calls: [], fast_path: true });
         if (/order/i.test(text)) return send(200, { ok: true, reply: "Your order is received. Total 9 600 DA on delivery.", status: "bot", tool_calls: ["create_order"], fast_path: false });
@@ -437,6 +451,11 @@ export function start(port = Number(process.env.MOCK_PORT || 54321)) {
       if (req.method === "DELETE" && table === "faq_entries") {
         const id = (url.searchParams.get("id") || "").replace("eq.", "");
         state.faq = state.faq.filter((f) => f.id !== id);
+        return send(204);
+      }
+      if (req.method === "DELETE" && table === "delivery_fees") {
+        const id = (url.searchParams.get("id") || "").replace("eq.", "");
+        state.fees = state.fees.filter((f) => f.id !== id);
         return send(204);
       }
       if (req.method === "POST" && table === "delivery_fees") {

@@ -100,6 +100,7 @@ const landingEn: LandingDict = {
     terms: "Terms",
     dataDeletion: "Data deletion",
     copyright: "© Wakil",
+    legal: "Legal",
   },
   notFound: {
     title: "Page not found",

@@ -731,6 +731,170 @@ try {
     if (errors.length) console.log(errors.join("\n"));
     await ctx.close();
   }
+  // 16. settings cards: password, delivery-fee delete (asks first), reply credits, Telegram (when configured)
+  {
+    const { page: sp, ctx: sctx, errors: serrors } = await newPage({ locale: "en-US" });
+    try {
+      await signIn(sp);
+      state.fees.push({ id: "fx1", wilaya: "Testville", fee_cents: 50000 });
+      await sp.click("a:has-text('Settings')");
+      await sp.waitForSelector("section[aria-labelledby=sec-password]");
+
+      const pwCard = sp.locator("section[aria-labelledby=sec-password]");
+      await sp.fill("#pw-new", "newpass123");
+      await sp.fill("#pw-confirm", "different1");
+      await pwCard.locator("button[type=submit]").click();
+      ok("password card rejects two different passwords", await sp.isVisible("section[aria-labelledby=sec-password] >> text=don't match"));
+      const pwMark = state.log.length;
+      await sp.fill("#pw-confirm", "newpass123");
+      await pwCard.locator("button[type=submit]").click();
+      await sp.waitForSelector("text=Password updated.");
+      ok("password change calls the auth user endpoint with the new password", state.log.slice(pwMark).some((l) => l.startsWith("PUT /auth/v1/user") && l.includes('"password":"newpass123"')));
+
+      await sp.waitForSelector("li:has-text('Testville')");
+      const feeRow = sp.locator("li", { hasText: "Testville" });
+      const cancelMark = state.log.length;
+      sp.once("dialog", (d) => void d.dismiss());
+      await feeRow.locator("button:has-text('Remove')").click();
+      await sp.waitForTimeout(500);
+      ok("cancelling the delivery-fee delete keeps the fee", (await feeRow.count()) === 1 && !state.log.slice(cancelMark).some((l) => l.startsWith("DELETE /rest/v1/delivery_fees")));
+      const acceptMark = state.log.length;
+      sp.once("dialog", (d) => void d.accept());
+      await feeRow.locator("button:has-text('Remove')").click();
+      await feeRow.waitFor({ state: "detached" });
+      ok("accepting the delivery-fee delete removes the fee", state.log.slice(acceptMark).some((l) => l.startsWith("DELETE /rest/v1/delivery_fees") && l.includes("fx1")) && !state.fees.some((f) => f.id === "fx1"));
+
+      const packMark = state.log.length;
+      state.checkoutUrl = `http://127.0.0.1:${PORT}/settings?billing=success`;
+      try {
+        await sp.locator("section[aria-labelledby=sec-reply-credits] button").first().click();
+        await sp.waitForURL(/billing=success/);
+        await sp.waitForSelector("text=Payment received.");
+        ok("a reply pack sends its size to billing-checkout and follows the checkout URL", state.log.slice(packMark).some((l) => l.startsWith("POST /functions/v1/billing-checkout") && l.includes('"pack":"500"')));
+      } finally {
+        state.checkoutUrl = null;
+      }
+
+      if (process.env.VITE_TELEGRAM_BOT_USERNAME) {
+        await sp.waitForSelector("text=Telegram alerts");
+        ok("Telegram card offers to connect when not linked", await sp.isVisible("button:has-text('Connect Telegram')"));
+        state.telegramConnected = true;
+        await sp.click("button:has-text('Refresh status')");
+        await sp.waitForSelector("span:text-is('Connected')");
+        const tgMark = state.log.length;
+        await sp.click("button:has-text('Disconnect')");
+        await sp.waitForSelector("span:text-is('Not connected')");
+        ok("Telegram disconnect calls telegram_unlink", state.log.slice(tgMark).some((l) => l.startsWith("POST /rest/v1/rpc/telegram_unlink")));
+      } else {
+        console.log("SKIP Telegram card: VITE_TELEGRAM_BOT_USERNAME is not set for this build");
+      }
+      await sp.screenshot({ path: OUT + "12-settings-cards.png", fullPage: true });
+      ok("no runtime errors on the settings cards", serrors.length === 0);
+      if (serrors.length) console.log(serrors.join("\n"));
+    } finally {
+      state.fees = state.fees.filter((f) => f.id !== "fx1");
+      state.telegramConnected = false;
+      await sctx.close();
+    }
+  }
+
+  // 17. assistant test chat: the reply shows, and the usage meter counts it when the page is opened again
+  {
+    const { page: ap, ctx: actx, errors: aerrors } = await newPage({ locale: "en-US" });
+    await signIn(ap);
+    await ap.click("a:has-text('Assistant')");
+    await ap.waitForSelector("text=Try your assistant");
+    const before = 7 + state.usageExtra;
+    await ap.waitForSelector(`text=${before} of 1000`);
+    await ap.fill("input[aria-label='Write as a customer…']", "do you have the hoodie in M?");
+    await ap.click("button:has-text('Send')");
+    await ap.waitForSelector("text=Yes, the Black Hoodie in M is available");
+    ok("test chat shows the assistant's reply", await ap.isVisible("text=Yes, the Black Hoodie in M is available"));
+    await ap.click("a:has-text('Chats')");
+    await ap.waitForSelector("text=Customer chats");
+    await ap.click("a:has-text('Assistant')");
+    await ap.waitForSelector(`text=${before + 1} of 1000`);
+    ok("usage meter counts the test reply", await ap.isVisible(`text=${before + 1} of 1000`));
+    ok("no runtime errors in the assistant test chat", aerrors.length === 0);
+    if (aerrors.length) console.log(aerrors.join("\n"));
+    await actx.close();
+  }
+
+  // 18. checklist: each step has screen-reader text (done / to do) next to its glyph
+  {
+    const { page: cp, ctx: cctx } = await newPage({ locale: "en-US" });
+    const testRuns = state.testRuns;
+    try {
+      state.testRuns = 0; // the "test the assistant" step becomes to-do, so the list shows both states
+      await signIn(cp);
+      await cp.waitForSelector("li .sr-only");
+      const texts = (await cp.locator("li .sr-only").allTextContents()).map((x) => x.trim());
+      ok("checklist steps have screen-reader text for done and to do", texts.length > 0 && texts.every((x) => x === "Done" || x === "To do") && texts.includes("To do") && texts.includes("Done"));
+    } finally {
+      state.testRuns = testRuns;
+      await cctx.close();
+    }
+  }
+
+  // 19. onboarding: a failed create_store shows an error alert and keeps the owner on the form
+  {
+    const { page: op, ctx: octx, errors: oerrors } = await newPage({ locale: "en-US" });
+    state.hasStore = false; state.createStoreFail = true;
+    try {
+      await op.goto(`http://127.0.0.1:${PORT}/login`);
+      await op.fill("#email", "new@example.com"); await op.fill("#password", "password123");
+      await op.click("[data-testid=auth-submit]");
+      await op.waitForURL(/\/onboarding/);
+      await op.waitForSelector("text=Set up your store");
+      await op.fill("#name", "My Shop");
+      await op.click("button[type=submit]");
+      await op.waitForSelector("[role=alert]:has-text('We could not create your store')");
+      ok("a failed create_store shows an error alert and stays on onboarding", /\/onboarding/.test(op.url()));
+      ok("no runtime errors on the onboarding error path", oerrors.length === 0);
+      if (oerrors.length) console.log(oerrors.join("\n"));
+    } finally {
+      state.createStoreFail = false; state.hasStore = true;
+      await octx.close();
+    }
+  }
+
+  // 20. orders: "Load more" fetches the next page (50 per page)
+  {
+    const extra = Array.from({ length: 55 }, (_, i) => ({ id: `bulk-o${i + 1}`, customer_name: `Bulk order ${i + 1}`, phone: "0550000000", wilaya: "Oran", address: "Centre", subtotal_cents: 100000, delivery_fee_cents: 0, total_cents: 100000, status: "pending", order_items: [], created_at: new Date(Date.UTC(2026, 8, 1) - i * 60000).toISOString() }));
+    state.orders.push(...extra);
+    const { page: op2, ctx: o2ctx } = await newPage({ locale: "en-US" });
+    try {
+      await signIn(op2);
+      await op2.click("a:has-text('Orders')");
+      await op2.waitForSelector("div.truncate:has-text('Bulk order')");
+      const bulkRows = () => op2.locator("div.truncate", { hasText: "Bulk order" }).count();
+      ok("orders list shows the first 50 orders", (await bulkRows()) === 50);
+      await op2.click("button:has-text('Load more')");
+      await op2.waitForSelector("div.truncate:has-text('Bulk order 55')");
+      ok("Load more adds the remaining orders", (await bulkRows()) === 55);
+      ok("no Load more button once every order is shown", (await op2.locator("button:has-text('Load more')").count()) === 0);
+    } finally {
+      state.orders = state.orders.filter((o) => !o.id.startsWith("bulk-o"));
+      await o2ctx.close();
+    }
+  }
+  // 21. dialogs: the close button has a translated label in Arabic
+  {
+    const { page: mp, ctx: mctx } = await newPage({ locale: "ar-DZ" });
+    try {
+      await mp.goto(`http://127.0.0.1:${PORT}/login`);
+      await mp.fill("#email", "owner@example.com"); await mp.fill("#password", "password123");
+      await mp.click("[data-testid=auth-submit]");
+      await mp.waitForURL(/\/inbox/);
+      await mp.goto(`http://127.0.0.1:${PORT}/settings`);
+      await mp.waitForSelector("button:has-text('إضافة جواب')");
+      await mp.click("button:has-text('إضافة جواب')");
+      await mp.waitForSelector("[role=dialog]");
+      ok("Arabic dialog close button is labelled إغلاق", await mp.isVisible("[role=dialog] button[aria-label='إغلاق']"));
+    } finally {
+      await mctx.close();
+    }
+  }
 } catch (e) {
   console.log("TEST ERROR:", e.message.split("\n")[0]);
   results.push(["test run completed", false]);
