@@ -261,6 +261,9 @@ function matchOr(or, row) {
   return false;
 }
 
+// A 1x1 PNG, served for every product photo URL (thumbnails must load without a console error).
+const PNG_1X1 = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+
 export function start(port = Number(process.env.MOCK_PORT || 54321)) {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://x");
@@ -272,6 +275,16 @@ export function start(port = Number(process.env.MOCK_PORT || 54321)) {
       const single = (req.headers.accept || "").includes("vnd.pgrst.object");
       const table = url.pathname.replace("/rest/v1/", "");
       state.log.push(`${req.method} ${url.pathname}${url.search.slice(0, 60)} ${body.slice(0, 600)}`);
+
+      // Product photos: uploads and removals are accepted (and logged); public reads get the 1x1 PNG.
+      if (url.pathname.startsWith("/storage/v1/object/product-images")) {
+        if (req.method === "POST") return send(200, { Key: decodeURIComponent(url.pathname.slice(1)), Id: "photo" });
+        if (req.method === "DELETE") return send(200, []);
+      }
+      if (req.method === "GET" && url.pathname.startsWith("/storage/v1/object/public/product-images/")) {
+        res.writeHead(200, { "content-type": "image/png", ...cors });
+        return res.end(PNG_1X1);
+      }
 
       if (url.pathname === "/auth/v1/token") return send(200, session);
       if (url.pathname === "/auth/v1/user") return send(200, user);
@@ -307,6 +320,7 @@ export function start(port = Number(process.env.MOCK_PORT || 54321)) {
           id: prev ? prev.id : `p-new-${state.products.length + 1}`,
           name: args.p_product.name, description: args.p_product.description, aliases: args.p_product.aliases,
           price_cents: args.p_product.price_cents, active: args.p_product.active ?? prev?.active ?? true,
+          image_url: args.p_product.image_url ?? null,
           stock_checked_at: prev ? prev.stock_checked_at : now, sold_out_until: prev ? prev.sold_out_until : null,
           product_variants: variants,
         };
