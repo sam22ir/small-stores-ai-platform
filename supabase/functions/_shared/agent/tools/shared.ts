@@ -1,4 +1,4 @@
-import type { Catalog, FaqPort, OrderPort, StoreContext } from "../types.ts";
+import type { Catalog, FaqPort, OrderPort, PhotoPort, ProductPhoto, StoreContext } from "../types.ts";
 
 // PostgREST errors are plain objects with a `message`, not Error instances.
 export function errorText(err: unknown): string {
@@ -16,6 +16,12 @@ export interface ToolContext {
   conversationId?: string;
   customerId?: string;
   now?: Date;
+  // SUPABASE_URL: photo links must start with its public product-images folder for this store.
+  storageBase?: string;
+  photos?: PhotoPort;
+  // Photos queued earlier in this run. The run loop owns the array; the photo tool pushes into it
+  // synchronously, so parallel calls in one round still respect the per-run limit.
+  sentPhotos?: ProductPhoto[];
 }
 
 export interface ToolOutcome {
@@ -23,6 +29,7 @@ export interface ToolOutcome {
   isError?: boolean;
   handoffReason?: string;
   handoffSummary?: string | null;
+  photos?: ProductPhoto[];
 }
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

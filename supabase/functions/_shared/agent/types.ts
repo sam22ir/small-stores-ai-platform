@@ -13,6 +13,7 @@ export interface ProductRecord {
   variants: VariantRecord[];
   aliases?: string | null; // other names customers use, comma separated
   sold_out_until?: string | null; // ISO time; the product counts as out of stock until then
+  image_url?: string | null; // public product photo (see 0029_product_images.sql); never shown to the model
 }
 
 // Every method takes the store id explicitly. It always comes from the resolved
@@ -83,6 +84,18 @@ export interface OrderPort {
   placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult>;
 }
 
+// Product photos the agent queued for the customer in one run. The URL must be in this store's folder
+// of the product-images bucket (see tools/photo.ts).
+export interface ProductPhoto {
+  url: string;
+  name: string; // product name, used as the caption
+}
+
+// Which photos were already sent in a conversation (outbound message attachments).
+export interface PhotoPort {
+  sentUrls(conversationId: string): Promise<string[]>;
+}
+
 export interface FaqEntry {
   question: string;
   answer: string;
@@ -115,4 +128,5 @@ export interface AgentResult {
   toolCalls: ToolCallLog[];
   usage: { input_tokens: number; output_tokens: number };
   model: string;
+  photos?: ProductPhoto[]; // only set when a photo was queued; sent after the text reply
 }

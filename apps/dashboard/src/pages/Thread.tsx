@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { formatTime } from "../lib/format";
+import { outboundPhotos } from "../lib/image";
 import { useRealtimeRefresh } from "../lib/store";
 import { dur, ease, useMotionSafe } from "../lib/motion";
 import { platformKey } from "./Inbox";
@@ -31,6 +32,7 @@ type Msg = {
   direction: "inbound" | "outbound";
   sender: "customer" | "agent" | "owner";
   body: string | null;
+  attachments?: unknown; // outbound photos: [{type:"image", url, caption}] (see outboundPhotos)
   created_at: string;
   delivery_status: string | null;
   delivery_error: string | null;
@@ -123,7 +125,7 @@ function ThreadView({ id }: { id: string | undefined }) {
         .select("id,store_id,channel_id,status,handoff_reason,handoff_summary,customers(display_name,platform_user_id),channels(platform)")
         .eq("id", id).single(),
       supabase.from("messages")
-        .select("id,direction,sender,body,created_at,delivery_status,delivery_error")
+        .select("id,direction,sender,body,attachments,created_at,delivery_status,delivery_error")
         .eq("conversation_id", id).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(PAGE),
     ]);
     if (c.error || m.error) { setFailed(true); return undefined; }
@@ -194,7 +196,7 @@ function ThreadView({ id }: { id: string | undefined }) {
     if (!id || !oldest || loadingOlder) return;
     setLoadingOlder(true);
     const { data, error: err } = await supabase.from("messages")
-      .select("id,direction,sender,body,created_at,delivery_status,delivery_error")
+      .select("id,direction,sender,body,attachments,created_at,delivery_status,delivery_error")
       .eq("conversation_id", id)
       // Same-timestamp rows (one request inserts several) are ordered by id, so the page boundary can fall inside them.
       .or(`created_at.lt."${oldest.created_at}",and(created_at.eq."${oldest.created_at}",id.lt."${oldest.id}")`)
@@ -348,6 +350,10 @@ function ThreadView({ id }: { id: string | undefined }) {
                   </span>
                 )}
                 {msg.body}
+                {msg.direction === "outbound" && outboundPhotos(msg.attachments, import.meta.env.VITE_SUPABASE_URL).map((p) => (
+                  <img key={p.url} src={p.url} alt={p.caption} loading="lazy"
+                    className="mt-1 block max-h-60 max-w-[240px] rounded-xl border border-ink/20 object-cover" />
+                ))}
               </div>
               <div className="px-1 text-xs text-soft">
                 {!assistant && <>{who(msg)} · </>}<span dir="ltr">{formatTime(msg.created_at, lang)}</span>

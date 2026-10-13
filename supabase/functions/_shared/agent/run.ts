@@ -8,6 +8,8 @@ import type {
   ChatMessage,
   FaqPort,
   OrderPort,
+  PhotoPort,
+  ProductPhoto,
   StoreContext,
   ToolCallLog,
 } from "./types.ts";
@@ -35,6 +37,8 @@ export interface RunAgentOptions {
   conversationId?: string;
   customerId?: string;
   lookups?: string[]; // facts from earlier lookups in this chat, oldest first (see lookupSection)
+  storageBase?: string; // SUPABASE_URL, for the product photo links (tools/photo.ts)
+  photos?: PhotoPort; // photos already sent in this chat
 }
 
 // Models that accept `output_config.effort` and the server-side refusal fallback.
@@ -127,6 +131,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
   }
 
   const toolCalls: ToolCallLog[] = [];
+  const sentPhotos: ProductPhoto[] = []; // queued by send_product_photo, sent after the reply
   const usage = { input_tokens: 0, output_tokens: 0 };
   let handoffReason: string | null = null;
   let handoffSummary: string | null = null;
@@ -198,6 +203,9 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
             faq: opts.faq,
             conversationId: opts.conversationId,
             customerId: opts.customerId,
+            storageBase: opts.storageBase,
+            photos: opts.photos,
+            sentPhotos,
           });
           if (outcome.handoffReason) {
             handoffReason = outcome.handoffReason;
@@ -267,5 +275,6 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
     toolCalls: capLookupOutputs(toolCalls),
     usage,
     model,
+    ...(sentPhotos.length ? { photos: sentPhotos } : {}),
   };
 }

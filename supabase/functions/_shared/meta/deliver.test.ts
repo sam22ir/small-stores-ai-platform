@@ -154,6 +154,53 @@ test("a long Arabic reply from the owner goes out in several messages that fit t
   assert.equal(tables.messages[0].delivery_status, "sent");
 });
 
+const SUPA = "https://proj.supabase.co";
+const storePhoto = `${SUPA}/storage/v1/object/public/product-images/s1/hoodie.jpg`;
+const photoEnv = (k: string) => (k === "SUPABASE_URL" ? SUPA : env(k));
+const photoRow = (url: string, id = "m1"): Row => ({
+  id,
+  store_id: "s1",
+  conversation_id: "c1",
+  direction: "outbound",
+  sender: "agent",
+  body: null,
+  attachments: [{ type: "image", url, caption: "Black Hoodie" }],
+  delivery_status: "pending",
+  delivery_claimed_at: null,
+});
+
+test("a product photo row goes out as an image only, with the same token and window rules", async () => {
+  const sent = stubInstagram();
+  const { tables, db } = await setup({ messages: [photoRow(storePhoto)] });
+  const r = await deliverPending({ db, env: photoEnv, now: NOW }, "c1");
+  assert.deepEqual(r, { sent: 1, failed: 0, skipped: 0 });
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].auth, "Bearer good-token");
+  assert.deepEqual(sent[0].body, {
+    recipient: { id: "igsid-1" },
+    message: { attachments: { type: "image", payload: { url: storePhoto } } },
+  });
+  assert.equal(tables.messages[0].delivery_status, "sent");
+  assert.equal(tables.messages[0].platform_message_id, "mid.1");
+});
+
+test("a photo link outside this store's product photos is never sent and is marked failed", async () => {
+  const sent = stubInstagram();
+  const links = [
+    "https://evil.example/storage/v1/object/public/product-images/s1/hoodie.jpg",
+    `${SUPA}/storage/v1/object/public/product-images/s2/hoodie.jpg`,
+    `${SUPA}/storage/v1/object/public/product-images/s1/hoodie.jpg?x=1`,
+  ];
+  for (const url of links) {
+    const { tables, db } = await setup({ messages: [photoRow(url)] });
+    const r = await deliverPending({ db, env: photoEnv, now: NOW }, "c1");
+    assert.equal(r.failed, 1, url);
+    assert.equal(tables.messages[0].delivery_status, "failed", url);
+    assert.match(String(tables.messages[0].delivery_error), /not one of this store's product photos/);
+  }
+  assert.equal(sent.length, 0);
+});
+
 test("replies go out in the order they were written", async () => {
   const sent = stubInstagram();
   const { db } = await setup({

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptSecret, encryptSecret } from "./crypto.ts";
-import { MetaApiError, refreshLongLived, sendText, splitForInstagram } from "./instagram.ts";
+import { MetaApiError, refreshLongLived, sendImage, sendText, splitForInstagram } from "./instagram.ts";
+import { isStorePhotoUrl, photoPrefix } from "../agent/tools/photo.ts";
 
 // Sends the replies waiting in a conversation (delivery_status = 'pending') to Instagram.
 // Called right after the assistant answers and when the owner replies from the dashboard.
@@ -37,14 +38,23 @@ async function markFailed(db: SupabaseClient, id: string, reason: string) {
 // One retry when Instagram itself errors (5xx): the message was not accepted, so trying again can't
 // duplicate it. Network failures and timeouts are NOT retried, because the first attempt may have
 // gone through.
-async function sendWithRetry(token: string, recipientId: string, text: string, version: string | undefined) {
+async function withRetry<T>(send: () => Promise<T>): Promise<T> {
   try {
-    return await sendText(token, recipientId, text, version);
+    return await send();
   } catch (err) {
     if (!(err instanceof MetaApiError) || err.status < 500) throw err;
     await new Promise((r) => setTimeout(r, 1000));
-    return await sendText(token, recipientId, text, version);
+    return await send();
   }
+}
+
+// The first image link of an outbound photo row (attachments written by the reply pipeline).
+function firstImageUrl(attachments: unknown): string | null {
+  if (!Array.isArray(attachments)) return null;
+  for (const a of attachments as { type?: unknown; url?: unknown }[]) {
+    if (a?.type === "image" && typeof a.url === "string") return a.url;
+  }
+  return null;
 }
 
 export async function deliverPending(deps: DeliverDeps, conversationId: string): Promise<DeliverResult> {
@@ -56,7 +66,7 @@ export async function deliverPending(deps: DeliverDeps, conversationId: string):
 
   const { data: pending, error: pendErr } = await db
     .from("messages")
-    .select("id,body")
+    .select("id,body,attachments,store_id")
     .eq("conversation_id", conversationId)
     .eq("direction", "outbound")
     .eq("delivery_status", "pending")
@@ -152,19 +162,42 @@ export async function deliverPending(deps: DeliverDeps, conversationId: string):
     if (claimErr) throw claimErr;
     if (!claimed?.length) continue;
 
-    const chunks = splitForInstagram(m.body ?? "");
-    if (!chunks.length) {
-      await markFailed(db, m.id, "Empty message");
-      result.failed++;
-      continue;
+    // What to send: a text (split to Instagram's limit), or one product photo with no text.
+    let send: () => Promise<string | null>;
+    if (m.body) {
+      const chunks = splitForInstagram(m.body);
+      if (!chunks.length) {
+        await markFailed(db, m.id, "Empty message");
+        result.failed++;
+        continue;
+      }
+      send = async () => {
+        let firstId: string | null = null;
+        for (const chunk of chunks) {
+          const { messageId } = await withRetry(() => sendText(token, customer.platform_user_id, chunk, version));
+          firstId ??= messageId;
+        }
+        return firstId;
+      };
+    } else {
+      const photo = firstImageUrl(m.attachments);
+      if (!photo) {
+        await markFailed(db, m.id, "Empty message");
+        result.failed++;
+        continue;
+      }
+      // Checked again before sending: only this store's product photos may leave the system.
+      if (!isStorePhotoUrl(photo, photoPrefix(env("SUPABASE_URL"), m.store_id))) {
+        await markFailed(db, m.id, "This photo link is not one of this store's product photos, so it was not sent.");
+        result.failed++;
+        continue;
+      }
+      send = async () =>
+        (await withRetry(() => sendImage(token, customer.platform_user_id, photo, version))).messageId;
     }
 
     try {
-      let firstId: string | null = null;
-      for (const chunk of chunks) {
-        const { messageId } = await sendWithRetry(token, customer.platform_user_id, chunk, version);
-        firstId ??= messageId;
-      }
+      const firstId = await send();
       const { error } = await db.from("messages")
         .update({ delivery_status: "sent", delivery_error: null, platform_message_id: firstId })
         .eq("id", m.id);

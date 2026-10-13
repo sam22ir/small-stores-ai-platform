@@ -124,7 +124,8 @@ try {
   ok("sign-in lands on the inbox", true);
   ok("'Needs you' tab shows the handed-off chat", await page.waitForSelector("text=Amine", { timeout: 5000 }).then(() => true, () => false));
   ok("handoff reason is visible on the card", await page.isVisible("text=Customer wants to order 2 hoodies"));
-  ok("inbox card previews the latest message", await page.isVisible("text=The owner will reply to you personally."));
+  // The newest message in this chat is the photo the assistant sent (no body), so the card says so.
+  ok("inbox card previews the newest message: a sent photo says so", await page.isVisible("text=Sent a photo"));
   ok("tab counts rendered", await page.isVisible("text=Needs you (1)"));
   ok("test chats are hidden from the customer inbox", !(await page.isVisible("text=test handoff")));
   ok("outage banner counts messages the assistant couldn't answer", await page.isVisible("text=couldn't answer 2 message(s)"));
@@ -465,6 +466,10 @@ try {
   await page.click("button:has-text('Send')");
   await page.waitForSelector("text=Instant reply, no credit used.");
   ok("fast-path replies are labelled free", await page.isVisible("text=Hi, welcome to Demo Boutique!"));
+  await page.fill("input[aria-label='Write as a customer…']", "send me a photo of the hoodie");
+  await page.click("button:has-text('Send')");
+  await page.waitForSelector("img[alt='Black Hoodie']");
+  ok("the test chat shows the product photo under the assistant's reply", await page.isVisible("img[alt='Black Hoodie']"));
   await page.fill("input[aria-label='Write as a customer…']", "I want to order the hoodie");
   await page.click("button:has-text('Send')");
   await page.waitForSelector("text=Test mode: no real order was created.");
@@ -707,6 +712,8 @@ try {
     const joinsBefore = state.realtimeJoins;
     await page.goto(`http://127.0.0.1:${PORT}/inbox/c1`);
     await page.waitForSelector("text=The owner will reply to you personally.");
+    await page.waitForSelector("img[alt='Black Hoodie']");
+    ok("a product photo the assistant sent shows in the thread", await page.isVisible("img[alt='Black Hoodie']"));
     // Wait for this page's subscriptions (Layout, Inbox, and the thread's messages and header) before pushing.
     for (let i = 0; i < 100 && state.realtimeJoins < joinsBefore + 4; i++) await new Promise((r) => setTimeout(r, 100));
     state.messages.push({ id: "rt1", conversation_id: "c1", direction: "inbound", sender: "customer", body: "Realtime hello from the customer", created_at: new Date().toISOString(), delivery_status: null, delivery_error: null });

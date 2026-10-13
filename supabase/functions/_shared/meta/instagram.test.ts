@@ -5,7 +5,9 @@ import {
   exchangeCode,
   getProfile,
   MetaApiError,
+  IMAGE_ATTACHMENT_KEY,
   refreshLongLived,
+  sendImage,
   sendText,
   splitForInstagram,
   subscribeToMessages,
@@ -80,6 +82,23 @@ test("subscribing and sending use the account's token and the documented bodies"
   assert.equal(sent.messageId, "mid.1");
   assert.match(calls[1].url, /graph\.instagram\.com\/v25\.0\/me\/messages$/);
   assert.deepEqual(JSON.parse(String(calls[1].init!.body)), { recipient: { id: "cust-1" }, message: { text: "Hello" } });
+});
+
+test("an image is sent by its public URL with the documented image payload", async () => {
+  const calls = stub(() => json({ recipient_id: "cust-1", message_id: "mid.9" }));
+  const sent = await sendImage("tok", "cust-1", "https://proj.supabase.co/storage/v1/object/public/product-images/s1/a.jpg");
+  assert.equal(sent.messageId, "mid.9");
+  assert.match(calls[0].url, /graph\.instagram\.com\/v25\.0\/me\/messages$/);
+  assert.equal(calls[0].init!.headers && (calls[0].init!.headers as Record<string, string>).authorization, "Bearer tok");
+  assert.deepEqual(JSON.parse(String(calls[0].init!.body)), {
+    recipient: { id: "cust-1" },
+    message: {
+      [IMAGE_ATTACHMENT_KEY]: {
+        type: "image",
+        payload: { url: "https://proj.supabase.co/storage/v1/object/public/product-images/s1/a.jpg" },
+      },
+    },
+  });
 });
 
 test("Graph errors keep their code so callers can tell an expired token from a closed window", async () => {

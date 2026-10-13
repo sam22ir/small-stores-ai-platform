@@ -55,6 +55,7 @@ const fr: Dict = {
   "inbox.summary": "Résumé",
   "inbox.customer": "Client",
   "inbox.noMessages": "Aucun message",
+  "inbox.photoSent": "Photo envoyée",
   "inbox.waitingCount": "{n} client(s) attendent",
   "inbox.selectConversation": "Sélectionnez une conversation",
   "inbox.search": "Rechercher par nom ou message",

@@ -149,20 +149,53 @@ export async function subscribeToMessages(token: string, version?: string): Prom
   );
 }
 
-export async function sendText(
+// The message key for a single image. Meta's Instagram Login sample (messaging-api, "Send an image")
+// uses the plural "attachments" with one object; the Messenger Platform uses "attachment". If Meta
+// rejects the image send with a parameter error, flip this one constant and redeploy.
+export const IMAGE_ATTACHMENT_KEY = "attachments";
+
+function messageIdOf(body: Record<string, unknown>): string | null {
+  return typeof body.message_id === "string" ? body.message_id : typeof body.id === "string" ? body.id : null;
+}
+
+async function sendMessage(
   token: string,
+  message: Record<string, unknown>,
   recipientId: string,
-  text: string,
   version?: string,
 ): Promise<{ messageId: string | null }> {
   const body = await call(
     await fetch(`${graph(version)}/me/messages`, {
       method: "POST",
       headers: { ...bearer(token), "content-type": "application/json" },
-      body: JSON.stringify({ recipient: { id: recipientId }, message: { text } }),
+      body: JSON.stringify({ recipient: { id: recipientId }, message }),
     }),
   );
-  return { messageId: typeof body.message_id === "string" ? body.message_id : typeof body.id === "string" ? body.id : null };
+  return { messageId: messageIdOf(body) };
+}
+
+export async function sendText(
+  token: string,
+  recipientId: string,
+  text: string,
+  version?: string,
+): Promise<{ messageId: string | null }> {
+  return sendMessage(token, { text }, recipientId, version);
+}
+
+// One image by public URL (Instagram fetches it: PNG or JPEG, up to 8 MB, see the Send API docs).
+export async function sendImage(
+  token: string,
+  recipientId: string,
+  imageUrl: string,
+  version?: string,
+): Promise<{ messageId: string | null }> {
+  return sendMessage(
+    token,
+    { [IMAGE_ATTACHMENT_KEY]: { type: "image", payload: { url: imageUrl } } },
+    recipientId,
+    version,
+  );
 }
 
 // Splits a long reply into messages that fit Instagram's limit, preferring paragraph, line,

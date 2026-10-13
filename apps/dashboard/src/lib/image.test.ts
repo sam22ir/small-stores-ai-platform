@@ -1,6 +1,36 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fitWithin, photoPathFromUrl } from "./image.ts";
+import { fitWithin, isOwnPhotoUrl, outboundPhotos, photoPathFromUrl, replyPhotos } from "./image.ts";
+
+const BASE = "https://x.supabase.co";
+const own = `${BASE}/storage/v1/object/public/product-images/s1/a.jpg`;
+
+test("only this project's product photos are shown: inbound Meta links and other hosts never are", () => {
+  assert.equal(isOwnPhotoUrl(own, BASE), true);
+  assert.equal(isOwnPhotoUrl(own, `${BASE}/`), true);
+  assert.equal(isOwnPhotoUrl("https://scontent.cdninstagram.com/p.jpg", BASE), false);
+  assert.equal(isOwnPhotoUrl(`https://evil.test/storage/v1/object/public/product-images/s1/a.jpg`, BASE), false);
+  assert.equal(isOwnPhotoUrl(own, undefined), false);
+  assert.equal(isOwnPhotoUrl(42, BASE), false);
+});
+
+test("an outbound message's photos come from its attachments, own photos only", () => {
+  const attachments = [
+    { type: "image", url: own, caption: "Black Hoodie" },
+    { type: "image", url: "https://scontent.cdninstagram.com/p.jpg", caption: "Inbound" },
+    { type: "video", url: own, caption: "Not an image" },
+  ];
+  assert.deepEqual(outboundPhotos(attachments, BASE), [{ url: own, caption: "Black Hoodie" }]);
+  assert.deepEqual(outboundPhotos(null, BASE), []);
+});
+
+test("the assistant chat's photos ({url, name}) are shown only when they are own photos", () => {
+  assert.deepEqual(
+    replyPhotos([{ url: own, name: "Black Hoodie" }, { url: "https://evil.test/x.jpg", name: "x" }], BASE),
+    [{ url: own, caption: "Black Hoodie" }],
+  );
+  assert.deepEqual(replyPhotos(undefined, BASE), []);
+});
 
 test("photoPathFromUrl returns the storage path of a product photo", () => {
   assert.equal(

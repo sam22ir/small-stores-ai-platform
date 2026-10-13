@@ -1,5 +1,6 @@
 import { productView } from "./catalog.ts";
 import { formatFaq } from "./faq.ts";
+import { sendProductPhoto } from "./photo.ts";
 import { createOrder } from "./order.ts";
 import { asRecord, money, UUID } from "./shared.ts";
 import type { ToolContext, ToolOutcome } from "./shared.ts";
@@ -56,6 +57,9 @@ export async function executeTool(
         content: JSON.stringify(productView(product, store.currency, now, !!store.orders_enabled)),
       };
     }
+
+    case "send_product_photo":
+      return await sendProductPhoto(args, ctx);
 
     case "get_store_info": {
       const faq = ctx.faq ? await ctx.faq.list(store.id) : [];

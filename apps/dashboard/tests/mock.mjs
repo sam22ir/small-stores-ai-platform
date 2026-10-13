@@ -8,6 +8,8 @@ const user = { id: "user-1", aud: "authenticated", role: "authenticated", email:
 const session = { access_token: jwt, token_type: "bearer", expires_in: 3600, expires_at: 4102444800, refresh_token: "r", user };
 
 const ago = (days) => new Date(Date.now() - days * 86400000).toISOString();
+// A product photo in this project's public storage folder (VITE_SUPABASE_URL points at this mock).
+const PHOTO_URL = `http://127.0.0.1:${process.env.MOCK_PORT || 54321}/storage/v1/object/public/product-images/s1/hoodie.jpg`;
 
 // Chat c5 has 250 messages, one a minute, so the newest page (100) and "Load earlier" both get exercised.
 const longChat = { id: "c5", store_id: "s1", channel_id: "ch1", status: "closed", handoff_reason: null, last_customer_message_at: "2026-10-03T09:00:00Z", created_at: "2026-10-02T09:00:00Z", customers: { display_name: "Yasmine Long", platform_user_id: "ig-5" }, channels: { platform: "instagram" } };
@@ -29,6 +31,7 @@ export const state = {
     ...longThread,
     { id: "m1", conversation_id: "c1", direction: "inbound", sender: "customer", body: "I want to order 2 hoodies", created_at: "2026-10-04T20:29:00Z", delivery_status: null },
     { id: "m2", conversation_id: "c1", direction: "outbound", sender: "agent", body: "The owner will reply to you personally.", created_at: "2026-10-04T20:29:30Z", delivery_status: "sent" },
+    { id: "m4", conversation_id: "c1", direction: "outbound", sender: "agent", body: null, attachments: [{ type: "image", url: PHOTO_URL, caption: "Black Hoodie" }], created_at: "2026-10-04T20:29:45Z", delivery_status: "sent" },
     { id: "m3", conversation_id: "c2", direction: "inbound", sender: "customer", body: "هل عندكم هودي أسود؟", created_at: "2026-10-04T20:20:00Z", delivery_status: null },
   ],
   products: [
@@ -361,6 +364,7 @@ export function start(port = Number(process.env.MOCK_PORT || 54321)) {
         if (/human/i.test(text)) return send(200, { ok: true, reply: "Thanks! I've passed this to the owner.", status: "human", handoff: "asked for a human", tool_calls: ["handoff_to_owner"], fast_path: false });
         if (/hello/i.test(text)) return send(200, { ok: true, reply: "Hi, welcome to Demo Boutique! How can I help you?", status: "bot", tool_calls: [], fast_path: true });
         if (/order/i.test(text)) return send(200, { ok: true, reply: "Your order is received. Total 9 600 DA on delivery.", status: "bot", tool_calls: ["create_order"], fast_path: false });
+        if (/photo/i.test(text)) return send(200, { ok: true, reply: "Here is the Black Hoodie.", status: "bot", tool_calls: ["send_product_photo"], fast_path: false, photos: [{ url: PHOTO_URL, name: "Black Hoodie" }] });
         if (/spam/i.test(text)) return send(429, { error: "Too many test messages. Try again later." });
         return send(200, { ok: true, reply: "Yes, the Black Hoodie in M is available (3 left).", status: "bot", tool_calls: ["search_products"], fast_path: false });
       }
