@@ -32,7 +32,11 @@ export interface StoreContext {
   currency: string;
   business_info: string | null;
   orders_enabled?: boolean; // the owner switched on order taking
+  reply_tone?: ReplyTone; // see prompt.ts; missing = friendly
+  reply_emoji?: boolean; // missing = false
 }
+
+export type ReplyTone = "friendly" | "formal";
 
 export interface OrderLineInput {
   variant_id: string;

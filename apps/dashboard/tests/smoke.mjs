@@ -332,6 +332,13 @@ try {
   ok("settings save sends only allowed columns", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes("business_info") && !l.includes('"id"')));
   ok("the fields are composed into the text the assistant reads, and kept as JSON", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes("Opening hours: Every day 10:00-18:00") && l.includes("Delivery: 3-5 days") && l.includes("Gift wrapping available.") && l.includes('"business_info_fields"')));
   ok("orders toggle is saved", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes('"orders_enabled":true')));
+  // reply tone and emoji: pick Formal, switch emoji on, save
+  await page.click("section[aria-labelledby='sec-assistant'] button[aria-haspopup]:has-text('Friendly')");
+  await page.getByRole("option", { name: "Formal" }).click();
+  await page.click("text=Use emoji");
+  await page.click("button:has-text('Save')");
+  await page.waitForSelector("text=Saved");
+  ok("reply tone and emoji are saved", await logged((l) => l.startsWith("PATCH /rest/v1/stores") && l.includes('"reply_tone":"formal"') && l.includes('"reply_emoji":true')));
   // 5b. pause switch flipped in the header while Settings is open must survive a Settings save
   const mark = state.log.length;
   await toggle.click();
