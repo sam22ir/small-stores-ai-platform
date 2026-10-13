@@ -163,6 +163,7 @@ export type Database = {
           created_at: string
           customer_id: string
           handoff_reason: string | null
+          handoff_summary: string | null
           id: string
           last_customer_message_at: string | null
           processing_until: string | null
@@ -174,6 +175,7 @@ export type Database = {
           created_at?: string
           customer_id: string
           handoff_reason?: string | null
+          handoff_summary?: string | null
           id?: string
           last_customer_message_at?: string | null
           processing_until?: string | null
@@ -185,6 +187,7 @@ export type Database = {
           created_at?: string
           customer_id?: string
           handoff_reason?: string | null
+          handoff_summary?: string | null
           id?: string
           last_customer_message_at?: string | null
           processing_until?: string | null
@@ -726,6 +729,8 @@ export type Database = {
           trial_ends_at: string
           orders_enabled: boolean
           reply_credits: number
+          reply_emoji: boolean
+          reply_tone: "friendly" | "formal"
           timezone: string
         }
         Insert: {
@@ -742,6 +747,8 @@ export type Database = {
           trial_ends_at?: string
           orders_enabled?: boolean
           reply_credits?: number
+          reply_emoji?: boolean
+          reply_tone?: "friendly" | "formal"
           timezone?: string
         }
         Update: {
@@ -757,6 +764,8 @@ export type Database = {
           plan_status?: "trial" | "active" | "past_due"
           trial_ends_at?: string
           orders_enabled?: boolean
+          reply_emoji?: boolean
+          reply_tone?: "friendly" | "formal"
           timezone?: string
         }
         Relationships: []

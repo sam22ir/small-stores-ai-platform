@@ -144,6 +144,7 @@ export async function runAgentChatCompletions(
   const toolCalls: ToolCallLog[] = [];
   const usage = { input_tokens: 0, output_tokens: 0 };
   let handoffReason: string | null = null;
+  let handoffSummary: string | null = null;
   let reply = "";
 
   async function complete(msgs: Message[] = messages, useTools = true): Promise<Completion> {
@@ -241,7 +242,10 @@ export async function runAgentChatCompletions(
           conversationId: opts.conversationId,
           customerId: opts.customerId,
         });
-        if (outcome.handoffReason) handoffReason = outcome.handoffReason;
+        if (outcome.handoffReason) {
+          handoffReason = outcome.handoffReason;
+          handoffSummary = outcome.handoffSummary ?? null;
+        }
         const output = outcome.isError ? undefined : lookupOutput(call.function.name, input, outcome.content);
         toolCalls.push({
           name: call.function.name,
@@ -288,6 +292,7 @@ export async function runAgentChatCompletions(
   return {
     reply: truncateUtf8(reply, MAX_REPLY_BYTES),
     handoffReason,
+    handoffSummary,
     toolCalls: capLookupOutputs(toolCalls),
     usage,
     model,

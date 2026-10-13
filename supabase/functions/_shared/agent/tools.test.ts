@@ -330,3 +330,33 @@ test("a real variant UUID still works when product_name is also given", async ()
   assert.ok(!r.isError, r.content);
   assert.deepEqual(calls[0].items, [{ variant_id: VARIANT, quantity: 1 }]);
 });
+
+test("handoff_to_owner carries the owner summary, trimmed and capped at 400 characters", async () => {
+  const r = await executeTool(
+    "handoff_to_owner",
+    { reason: "wants 2 hoodies", summary: `  ${"a".repeat(500)}  ` },
+    ctx(false),
+  );
+  assert.equal(r.handoffReason, "wants 2 hoodies");
+  assert.equal(r.handoffSummary, "a".repeat(400));
+});
+
+test("handoff_to_owner without a usable summary stores null", async () => {
+  const blank = await executeTool("handoff_to_owner", { reason: "complaint", summary: "   " }, ctx(false));
+  const missing = await executeTool("handoff_to_owner", { reason: "complaint" }, ctx(false));
+  assert.equal(blank.handoffSummary, null);
+  assert.equal(missing.handoffSummary, null);
+});
+
+test("handoff_to_owner schema requires reason and summary and allows no other fields", () => {
+  const tool = toolsForStore(store(false)).find((t) => t.name === "handoff_to_owner");
+  assert.ok(tool);
+  const schema = tool.input_schema as unknown as {
+    properties: Record<string, { type: string }>;
+    required: string[];
+    additionalProperties: boolean;
+  };
+  assert.deepEqual(schema.required, ["reason", "summary"]);
+  assert.equal(schema.properties.summary.type, "string");
+  assert.equal(schema.additionalProperties, false);
+});

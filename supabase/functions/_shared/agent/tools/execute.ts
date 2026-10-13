@@ -74,10 +74,12 @@ export async function executeTool(
       const reason = typeof args.reason === "string" && args.reason.trim()
         ? args.reason.trim().slice(0, 300)
         : "Customer needs the owner";
+      const summary = typeof args.summary === "string" ? args.summary.trim().slice(0, 400) : "";
       return {
         content:
           "Conversation handed to the owner. Tell the customer, in one short sentence, that the owner will reply personally.",
         handoffReason: reason,
+        handoffSummary: summary || null,
       };
     }
 

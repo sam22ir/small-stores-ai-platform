@@ -17,7 +17,7 @@ const bulkChats = Array.from({ length: 60 }, (_, i) => ({ id: `b${i + 1}`, store
 
 export const state = {
   hasStore: true,
-  store: { id: "s1", name: "Demo Boutique", currency: "DZD", timezone: "Africa/Algiers", business_info: null, business_info_fields: null, agent_enabled: true, monthly_reply_limit: 1000, orders_enabled: false, created_at: "2026-10-01T00:00:00Z", trial_ends_at: new Date(Date.now() + 10 * 86400000).toISOString(), paid_until: null, plan_status: "trial", reply_credits: 120 },
+  store: { id: "s1", name: "Demo Boutique", currency: "DZD", timezone: "Africa/Algiers", business_info: null, business_info_fields: null, agent_enabled: true, monthly_reply_limit: 1000, orders_enabled: false, reply_tone: "friendly", reply_emoji: false, created_at: "2026-10-01T00:00:00Z", trial_ends_at: new Date(Date.now() + 10 * 86400000).toISOString(), paid_until: null, plan_status: "trial", reply_credits: 120 },
   conversations: [
     { id: "c1", store_id: "s1", channel_id: "ch1", status: "human", handoff_reason: "Customer wants to order 2 hoodies", last_customer_message_at: "2026-10-04T20:30:00Z", created_at: "2026-10-04T20:00:00Z", customers: { display_name: "Amine", platform_user_id: "ig-0" }, channels: { platform: "instagram" } },
     { id: "c2", store_id: "s1", channel_id: "ch1", status: "bot", handoff_reason: null, last_customer_message_at: "2026-10-04T20:20:00Z", created_at: "2026-10-04T20:00:00Z", customers: { display_name: "Sara", platform_user_id: "ig-1" }, channels: { platform: "instagram" } },

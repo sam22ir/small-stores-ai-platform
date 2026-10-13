@@ -257,3 +257,34 @@ test("prompt forbids offering to hold or reserve items", () => {
   assert.match(p, /must first call handoff_to_owner/);
   assert.match(p, /Test Shop/);
 });
+
+test("handoff summary travels with the handoff reason", async () => {
+  const { catalog } = fakeCatalog();
+  const { client } = fakeClient([
+    {
+      content: [toolUse("t1", "handoff_to_owner", { reason: "Wants 2 hoodies", summary: "Black hoodie, size M, x2, Oran." })],
+      stop_reason: "tool_use",
+    },
+    { content: [text("The owner will message you shortly!")], stop_reason: "end_turn" },
+  ]);
+  const r = await runAgent({ client, catalog, store: STORE, history: ask("I want to buy 2") });
+  assert.equal(r.handoffSummary, "Black hoodie, size M, x2, Oran.");
+});
+
+test("no summary without a handoff, and none for a run-level handoff", async () => {
+  const { catalog } = fakeCatalog();
+  const plain = await runAgent({
+    client: fakeClient([{ content: [text("Hi!")], stop_reason: "end_turn" }]).client,
+    catalog,
+    store: STORE,
+    history: ask("hi"),
+  });
+  assert.equal(plain.handoffSummary, null);
+  const refused = await runAgent({
+    client: fakeClient([{ content: [], stop_reason: "refusal" }]).client,
+    catalog,
+    store: STORE,
+    history: ask("hi"),
+  });
+  assert.equal(refused.handoffSummary, null);
+});
