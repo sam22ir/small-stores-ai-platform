@@ -432,6 +432,43 @@ test("a conversation with the owner stays silent, and so does a disabled assista
   assert.equal(calls.n, 1);
 });
 
+test("a photo goes to a vision model on the customer's last turn; a text-only model never sees it", async () => {
+  const photoRow = { id: "m0", conversation_id: "c1", direction: "inbound", body: "[image]", _seq: 0,
+    attachments: [{ type: "image", url: "https://scontent.cdninstagram.com/p.png" }] };
+  const seenUrls: string[] = [];
+  const llmBodies: { messages: { role: string; content: unknown }[] }[] = [];
+  globalThis.fetch = ((url: string, init?: RequestInit) => {
+    if (String(url).startsWith("https://scontent")) {
+      seenUrls.push(String(url));
+      return Promise.resolve(new Response(new Uint8Array([0x89, 0x50]).buffer, {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      }));
+    }
+    llmBodies.push(JSON.parse(String(init?.body)));
+    return Promise.resolve(new Response(JSON.stringify({
+      choices: [{ message: { content: "That hoodie is in our catalog." }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    }), { status: 200 }));
+  }) as typeof fetch;
+
+  const visionEnv = (k: string) => (k === "LLM_VISION" ? "true" : env(k));
+  const { input } = setup({ messages: [{ ...photoRow }] });
+  const r = await handleInbound({ ...input("[image]"), inboundMessageId: "m0", env: visionEnv });
+  assert.ok(r.ok);
+  assert.deepEqual(seenUrls, ["https://scontent.cdninstagram.com/p.png"]);
+  const last = llmBodies[0].messages.at(-1)!;
+  assert.equal(last.role, "user");
+  assert.ok(Array.isArray(last.content));
+  assert.match(JSON.stringify(last.content), /"url":"data:image\/png;base64,/);
+
+  // Same photo, text-only model: nothing is downloaded and the model gets plain text.
+  const textOnly = setup({ messages: [{ ...photoRow }] });
+  await handleInbound({ ...textOnly.input("[image]"), inboundMessageId: "m0", env });
+  assert.equal(seenUrls.length, 1);
+  assert.equal(llmBodies[1].messages.at(-1)!.content, "[image]");
+});
+
 test("a handoff from the model flips the conversation to the owner", async () => {
   const { tables, input } = setup();
   let call = 0;

@@ -7,10 +7,13 @@ export interface InboundEvent {
   mid: string; // Meta's message id, unique per message (used to ignore retries)
   text: string;
   timestampMs: number;
+  // Image URLs the customer sent (at most MAX_IMAGES). Absent when the message has no images.
+  images?: string[];
 }
 
 interface Attachment {
   type?: string;
+  payload?: { url?: string; sticker_id?: number };
 }
 interface MessagingEvent {
   sender?: { id?: string };
@@ -50,6 +53,20 @@ function describe(message: NonNullable<MessagingEvent["message"]>): string {
   return (type && ATTACHMENT_LABELS[type]) || "[attachment]";
 }
 
+// The assistant looks at up to this many photos per message (see pipeline/reply.ts).
+export const MAX_IMAGES = 3;
+
+// Image attachments' CDN links. Checked against the allowlist when they are fetched (meta/media.ts).
+// Stickers (including the one-tap Like) arrive as images too; they aren't photos, so they are skipped.
+function imageUrls(message: NonNullable<MessagingEvent["message"]>): string[] {
+  const urls: string[] = [];
+  for (const a of message.attachments ?? []) {
+    const url = a.type === "image" && a.payload?.sticker_id === undefined ? a.payload?.url : undefined;
+    if (url) urls.push(url);
+  }
+  return urls.slice(0, MAX_IMAGES);
+}
+
 export function parseWebhook(body: unknown): InboundEvent[] {
   const b = body as WebhookBody;
   const platform = b?.object === "instagram" ? "instagram" : b?.object === "page" ? "facebook" : null;
@@ -63,6 +80,7 @@ export function parseWebhook(body: unknown): InboundEvent[] {
       const senderId = ev.sender?.id;
       // Echoes are our own sends; is_self is the account writing to itself; deleted has no content.
       if (!m?.mid || !senderId || m.is_echo || m.is_self || m.is_deleted || senderId === entry.id) continue;
+      const images = imageUrls(m);
       events.push({
         platform,
         externalId: entry.id,
@@ -70,6 +88,7 @@ export function parseWebhook(body: unknown): InboundEvent[] {
         mid: m.mid,
         text: describe(m),
         timestampMs: ev.timestamp ?? entry.time ?? Date.now(),
+        ...(images.length ? { images } : {}),
       });
     }
   }

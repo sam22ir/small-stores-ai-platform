@@ -59,8 +59,10 @@ export function Privacy() {
           connects Instagram we receive an access token; it is stored encrypted and is used only to receive and send that
           account's messages.</li>
         <li><strong>Customers:</strong> their Instagram-scoped ID, display name or username when Instagram provides it, and
-          the content of the messages they send and the replies they receive. Voice notes, photos and videos are not
-          processed or stored; the chat only records that one was sent.</li>
+          the content of the messages they send and the replies they receive. Voice notes and videos are not processed
+          or stored; the chat only records that one was sent. Photos a customer sends may be sent to our AI model
+          provider so the assistant can understand the question. They are not kept beyond the time needed to answer:
+          only a link to the photo, which expires, is recorded, and the chat records that one was sent.</li>
         <li><strong>Orders</strong> (only if the store turns on order taking): the name, phone number, wilaya and delivery
           address a customer gives in the chat, and the items ordered.</li>
         <li><strong>Technical records:</strong> which assistant steps ran for a message, token counts, errors and timestamps,

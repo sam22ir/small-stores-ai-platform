@@ -198,6 +198,26 @@ test("history: leading assistant turns dropped, same-role turns merged", () => {
   assert.equal(msgs[0].content, "hi\ndo you have hoodies");
 });
 
+test("photos become Anthropic image blocks after the text, and merge with same-role turns", () => {
+  const dataUrl = "data:image/jpeg;base64,/9j/AA==";
+  const msgs = toMessageParams([
+    { role: "user", text: "[image]" },
+    { role: "user", text: "is this one available?", images: [{ dataUrl }] },
+  ]);
+  assert.equal(msgs.length, 1);
+  assert.deepEqual(msgs[0].content, [
+    { type: "text", text: "[image]\nis this one available?" },
+    { type: "image", source: { type: "base64", media_type: "image/jpeg", data: "/9j/AA==" } },
+  ]);
+});
+
+test("a malformed or unsupported data URL is dropped instead of sent", () => {
+  const msgs = toMessageParams([
+    { role: "user", text: "look", images: [{ dataUrl: "data:image/svg+xml;base64,PHN2Zz4=" }, { dataUrl: "not a url" }] },
+  ]);
+  assert.equal(msgs[0].content, "look");
+});
+
 test("replies are truncated by UTF-8 bytes", () => {
   const long = "م".repeat(1000); // 2 bytes each
   const out = truncateUtf8(long, 950);

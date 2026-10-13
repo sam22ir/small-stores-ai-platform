@@ -2,9 +2,10 @@ import { conversationLang, holdingReply } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import {
   MAX_REPLY_BYTES,
+  mergeTurns,
   toLatinDarija,
-  toMessageParams,
   truncateUtf8,
+  type Turn,
 } from "./run.ts";
 import { capLookupOutputs, errorText, executeTool, lookupOutput, toolsForStore } from "./tools.ts";
 import type {
@@ -57,10 +58,39 @@ interface ToolCall {
   function: { name: string; arguments: string };
 }
 
+type ContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 type Message =
-  | { role: "system" | "user"; content: string }
+  | { role: "system"; content: string }
+  | { role: "user"; content: string | ContentPart[] }
   | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
   | { role: "tool"; tool_call_id: string; content: string };
+
+// A customer turn: plain text, or text plus photos when the model may see them.
+function userContent(turn: Turn): string | ContentPart[] {
+  if (turn.images.length === 0) return turn.text;
+  return [
+    { type: "text", text: turn.text },
+    ...turn.images.map((i): ContentPart => ({ type: "image_url", image_url: { url: i.dataUrl } })),
+  ];
+}
+
+// The same messages with photos dropped (used after the endpoint rejects them).
+function withoutImages(msgs: Message[]): Message[] {
+  return msgs.map((m) => {
+    if (m.role !== "user" || typeof m.content === "string") return m;
+    const text = m.content
+      .filter((p): p is { type: "text"; text: string } => p.type === "text")
+      .map((p) => p.text)
+      .join("\n");
+    return { role: "user", content: text };
+  });
+}
+
+// Wording of a 4xx body that means the endpoint refused the photos (not the key, not the quota).
+const IMAGE_REJECTED = /image|vision|multimodal/i;
 
 interface Completion {
   choices?: {
@@ -95,17 +125,20 @@ export async function runAgentChatCompletions(
   const doFetch = opts.fetchImpl ?? fetch;
   const url = `${opts.baseUrl.replace(/\/+$/, "")}/chat/completions`;
 
-  const history = toMessageParams(opts.history);
-  if (history.length === 0 || history[history.length - 1].role !== "user") {
+  const turns = mergeTurns(opts.history);
+  if (turns.length === 0 || turns[turns.length - 1].role !== "user") {
     throw new Error("history must end with a customer message");
   }
   const messages: Message[] = [
     { role: "system", content: buildSystemPrompt(store, conversationLang(opts.history), opts.lookups) },
-    ...history.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content as string,
-    })),
+    ...turns.map((t): Message =>
+      t.role === "user"
+        ? { role: "user", content: userContent(t) }
+        : { role: "assistant", content: t.text }
+    ),
   ];
+  // Set once the endpoint has refused the photos; the rest of this run is text-only.
+  let sendImages = true;
 
   const tools = openAITools(store);
   const toolCalls: ToolCallLog[] = [];
@@ -116,7 +149,7 @@ export async function runAgentChatCompletions(
   async function complete(msgs: Message[] = messages, useTools = true): Promise<Completion> {
     const body = JSON.stringify({
       model,
-      messages: msgs,
+      messages: sendImages ? msgs : withoutImages(msgs),
       ...(useTools ? { tools, tool_choice: "auto" } : {}),
       [opts.tokenParam ?? "max_tokens"]: MAX_TOKENS,
       ...(opts.reasoningEffort ? { reasoning_effort: opts.reasoningEffort } : {}),
@@ -133,13 +166,21 @@ export async function runAgentChatCompletions(
         signal: AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),
       });
       if (res.ok) return await res.json() as Completion;
+      const detail = (await res.text()).slice(0, 300);
+      // The model refused the photos: retry once without them. This is not a provider failure,
+      // so the circuit breaker never sees it (only a retry that also fails throws).
+      if (sendImages && res.status >= 400 && res.status < 500 && res.status !== 429 &&
+        IMAGE_REJECTED.test(detail) && msgs.some((m) => m.role === "user" && typeof m.content !== "string")) {
+        sendImages = false;
+        console.warn(JSON.stringify({ event: "llm_images_rejected", status: res.status }));
+        return complete(msgs, useTools);
+      }
       // Free tiers rate-limit hard; one patient retry is enough for testing.
       if ((res.status === 429 || res.status >= 500) &&
         attempt < (opts.maxAttempts ?? DEFAULT_MAX_ATTEMPTS)) {
         await new Promise((r) => setTimeout(r, opts.retryDelayMs ?? 2000));
         continue;
       }
-      const detail = (await res.text()).slice(0, 300);
       throw new Error(`LLM request failed (${res.status}): ${detail}`);
     }
   }

@@ -10,7 +10,7 @@ import {
 } from "./providers.ts";
 
 const mk = (name: string): ProviderConfig => ({
-  name, baseUrl: `https://${name}/v1`, apiKey: `key-${name}`, model: "m", tokenParam: "max_tokens",
+  name, baseUrl: `https://${name}/v1`, apiKey: `key-${name}`, model: "m", tokenParam: "max_tokens", vision: false,
 });
 const primary = mk("friend.example");
 const fallback = mk("api.openai.com");
@@ -122,4 +122,17 @@ test("providerFromEnv: requires url, key and model; parses options per prefix", 
   assert.equal(f.tokenParam, "max_tokens");
   assert.equal(f.reasoningEffort, undefined);
   assert.equal(f.temperature, undefined);
+});
+
+test("providerFromEnv: vision is off unless the prefix's VISION setting is exactly true", () => {
+  const base = { LLM_BASE_URL: "https://x/v1", LLM_API_KEY: "k", LLM_MODEL: "m" };
+  const env = (m: Record<string, string>) => (k: string) => m[k];
+  assert.equal(providerFromEnv(env(base), "LLM_")!.vision, false);
+  assert.equal(providerFromEnv(env({ ...base, LLM_VISION: "true" }), "LLM_")!.vision, true);
+  assert.equal(providerFromEnv(env({ ...base, LLM_VISION: "yes" }), "LLM_")!.vision, false);
+
+  const fb = { LLM_FALLBACK_BASE_URL: "https://y/v1", LLM_FALLBACK_API_KEY: "k", LLM_FALLBACK_MODEL: "m" };
+  // The primary's flag is not inherited by the fallback.
+  assert.equal(providerFromEnv(env({ ...fb, LLM_VISION: "true" }), "LLM_FALLBACK_")!.vision, false);
+  assert.equal(providerFromEnv(env({ ...fb, LLM_FALLBACK_VISION: "true" }), "LLM_FALLBACK_")!.vision, true);
 });
