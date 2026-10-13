@@ -163,6 +163,7 @@ export type Database = {
           created_at: string
           customer_id: string
           handoff_reason: string | null
+          handoff_summary: string | null
           id: string
           last_customer_message_at: string | null
           processing_until: string | null
@@ -174,6 +175,7 @@ export type Database = {
           created_at?: string
           customer_id: string
           handoff_reason?: string | null
+          handoff_summary?: string | null
           id?: string
           last_customer_message_at?: string | null
           processing_until?: string | null
@@ -185,6 +187,7 @@ export type Database = {
           created_at?: string
           customer_id?: string
           handoff_reason?: string | null
+          handoff_summary?: string | null
           id?: string
           last_customer_message_at?: string | null
           processing_until?: string | null

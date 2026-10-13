@@ -110,7 +110,7 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       const reply = holdingReply(detectLang(input.text));
       await record({ reply, model: "billing", provider: "none" }, { fast_path: true, error: null });
       await db.from("conversations")
-        .update({ status: "human", handoff_reason: reason })
+        .update({ status: "human", handoff_reason: reason, handoff_summary: null })
         .eq("id", conversation.id);
       if (await claimBillingAlert(db, store.id, billing.lapsedAt, store.billing_alerted_for)) {
         alerts.push({ kind: "billing" });
@@ -128,7 +128,7 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       error: null,
     });
     await db.from("conversations")
-      .update({ status: "human", handoff_reason: reason })
+      .update({ status: "human", handoff_reason: reason, handoff_summary: null })
       .eq("id", conversation.id);
     alerts.push({ kind: "limit" });
     return {
@@ -165,7 +165,7 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       const reply = limitReply(detectLang(input.text));
       await record({ reply, model: "token-cap", provider: "none" }, { fast_path: true, error: null });
       await db.from("conversations")
-        .update({ status: "human", handoff_reason: reason })
+        .update({ status: "human", handoff_reason: reason, handoff_summary: null })
         .eq("id", conversation.id);
       console.warn(JSON.stringify({
         event: "ai_token_cap_reached",
@@ -316,9 +316,11 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
     if (result.handoffReason) {
       status = "human";
       await db.from("conversations")
-        .update({ status: "human", handoff_reason: result.handoffReason })
+        .update({ status: "human", handoff_reason: result.handoffReason, handoff_summary: result.handoffSummary })
         .eq("id", conversation.id);
-      if (source === "customer") alerts.push({ kind: "handoff", reason: result.handoffReason });
+      if (source === "customer") {
+        alerts.push({ kind: "handoff", reason: result.handoffReason, summary: result.handoffSummary });
+      }
     }
     return {
       ok: true,
@@ -369,7 +371,7 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
         delivery_status: "pending",
       });
       await db.from("conversations")
-        .update({ status: "human", handoff_reason: reason })
+        .update({ status: "human", handoff_reason: reason, handoff_summary: null })
         .eq("id", conversation.id);
       alerts.push({ kind: "degraded" });
       return {

@@ -107,6 +107,7 @@ export interface ToolCallLog {
 export interface AgentResult {
   reply: string;
   handoffReason: string | null;
+  handoffSummary: string | null; // the owner summary from handoff_to_owner, set together with handoffReason
   toolCalls: ToolCallLog[];
   usage: { input_tokens: number; output_tokens: number };
   model: string;
