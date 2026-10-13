@@ -30,7 +30,8 @@ function alertText(
   switch (alert.kind) {
     case "handoff":
       line = `${who} : besoin de votre réponse / تحتاج ردّكم` +
-        (alert.reason ? ` (${alert.reason.slice(0, 120)})` : "");
+        (alert.reason ? ` (${alert.reason.slice(0, 120)})` : "") +
+        (alert.summary ? `\n${alert.summary.slice(0, 300)}` : "");
       break;
     case "limit":
       line = `${who} : limite mensuelle atteinte, à vous / تم بلوغ الحد الشهري، الرد لكم`;

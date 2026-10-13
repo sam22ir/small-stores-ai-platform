@@ -37,7 +37,7 @@ export interface HandleInboundInput {
 
 // Things the owner should hear about, collected during a run and sent after the reply is stored.
 export type OwnerAlert =
-  | { kind: "handoff"; reason: string }
+  | { kind: "handoff"; reason: string; summary?: string | null }
   | { kind: "limit" }
   | { kind: "token_cap" }
   | { kind: "billing" }

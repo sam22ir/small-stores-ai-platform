@@ -50,6 +50,7 @@ const en = {
   "inbox.emptyAssistant": "No conversations yet.",
   "inbox.emptyClosed": "No closed conversations.",
   "inbox.reason": "Why it was passed to you",
+  "inbox.summary": "Summary",
   "inbox.customer": "Customer",
   "inbox.noMessages": "No messages",
   "inbox.waitingCount": "{n} clients waiting",

@@ -870,3 +870,92 @@ test("a clean Darija reply needs no rewrite, and a non-Darija reply is never rew
   assert.ok(r.ok && r.reply === "هوديي أسود 3500 دج");
   assert.equal(arabic.length, 1);
 });
+
+// A model that answers with one handoff_to_owner call, then a short reply.
+function stubHandoff(args: object) {
+  let call = 0;
+  globalThis.fetch = (() => {
+    call++;
+    const message = call === 1
+      ? {
+        content: null,
+        tool_calls: [{ id: "t1", type: "function", function: { name: "handoff_to_owner", arguments: JSON.stringify(args) } }],
+      }
+      : { content: "The owner will reply to you personally." };
+    return Promise.resolve(new Response(JSON.stringify({ choices: [{ message, finish_reason: "stop" }], usage: {} }), { status: 200 }));
+  }) as typeof fetch;
+}
+
+test("a handoff stores the owner summary and the alert shows it, cut to 300 characters", async () => {
+  const { tables, input } = setup();
+  const summary = "x".repeat(350);
+  stubHandoff({ reason: "wants a discount", summary });
+  const alerts: string[] = [];
+  const r = await handleInbound({
+    ...input("can I get 20% off?"),
+    notify: (_storeId: string, text: string) => {
+      alerts.push(text);
+      return Promise.resolve(true);
+    },
+  });
+  assert.ok(r.ok && r.status === "human");
+  assert.equal(tables.conversations[0].handoff_summary, summary);
+  await settle();
+  assert.equal(alerts.length, 1);
+  assert.match(alerts[0], /wants a discount/);
+  assert.ok(alerts[0].includes("x".repeat(300)));
+  assert.ok(!alerts[0].includes("x".repeat(301)));
+  assert.match(alerts[0], /Demo Boutique/);
+});
+
+test("a handoff without a summary stores null and the alert has no summary line", async () => {
+  const { tables, input } = setup();
+  stubHandoff({ reason: "wants a discount" });
+  const alerts: string[] = [];
+  await handleInbound({
+    ...input("can I get 20% off?"),
+    notify: (_storeId: string, text: string) => {
+      alerts.push(text);
+      return Promise.resolve(true);
+    },
+  });
+  assert.equal(tables.conversations[0].handoff_summary, null);
+  await settle();
+  assert.equal(alerts.length, 1);
+  assert.doesNotMatch(alerts[0], /undefined|null/);
+});
+
+test("the monthly limit hand-off clears a stale owner summary", async () => {
+  const runs = [0, 1].map((i) => ({ store_id: "s1", source: "customer", fast_path: false, error: null, created_at: new Date().toISOString(), _seq: i }));
+  const { tables, input } = setup({ runs });
+  tables.conversations[0].handoff_summary = "Old summary";
+  stubLlm("nope", { n: 0 });
+  await handleInbound(input("do you ship to Oran?"));
+  assert.equal(tables.conversations[0].handoff_summary, null);
+});
+
+test("the token cap hand-off clears a stale owner summary", async () => {
+  const runs = [{ store_id: "s1", source: "customer", fast_path: false, error: null, created_at: new Date().toISOString(), input_tokens: 90, output_tokens: 10, _seq: 0 }];
+  const { tables, input } = setup({ runs });
+  tables.conversations[0].handoff_summary = "Old summary";
+  stubLlm("nope", { n: 0 });
+  await handleInbound(input("do you ship to Oran?", "customer", { ai_monthly_token_limit: 100 }));
+  assert.equal(tables.conversations[0].handoff_summary, null);
+});
+
+test("the subscription hand-off clears a stale owner summary", async () => {
+  const { tables, input } = setup();
+  tables.conversations[0].handoff_summary = "Old summary";
+  stubLlm("nope", { n: 0 });
+  const expired = { trial_ends_at: new Date(Date.now() - 86400000).toISOString(), paid_until: null, billing_alerted_for: null };
+  await handleInbound(input("do you ship to Oran?", "customer", expired));
+  assert.equal(tables.conversations[0].handoff_summary, null);
+});
+
+test("the degraded hand-off clears a stale owner summary", async () => {
+  const { tables, input } = setup();
+  tables.conversations[0].handoff_summary = "Old summary";
+  globalThis.fetch = (() => Promise.resolve(new Response("down", { status: 500 }))) as typeof fetch;
+  await handleInbound(input("do you ship to Oran?"));
+  assert.equal(tables.conversations[0].handoff_summary, null);
+});

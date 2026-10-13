@@ -19,6 +19,7 @@ type Conv = {
   channel_id: string;
   status: "human" | "bot" | "closed";
   handoff_reason: string | null;
+  handoff_summary: string | null;
   customers: { display_name: string | null; platform_user_id: string } | null;
   channels: { platform: string } | null;
 };
@@ -119,7 +120,7 @@ function ThreadView({ id }: { id: string | undefined }) {
     if (!id) return undefined;
     const [c, m] = await Promise.all([
       supabase.from("conversations")
-        .select("id,store_id,channel_id,status,handoff_reason,customers(display_name,platform_user_id),channels(platform)")
+        .select("id,store_id,channel_id,status,handoff_reason,handoff_summary,customers(display_name,platform_user_id),channels(platform)")
         .eq("id", id).single(),
       supabase.from("messages")
         .select("id,direction,sender,body,created_at,delivery_status,delivery_error")
@@ -309,6 +310,9 @@ function ThreadView({ id }: { id: string | undefined }) {
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: dur.short, ease: ease.out }}>
             <strong>{t("inbox.reason")}:</strong> {conv.handoff_reason}
+            {conv.handoff_summary && (
+              <p className="mt-1 whitespace-pre-line text-ink"><strong>{t("inbox.summary")}:</strong> {conv.handoff_summary}</p>
+            )}
           </m.div>
         )}
       </AnimatePresence>

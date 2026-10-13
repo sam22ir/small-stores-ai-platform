@@ -56,6 +56,11 @@ reply. Used by the dashboard's Assistant page ("Try your assistant") and by dev 
 
 **Notes.** Test and dev runs do not create real orders, do not change stock and do not count towards the monthly reply limit (from the function header comment).
 
+**Agent eval.** `npm run eval` (`scripts/eval-agent.mjs`) sends 36 scenarios through this endpoint in dev mode, using
+the seeded "Demo Boutique" store. It makes real model calls and costs tokens, and it shares the 60-per-hour cap above.
+Run it only against a dedicated eval store (seed it, put only its id in `PLAYGROUND_STORE_IDS`), never a customer store.
+The README section "Testing the agent (no Meta needed)" has the steps and the `EVAL_ONLY` option.
+
 ---
 
 ## deliver-messages

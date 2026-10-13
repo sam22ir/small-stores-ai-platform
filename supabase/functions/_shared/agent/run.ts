@@ -129,6 +129,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
   const toolCalls: ToolCallLog[] = [];
   const usage = { input_tokens: 0, output_tokens: 0 };
   let handoffReason: string | null = null;
+  let handoffSummary: string | null = null;
   let reply = "";
 
   const frontier = isFrontierModel(model);
@@ -198,7 +199,10 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
             conversationId: opts.conversationId,
             customerId: opts.customerId,
           });
-          if (outcome.handoffReason) handoffReason = outcome.handoffReason;
+          if (outcome.handoffReason) {
+            handoffReason = outcome.handoffReason;
+            handoffSummary = outcome.handoffSummary ?? null;
+          }
           const output = outcome.isError ? undefined : lookupOutput(use.name, use.input, outcome.content);
           toolCalls.push({
             name: use.name,
@@ -259,6 +263,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
   return {
     reply: truncateUtf8(reply, MAX_REPLY_BYTES),
     handoffReason,
+    handoffSummary,
     toolCalls: capLookupOutputs(toolCalls),
     usage,
     model,
