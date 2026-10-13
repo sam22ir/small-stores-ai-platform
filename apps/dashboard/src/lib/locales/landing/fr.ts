@@ -4,16 +4,16 @@ import type { LandingDict } from "./types";
 const landingFr: LandingDict = {
   htmlLang: "fr",
   dir: "ltr",
-  title: "Wakil · Répond à vos clients sur Instagram et Facebook",
+  title: "Wakil · Répond à vos clients sur Instagram",
   description:
-    "Wakil répond aux messages privés de votre boutique sur Instagram et Facebook en darija, en français et en arabe. Il vérifie votre stock et vos prix, et calcule la livraison pour chaque wilaya.",
+    "Wakil répond aux messages privés de votre boutique sur Instagram en darija, en français et en arabe. Il vérifie votre stock et vos prix, et calcule la livraison pour chaque wilaya.",
   ogLocale: "fr_DZ",
   nav: { logIn: "Se connecter", startFree: "Commencer gratuitement", langLabel: "Choisir la langue", goInbox: "Aller à la boîte de réception" },
   hero: {
     kicker: "زبونك يسقسي، وكيل يجاوب.",
     h1: "Vos clients posent leurs questions en message privé. Wakil répond et prend la commande.",
     lede:
-      "Wakil répond à vos clients sur Instagram et Facebook en darija, en français et en arabe. Il vérifie votre stock et vos prix, donne le tarif de livraison de leur wilaya, et vous passe la conversation quand il ne peut pas aider.",
+      "Wakil répond à vos clients sur Instagram en darija, en français et en arabe. Il vérifie votre stock et vos prix, donne le tarif de livraison de leur wilaya, et vous passe la conversation quand il ne peut pas aider.",
     cta: "Commencer gratuitement",
     ctaNote: "1 000 DA par mois et par boutique",
     slipCaption: "Quand la prise de commande est activée",
@@ -62,7 +62,7 @@ const landingFr: LandingDict = {
     heading: "Comment ça marche",
     items: [
       { k: "5 min", title: "Ajoutez vos produits", text: "Collez votre liste de stock depuis Excel, ou saisissez-la." },
-      { k: "1 clic", title: "Connectez Instagram", text: "Votre page Facebook se connecte de la même façon." },
+      { k: "1 clic", title: "Connectez Instagram", text: "Messenger de Facebook arrive bientôt." },
       { k: "Ensuite", title: "Wakil répond", text: "Vous recevez une notification quand une conversation a besoin de vous." },
     ],
   },
@@ -71,7 +71,7 @@ const landingFr: LandingDict = {
     items: [
       "Stock et prix tirés de votre catalogue, à coller depuis Excel ou CSV",
       "Trois langues : darija (en lettres arabes et latines), français, arabe",
-      "Frais de livraison pour chacune des 58 wilayas",
+      "Frais de livraison par wilaya : vous les fixez, ou vous les synchronisez depuis Yalidine",
       "Vous passe la conversation quand il ne peut pas aider, et vous prévient",
       "Apprend de vos réponses : enregistrez les vôtres pour lui apprendre",
       "Optionnel : prise de commandes à la livraison dans les conversations, désactivée par défaut",
@@ -81,7 +81,7 @@ const landingFr: LandingDict = {
     heading: "Un seul tarif",
     price: "1 000 DA",
     per: "par boutique et par mois",
-    text: "Tout ce qui est présenté sur cette page, pour une boutique. Aucun paiement en ligne dans Wakil.",
+    text: "Tout ce qui est présenté sur cette page, pour une boutique. Vos clients paient à la livraison, sans paiement en ligne.",
     cta: "Commencer gratuitement",
   },
   faq: {
@@ -89,10 +89,10 @@ const landingFr: LandingDict = {
     items: [
       { q: "Invente-t-il des prix ?", a: "Non. Il n'utilise que les prix et le stock de votre catalogue." },
       { q: "Que se passe-t-il s'il ne peut pas répondre ?", a: "Il vous passe la conversation et vous envoie une notification." },
-      { q: "Prend-il des paiements ?", a: "Non. Paiement à la livraison uniquement, et la prise de commande est optionnelle." },
+      { q: "Prend-il des paiements ?", a: "Pas auprès de vos clients. Vos clients paient à la livraison, et la prise de commande est optionnelle." },
       { q: "Quelles langues ?", a: "La darija (en lettres arabes et latines), le français et l'arabe." },
-      { q: "Uniquement Instagram et Facebook ?", a: "Oui, pour le moment." },
-      { q: "Comment payer ?", a: "Chaque mois, en espèces. Pas de carte ni de paiement en ligne." },
+      { q: "Uniquement Instagram ?", a: "Oui, pour le moment. Messenger de Facebook arrive bientôt." },
+      { q: "Comment payer ?", a: "Chaque mois, par carte EDAHABIA ou CIB via Chargily Pay." },
     ],
   },
   footer: {

@@ -111,7 +111,7 @@ const fr: Dict = {
   "settings.agent": "Assistant activé",
   "settings.agentHelp": "Désactivez pour arrêter les réponses automatiques sur les comptes connectés.",
   "channels.title": "Canaux",
-  "channels.intro": "Connectez la page Instagram ou Facebook où vos clients vous écrivent. L'assistant y répondra.",
+  "channels.intro": "Connectez le compte Instagram où vos clients vous écrivent. L'assistant y répondra. Messenger de Facebook arrive bientôt.",
   "channels.none": "Aucun compte connecté pour l'instant.",
   "channels.facebook": "Page Facebook",
   "channels.instagram": "Instagram",

@@ -7,7 +7,7 @@ Guidance for Claude Code working in this repo. Facts here come from the files in
 Wakil (repo: small-stores-ai-platform) is a B2B platform for solo store owners who sell on Instagram and
 Facebook Pages. An AI agent answers customer DMs for the store. Scope (v0, from `README.md`): receive DMs,
 check stock and prices, answer only from the store's own catalog, hand the conversation to the owner when
-it cannot help. Taking payments and creating orders are out of scope for v0 (the README's scope list).
+it cannot help. Online payments from customers are out of scope for v0. Cash-on-delivery order capture (`create_order`) is in the code but off by default per store (`orders_enabled`, migration 0010). The README's scope list says the same.
 Telegram is used for owner alerts and linking (`supabase/functions/_shared/telegram.ts`).
 
 ## Repo layout

@@ -18,15 +18,15 @@ Last updated: 2026-10-05 (Instagram connection built). Items marked **(decision)
 
 ## Model providers (decision)
 
-- The agent talks to any **OpenAI-compatible** endpoint (`chat_completions.ts`) and can chain providers (`providers.ts`):
-  1. **Primary: the friend's endpoint**, `https://codex-everywhere.com/v1`, model `gpt-6-luna`.
-  2. **Fallback: official OpenAI**, `https://api.openai.com/v1`, model `gpt-6-luna`.
-- Fallback rule: the primary gets one 20 s attempt; on any error the same message goes to the fallback. After 3 consecutive primary failures the primary is skipped for 60 s.
+- **Default in code: Claude (Anthropic).** `DEFAULT_MODEL = "claude-sonnet-5-5"` in `_shared/agent/run.ts`, used when `LLM_PROVIDER` is not `openai-compatible` (`_shared/pipeline/reply.ts`). It needs `ANTHROPIC_API_KEY`.
+- **Optional: an OpenAI-compatible endpoint.** Set `LLM_PROVIDER=openai-compatible` to use `chat_completions.ts`, with the chain built in `providers.ts`. It is not the default and nothing in the repo points it at a specific host. Examples that were considered (not configured as the default):
+  1. **Third-party endpoint** (the "friend's endpoint"), `https://codex-everywhere.com/v1`, model `gpt-6-luna`. Planned/optional only.
+  2. **Official OpenAI**, `https://api.openai.com/v1`, model `gpt-6-luna`. Also optional only.
+- Fallback rule (for the OpenAI-compatible chain): the primary gets one 20 s attempt; on any error the same message goes to the fallback. After 3 consecutive primary failures the primary is skipped for 60 s.
 - GPT-6 Luna on Chat Completions only supports function calling with `reasoning_effort = none`, and wants `max_completion_tokens`. Both are configurable per provider.
 - Secrets (Supabase Edge Function secrets, never in the repo): `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_TOKEN_PARAM`, `LLM_REASONING_EFFORT`, and the same with `LLM_FALLBACK_` for the fallback. `PLAYGROUND_SECRET` protects the dev mode of `assistant-chat`. See `.env.example`.
-- A **Claude (Anthropic) path** exists (default model `claude-sonnet-5-5`) but is not the plan. Kept as an option and a quality comparison.
 - Free models (TokenRouter, OpenRouter) were used **only to test the pipeline**. Their results say nothing about the final model.
-- **(open) Risk accepted by the owner:** the friend's endpoint is primary, so it sees every customer message. Get its terms in writing, keep prepaid credit small, and treat the fallback as protection for uptime only, not privacy.
+- **(open) Third-party endpoint:** if the friend's endpoint is ever set as the `LLM_` primary, it would see every customer message. Get its terms in writing, keep prepaid credit small, and treat the fallback as protection for uptime only, not privacy. This is not the current default.
 
 ## Pricing and economics
 
