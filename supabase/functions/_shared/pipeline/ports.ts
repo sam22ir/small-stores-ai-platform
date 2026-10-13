@@ -6,6 +6,7 @@ import type {
   DeliveryQuote,
   FaqPort,
   OrderPort,
+  PhotoPort,
   PlaceOrderInput,
   PlaceOrderResult,
   ProductRecord,
@@ -14,7 +15,7 @@ import type {
 // --- Catalog -----------------------------------------------------------------
 
 const PRODUCT_SELECT =
-  "id,name,description,price_cents,aliases,sold_out_until,product_variants(id,label,price_cents,stock_quantity)";
+  "id,name,description,price_cents,aliases,sold_out_until,image_url,product_variants(id,label,price_cents,stock_quantity)";
 
 // deno-lint-ignore no-explicit-any
 function toProduct(row: any): ProductRecord {
@@ -25,7 +26,31 @@ function toProduct(row: any): ProductRecord {
     price_cents: row.price_cents,
     aliases: row.aliases ?? null,
     sold_out_until: row.sold_out_until ?? null,
+    image_url: row.image_url ?? null,
     variants: row.product_variants ?? [],
+  };
+}
+
+// The photo links already sent in a conversation (outbound rows' attachments).
+export function supabasePhotos(client: SupabaseClient): PhotoPort {
+  return {
+    async sentUrls(conversationId) {
+      const { data, error } = await client
+        .from("messages")
+        .select("attachments")
+        .eq("conversation_id", conversationId)
+        .eq("direction", "outbound")
+        .not("attachments", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []).flatMap((row) =>
+        (Array.isArray(row.attachments) ? row.attachments : []).flatMap((a: unknown) => {
+          const url = (a as { url?: unknown } | null)?.url;
+          return typeof url === "string" ? [url] : [];
+        })
+      );
+    },
   };
 }
 

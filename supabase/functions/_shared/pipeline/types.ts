@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { StoreContext } from "../agent/types.ts";
+import type { ProductPhoto, StoreContext } from "../agent/types.ts";
 
 export type RunSource = "customer" | "test" | "dev";
 
@@ -59,5 +59,6 @@ export type HandleInboundResult =
     fast_path: boolean;
     limited: boolean;
     degraded?: boolean; // the model was unavailable; the customer got a holding reply
+    photos?: ProductPhoto[]; // product photos queued with the reply (sent after the text)
   }
   | { ok: false; error: string };

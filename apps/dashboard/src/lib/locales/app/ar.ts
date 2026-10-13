@@ -55,6 +55,7 @@ const ar: Dict = {
   "inbox.summary": "ملخص",
   "inbox.customer": "زبون",
   "inbox.noMessages": "لا توجد رسائل",
+  "inbox.photoSent": "أُرسلت صورة",
   "inbox.waitingCount": "{n} زبائن ينتظرون",
   "inbox.selectConversation": "اختر محادثة",
   "inbox.search": "ابحث بالاسم أو بالرسالة",

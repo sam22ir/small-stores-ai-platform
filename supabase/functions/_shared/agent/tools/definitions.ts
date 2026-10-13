@@ -35,6 +35,23 @@ export const toolDefinitions: AgentTool[] = [
     },
   },
   {
+    name: "send_product_photo",
+    description:
+      "Send the photo of one product with your reply. Use only when the customer asks to see a product or wants photos. The photo is sent with the reply, so don't write a link to it.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        product_name: {
+          type: "string",
+          description: "Name of the product the customer wants to see, as search_products returned it",
+        },
+      },
+      required: ["product_name"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "get_store_info",
     description:
       "Get the owner's information about the store: hours, shipping, returns, payment, answers to questions they have already answered, and anything else they wrote down.",

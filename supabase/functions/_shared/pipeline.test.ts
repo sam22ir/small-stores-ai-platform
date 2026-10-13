@@ -26,15 +26,17 @@ class Query {
   }
 
   private returning = false;
+  private batch: Row[] | null = null; // insert of several rows at once
   select(_cols?: string, opts?: { count?: string; head?: boolean }) {
     if (this.op === "update") this.returning = true;
     this.head = !!opts?.head;
     this.wantCount = !!opts?.count;
     return this;
   }
-  insert(row: Row) {
+  insert(row: Row | Row[]) {
     this.op = "insert";
-    this.payload = row;
+    this.payload = row as Row;
+    this.batch = Array.isArray(row) ? row : null;
     return this;
   }
   update(patch: Row) {
@@ -44,6 +46,14 @@ class Query {
   }
   eq(col: string, v: unknown) {
     this.filters.push((r) => r[col] === v);
+    return this;
+  }
+  // Only the product search's OR filter is needed here: treated as matching every row.
+  or(_expr: string) {
+    return this;
+  }
+  not(col: string, _op: string, _v: unknown) {
+    this.filters.push((r) => r[col] !== null && r[col] !== undefined);
     return this;
   }
   is(col: string, v: unknown) {
@@ -84,13 +94,15 @@ class Query {
       const defaults: Row = this.table === "agent_runs"
         ? { fast_path: false, error: null, source: "customer" }
         : {};
-      rows.push({
-        ...defaults,
-        id: `${this.table}-${rows.length + 1}`,
-        ...this.payload,
-        created_at: new Date().toISOString(),
-        _seq: rows.length,
-      });
+      for (const row of this.batch ?? [this.payload]) {
+        rows.push({
+          ...defaults,
+          id: `${this.table}-${rows.length + 1}`,
+          ...row,
+          created_at: new Date().toISOString(),
+          _seq: rows.length,
+        });
+      }
       return { data: null, error: null };
     }
     const matching = rows.filter((r) => this.filters.every((f) => f(r)));
@@ -958,4 +970,99 @@ test("the degraded hand-off clears a stale owner summary", async () => {
   globalThis.fetch = (() => Promise.resolve(new Response("down", { status: 500 }))) as typeof fetch;
   await handleInbound(input("do you ship to Oran?"));
   assert.equal(tables.conversations[0].handoff_summary, null);
+});
+
+// --- Product photos ----------------------------------------------------------
+
+const PHOTO_BASE = "https://proj.supabase.co";
+const hoodiePhoto = `${PHOTO_BASE}/storage/v1/object/public/product-images/s1/hoodie.jpg`;
+const photoEnv = (k: string) => (k === "SUPABASE_URL" ? PHOTO_BASE : env(k));
+const hoodieProduct: Row = {
+  id: "p1",
+  _seq: 0,
+  store_id: "s1",
+  name: "Black Hoodie",
+  description: null,
+  price_cents: 450000,
+  active: true,
+  image_url: hoodiePhoto,
+  product_variants: [],
+};
+const photoCall = (args: object) => ({
+  content: null,
+  tool_calls: [{
+    id: "c1",
+    type: "function",
+    function: { name: "send_product_photo", arguments: JSON.stringify(args) },
+  }],
+});
+
+test("a queued product photo is stored after the text reply, as its own outbound row", async () => {
+  const { tables, input } = setup();
+  tables.products = [hoodieProduct];
+  const bodies = stubSequence([photoCall({ product_name: "Black Hoodie" }), { content: "Voici le hoodie noir." }]);
+  const r = await handleInbound({ ...input("wach kayen hoodie noir?"), env: photoEnv });
+  assert.ok(r.ok);
+  assert.deepEqual(r.ok && r.photos, [{ url: hoodiePhoto, name: "Black Hoodie" }]);
+  assert.equal(bodies.length, 2);
+
+  const outbound = tables.messages.filter((m) => m.direction === "outbound");
+  assert.equal(outbound.length, 2);
+  assert.equal(outbound[0].body, "Voici le hoodie noir.");
+  assert.equal(outbound[0].delivery_status, "pending");
+  assert.equal(outbound[1].body, null);
+  assert.deepEqual(outbound[1].attachments, [{ type: "image", url: hoodiePhoto, caption: "Black Hoodie" }]);
+  assert.equal(outbound[1].delivery_status, "pending");
+  assert.equal(outbound[1].sender, "agent");
+});
+
+test("a photo already sent in the chat is refused, and the model is told so", async () => {
+  const { tables, input } = setup({
+    messages: [
+      {
+        id: "old-photo",
+        conversation_id: "c1",
+        direction: "outbound",
+        sender: "agent",
+        body: null,
+        attachments: [{ type: "image", url: hoodiePhoto, caption: "Black Hoodie" }],
+        delivery_status: "sent",
+        _seq: 0,
+      },
+      { id: "m1", conversation_id: "c1", direction: "inbound", body: "encore la photo ?", _seq: 1 },
+    ],
+  });
+  tables.products = [hoodieProduct];
+  const bodies = stubSequence([photoCall({ product_name: "Black Hoodie" }), { content: "Je l'ai deja envoyee." }]);
+  const r = await handleInbound({ ...input("encore la photo ?"), env: photoEnv });
+  assert.ok(r.ok && r.photos === undefined);
+  const toolResult = bodies[1].messages.at(-1);
+  assert.equal(toolResult.role, "tool");
+  assert.match(toolResult.content, /already sent/);
+  assert.equal(tables.messages.filter((m) => m.body === null).length, 1);
+});
+
+test("a sent photo stays in the history as a bracketed note, not dropped", async () => {
+  const { tables, input } = setup({
+    messages: [
+      { id: "m0", conversation_id: "c1", direction: "inbound", body: "wach kayen hoodie?", _seq: 0 },
+      {
+        id: "p0",
+        conversation_id: "c1",
+        direction: "outbound",
+        sender: "agent",
+        body: null,
+        attachments: [{ type: "image", url: hoodiePhoto, caption: "Black Hoodie" }],
+        delivery_status: "sent",
+        _seq: 1,
+      },
+      { id: "m1", conversation_id: "c1", direction: "inbound", body: "merci, et le prix ?", _seq: 2 },
+    ],
+  });
+  const bodies = stubSequence([{ content: "Le prix est 4 500 DA." }]);
+  await handleInbound(input("merci, et le prix ?"));
+  const turns = bodies[0].messages.slice(1) as { role: string; content: string }[];
+  assert.ok(turns.some((t) => t.role === "assistant" && t.content === "[sent a photo of Black Hoodie]"));
+  assert.equal(turns.at(-1)?.role, "user");
+  assert.equal(tables.messages.length, 4);
 });

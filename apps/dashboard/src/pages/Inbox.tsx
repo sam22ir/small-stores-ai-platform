@@ -86,7 +86,8 @@ function ChatRow({ c, active, showStatus, entry }: { c: Conv; active: boolean; s
         </m.span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-semibold">{name}</span>
-          <span className="block truncate text-[13px] text-soft">{c.last_body ?? t("inbox.noMessages")}</span>
+          {/* A photo the assistant sent has no body: say so instead of "No messages". */}
+          <span className="block truncate text-[13px] text-soft">{c.last_body ?? t(c.last_direction === "outbound" ? "inbox.photoSent" : "inbox.noMessages")}</span>
           {c.status === "human" && c.handoff_reason && (
             <span className="mt-0.5 block truncate text-[13px] font-semibold text-red">{c.handoff_reason}</span>
           )}

@@ -45,3 +45,35 @@ export function photoPathFromUrl(url: string): string | null {
   const path = url.slice(i + marker.length).split(/[?#]/)[0];
   return path && !path.includes("..") ? path : null;
 }
+
+// A product photo this project sent (the assistant's photo replies). Only URLs under this project's
+// public product-images folder pass: Instagram's own media links in inbound messages expire and are
+// never shown. storageBase is VITE_SUPABASE_URL.
+export function isOwnPhotoUrl(url: unknown, storageBase: string | undefined): url is string {
+  if (typeof url !== "string" || !storageBase) return false;
+  const base = storageBase.trim().replace(/\/+$/, "");
+  return url.startsWith(`${base}/storage/v1/object/public/product-images/`) && photoPathFromUrl(url) !== null;
+}
+
+export interface SentPhoto {
+  url: string;
+  caption: string;
+}
+
+// The photos on an outbound message's attachments ({type, url, caption}), own photos only.
+export function outboundPhotos(attachments: unknown, storageBase: string | undefined): SentPhoto[] {
+  if (!Array.isArray(attachments)) return [];
+  return attachments.flatMap((a: { type?: unknown; url?: unknown; caption?: unknown }) => {
+    if (a?.type !== "image" || !isOwnPhotoUrl(a.url, storageBase)) return [];
+    return [{ url: a.url, caption: typeof a.caption === "string" ? a.caption : "" }];
+  });
+}
+
+// The photos the assistant chat returns ({url, name}), own photos only.
+export function replyPhotos(photos: unknown, storageBase: string | undefined): SentPhoto[] {
+  if (!Array.isArray(photos)) return [];
+  return photos.flatMap((p: { url?: unknown; name?: unknown }) => {
+    if (!isOwnPhotoUrl(p?.url, storageBase)) return [];
+    return [{ url: p.url, caption: typeof p.name === "string" ? p.name : "" }];
+  });
+}

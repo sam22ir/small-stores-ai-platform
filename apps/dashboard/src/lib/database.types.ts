@@ -342,6 +342,7 @@ export type Database = {
       }
       messages: {
         Row: {
+          attachments: Json | null
           body: string | null
           channel_id: string
           conversation_id: string
@@ -357,6 +358,7 @@ export type Database = {
           store_id: string
         }
         Insert: {
+          attachments?: Json | null
           body?: string | null
           channel_id: string
           conversation_id: string
@@ -372,6 +374,7 @@ export type Database = {
           store_id: string
         }
         Update: {
+          attachments?: Json | null
           body?: string | null
           channel_id?: string
           conversation_id?: string

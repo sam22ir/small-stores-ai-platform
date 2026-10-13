@@ -8,10 +8,12 @@ import { useI18n } from "../lib/i18n";
 import type { TKey } from "../lib/i18n";
 import { useStore } from "../lib/store";
 import { dur, ease, useMotionSafe } from "../lib/motion";
+import { replyPhotos } from "../lib/image";
+import type { SentPhoto } from "../lib/image";
 import { platformKey } from "./Inbox";
 import { SparkIcon } from "../components/icons";
 
-type Turn = { role: "customer" | "assistant"; text: string; note?: string };
+type Turn = { role: "customer" | "assistant"; text: string; note?: string; photos?: SentPhoto[] };
 type Channel = { id: string; platform: string; display_name: string | null; status: string };
 
 const randomId = () => Math.random().toString(36).slice(2, 10);
@@ -135,6 +137,7 @@ function TestChat() {
         role: "assistant",
         text: data.reply,
         note: data.fast_path ? t("assistant.fast") : tools.includes("create_order") ? t("assistant.testOrder") : undefined,
+        photos: replyPhotos(data.photos, import.meta.env.VITE_SUPABASE_URL),
       }]);
       if (data.status === "human") setHandedOver(true);
     } else if (data?.status && data.status !== "bot") {
@@ -174,6 +177,10 @@ function TestChat() {
                     </div>
                   )}
                   {turn.text}
+                  {turn.photos?.map((p) => (
+                    <img key={p.url} src={p.url} alt={p.caption} loading="lazy"
+                      className="mt-2 block max-h-60 max-w-[240px] rounded-xl border border-slip/40 object-cover" />
+                  ))}
                 </div>
                 {turn.note && <div className="text-xs text-soft">{turn.note}</div>}
               </m.div>

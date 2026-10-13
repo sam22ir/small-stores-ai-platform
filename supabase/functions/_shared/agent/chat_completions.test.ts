@@ -53,7 +53,7 @@ test("sends an OpenAI-style request with bearer auth and function tools", async 
   assert.equal(calls[0].headers.authorization, "Bearer sk-test");
   assert.equal(calls[0].body.model, "free/model:free");
   assert.equal(calls[0].body.messages[0].role, "system");
-  assert.equal(calls[0].body.tools.length, 4);
+  assert.equal(calls[0].body.tools.length, 5);
   assert.equal(calls[0].body.tools[0].type, "function");
   assert.equal(calls[0].body.tools[0].function.name, "search_products");
 });

@@ -11,10 +11,10 @@ import {
 } from "../agent/providers.ts";
 import { DEFAULT_MODEL, runAgent } from "../agent/run.ts";
 import { errorKind } from "../agent/errors.ts";
-import type { AgentResult, ChatMessage } from "../agent/types.ts";
+import type { AgentResult, ChatMessage, ProductPhoto } from "../agent/types.ts";
 import { fetchImageDataUrl } from "../meta/media.ts";
 import { MAX_IMAGES } from "../meta/webhook.ts";
-import { supabaseCatalog, supabaseFaq, supabaseOrders } from "./ports.ts";
+import { supabaseCatalog, supabaseFaq, supabaseOrders, supabasePhotos } from "./ports.ts";
 import { claimCapAlert, getUsage, loadLookups } from "./usage.ts";
 import { billingState, claimBillingAlert } from "../billing.ts";
 import { announceOrders } from "./alerts.ts";
@@ -27,6 +27,17 @@ import type { HandleInboundInput, HandleInboundResult, OwnerAlert } from "./type
 const HISTORY_LIMIT = 20;
 // Per isolate: skips a primary that keeps failing so customers don't wait on a dead endpoint.
 const breaker = new CircuitBreaker();
+
+// A photo the agent sent has no body, only attachments. The model sees a note instead, so it knows
+// the photo already went out (see the prompt rules).
+export function photoHistoryNotes(attachments: unknown): string[] {
+  if (!Array.isArray(attachments)) return [];
+  return attachments.flatMap((a: { type?: unknown; caption?: unknown }) => {
+    if (a?.type !== "image") return [];
+    const caption = typeof a.caption === "string" && a.caption.trim() ? a.caption.trim() : "a product";
+    return [`[sent a photo of ${caption}]`];
+  });
+}
 
 export async function processLocked(input: HandleInboundInput, alerts: OwnerAlert[]): Promise<HandleInboundResult> {
   const { db, store, conversation, source } = input;
@@ -57,9 +68,11 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
   }
 
   const record = async (
-    result: { reply: string; model: string; provider: string | null },
+    result: { reply: string; model: string; provider: string | null; photos?: ProductPhoto[] },
     extra: Record<string, unknown>,
   ) => {
+    // Customer replies are sent to the channel by deliverPending (_shared/meta/deliver.ts).
+    const deliveryStatus = source === "customer" ? "pending" : "sent";
     const { error: msgErr } = await db.from("messages").insert({
       store_id: store.id,
       conversation_id: conversation.id,
@@ -67,10 +80,24 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       direction: "outbound",
       sender: "agent",
       body: result.reply,
-      // Customer replies are sent to the channel by deliverPending (_shared/meta/deliver.ts).
-      delivery_status: source === "customer" ? "pending" : "sent",
+      delivery_status: deliveryStatus,
     });
     if (msgErr) throw msgErr;
+    // One row per photo, right after the text, so the text is delivered first. Inserted one at a time:
+    // a single multi-row insert would give the rows the same created_at, and their order would be lost.
+    for (const p of result.photos ?? []) {
+      const { error: photoErr } = await db.from("messages").insert({
+        store_id: store.id,
+        conversation_id: conversation.id,
+        channel_id: input.channelId,
+        direction: "outbound",
+        sender: "agent",
+        body: null,
+        attachments: [{ type: "image", url: p.url, caption: p.name }],
+        delivery_status: deliveryStatus,
+      });
+      if (photoErr) throw photoErr;
+    }
     const { error: runErr } = await db.from("agent_runs").insert({
       store_id: store.id,
       conversation_id: conversation.id,
@@ -199,12 +226,16 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
     .limit(HISTORY_LIMIT);
   if (histErr) throw histErr;
   const ordered = (rows ?? []).slice().reverse();
-  const history: ChatMessage[] = ordered
-    .filter((m) => m.body)
-    .map((m) => ({
-      role: m.direction === "inbound" ? "user" : "assistant",
-      text: m.body as string,
-    }));
+  const history: ChatMessage[] = ordered.flatMap((m): ChatMessage[] => {
+    if (m.body) {
+      return [{ role: m.direction === "inbound" ? "user" : "assistant", text: m.body as string }];
+    }
+    // Outbound photo rows have no body: keep a note so the model knows the photo was sent.
+    if (m.direction === "outbound") {
+      return photoHistoryNotes(m.attachments).map((text): ChatMessage => ({ role: "assistant", text }));
+    }
+    return [];
+  });
 
   // Photos sent since our last reply (newest MAX_IMAGES, see meta/webhook.ts). Fetched only when a model that sees images
   // may answer; the photos go on the last customer turn, and text-only providers never receive them.
@@ -271,6 +302,8 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       faq: supabaseFaq(db),
       conversationId: conversation.id,
       customerId: input.customerId,
+      storageBase: env("SUPABASE_URL"),
+      photos: supabasePhotos(db),
     };
 
     let result: AgentResult;
@@ -304,7 +337,7 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       meta.provider = "anthropic";
     }
 
-    await record({ reply: result.reply, model: result.model, provider: meta.provider }, {
+    await record({ reply: result.reply, model: result.model, provider: meta.provider, photos: result.photos }, {
       tool_calls: result.toolCalls,
       input_tokens: result.usage.input_tokens,
       output_tokens: result.usage.output_tokens,
@@ -334,6 +367,7 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       fell_back: meta.attempts.length > 0,
       fast_path: false,
       limited: false,
+      ...(result.photos ? { photos: result.photos } : {}),
     };
   } catch (err) {
     const { data: failedRun } = await db.from("agent_runs")

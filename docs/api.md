@@ -33,7 +33,9 @@ reply. Used by the dashboard's Assistant page ("Try your assistant") and by dev 
 **Response.**
 
 - `chat`: the result of `handleInbound` (`_shared/pipeline/`). On success the object has `ok: true` and the reply
-  fields. The exact field list is not fully specified here; see `_shared/pipeline/reply.ts`.
+  fields. The exact field list is not fully specified here; see `_shared/pipeline/reply.ts`. When the assistant
+  sent product photos, `photos` lists them as `[{"url": "...", "name": "..."}]` (only the store's own photos in
+  `product-images`). Real customers get them as separate image messages after the text reply.
 - `reset`: `{"status": "bot"}`.
 - `usage`: `{"usage": {...}}` from `getUsage`. The exact fields are not specified in this document.
 

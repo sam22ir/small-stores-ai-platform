@@ -14,6 +14,8 @@ import type {
   ChatMessage,
   FaqPort,
   OrderPort,
+  PhotoPort,
+  ProductPhoto,
   StoreContext,
   ToolCallLog,
 } from "./types.ts";
@@ -50,6 +52,8 @@ export interface ChatCompletionsOptions {
   conversationId?: string;
   customerId?: string;
   lookups?: string[]; // facts from earlier lookups in this chat, oldest first
+  storageBase?: string; // SUPABASE_URL, for the product photo links (tools/photo.ts)
+  photos?: PhotoPort; // photos already sent in this chat
 }
 
 interface ToolCall {
@@ -142,6 +146,7 @@ export async function runAgentChatCompletions(
 
   const tools = openAITools(store);
   const toolCalls: ToolCallLog[] = [];
+  const sentPhotos: ProductPhoto[] = []; // queued by send_product_photo, sent after the reply
   const usage = { input_tokens: 0, output_tokens: 0 };
   let handoffReason: string | null = null;
   let handoffSummary: string | null = null;
@@ -241,6 +246,9 @@ export async function runAgentChatCompletions(
           faq: opts.faq,
           conversationId: opts.conversationId,
           customerId: opts.customerId,
+          storageBase: opts.storageBase,
+          photos: opts.photos,
+          sentPhotos,
         });
         if (outcome.handoffReason) {
           handoffReason = outcome.handoffReason;
@@ -296,5 +304,6 @@ export async function runAgentChatCompletions(
     toolCalls: capLookupOutputs(toolCalls),
     usage,
     model,
+    ...(sentPhotos.length ? { photos: sentPhotos } : {}),
   };
 }

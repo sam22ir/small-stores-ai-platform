@@ -53,6 +53,7 @@ const en = {
   "inbox.summary": "Summary",
   "inbox.customer": "Customer",
   "inbox.noMessages": "No messages",
+  "inbox.photoSent": "Sent a photo",
   "inbox.waitingCount": "{n} clients waiting",
   "inbox.selectConversation": "Select a conversation",
   "inbox.search": "Search by name or message",
