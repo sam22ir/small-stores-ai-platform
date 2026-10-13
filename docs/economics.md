@@ -2,6 +2,8 @@
 
 Assumptions are rough and meant to be replaced with real pilot numbers. Last updated 2026-10-04.
 
+Note: the code default model is Claude (`claude-sonnet-5-5`, see [project-plan.md](project-plan.md)). The GPT-6 Luna and friend's endpoint figures below are for the optional OpenAI-compatible provider only, and no Claude cost figures are recorded here yet.
+
 ## Assumptions
 
 | Item | Value | Source |

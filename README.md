@@ -1,18 +1,19 @@
 # Small Stores AI Platform
 
-A B2B platform that gives solo store owners selling on **Instagram** and **Facebook Pages**
-an AI agent that answers customer DMs for them.
+A B2B platform that gives solo store owners selling on **Instagram** an AI agent that answers
+customer DMs for them. Facebook Messenger is coming soon.
 
 ## Scope (v0)
 
 The agent can, for a connected store:
 
-- receive customer DMs from Instagram and Facebook Page inbox
+- receive customer DMs from the Instagram inbox
 - check product stock (by product / variant) and prices
 - answer customers using only the store's own catalog data
+- take cash-on-delivery orders in chats, if the owner turns on order taking (off by default per store)
 - hand the conversation to the owner when it cannot help
 
-Out of scope for v0: taking payments, creating orders, comment replies, other channels.
+Out of scope for v0: online payments from customers, comment replies, Facebook Messenger and other channels.
 
 ## Web site (landing + dashboard)
 

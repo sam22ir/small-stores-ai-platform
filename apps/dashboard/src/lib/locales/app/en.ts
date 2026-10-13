@@ -109,7 +109,7 @@ const en = {
   "settings.agent": "Assistant is on",
   "settings.agentHelp": "Turn off to stop automatic replies on connected accounts.",
   "channels.title": "Channels",
-  "channels.intro": "Connect the Instagram or Facebook page your customers write to. The assistant will answer there.",
+  "channels.intro": "Connect the Instagram account your customers write to. The assistant will answer there. Facebook Messenger is coming soon.",
   "channels.none": "No account connected yet.",
   "channels.facebook": "Facebook Page",
   "channels.instagram": "Instagram",
