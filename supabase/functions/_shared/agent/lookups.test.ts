@@ -28,7 +28,7 @@ test("order rules: collecting details is the assistant's job; handoff only in th
   assert.match(p, /Never hand off just to collect details/);
   assert.match(p, /accept Algerian formats with spaces, dots or a \+213 prefix/);
   assert.match(p, /Use handoff_to_owner for orders only when create_order fails twice, the wilaya isn't served, or the customer asks for a discount, an exchange or a custom order/);
-  assert.match(p, /call quote_delivery for the wilaya, then write one short summary/);
+  assert.match(p, /call quote_delivery for the wilaya, then write the order summary as a short list/);
 });
 
 test("lookup facts are listed only when there are some, and the newest are kept within about 1 KB", () => {
