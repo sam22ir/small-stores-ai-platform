@@ -5,7 +5,7 @@ import type { ExistingProduct, Product } from "./catalog.ts";
 import { groupRows, parseImport } from "./importer.ts";
 
 const found: ExistingProduct = {
-  id: "p1", name: "Black Hoodie", description: "Heavy cotton", aliases: null, price_cents: 450000, active: true,
+  id: "p1", name: "Black Hoodie", description: "Heavy cotton", aliases: null, price_cents: 450000, active: true, image_url: null,
   product_variants: [
     { id: "v1", label: "S", stock_quantity: 0, price_cents: null },
     { id: "v2", label: "M", stock_quantity: 3, price_cents: null },
@@ -32,7 +32,7 @@ test("an existing product keeps its name, description, aliases, price and active
   const plan = planImportSave(found, g, "Default");
   assert.ok(plan);
   assert.deepEqual(plan.product, {
-    name: "Black Hoodie", description: "Heavy cotton", aliases: null, price_cents: 450000, active: true,
+    name: "Black Hoodie", description: "Heavy cotton", aliases: null, price_cents: 450000, active: true, image_url: null,
   });
 });
 
@@ -63,12 +63,22 @@ test("a single-variant product matches an import row with no option label", () =
   assert.deepEqual(plan.variants, [{ id: "v9", label: "Brown", stock_quantity: 4, price_cents: 350000 }]);
 });
 
+test("an import keeps the product photo, and a new product has none", () => {
+  const photo = "https://x.test/storage/v1/object/public/product-images/s1/p.jpg";
+  const plan = planImportSave({ ...found, image_url: photo }, group("name, price, stock, option\nBlack Hoodie, , 5, M"), "Default");
+  assert.ok(plan);
+  assert.equal(plan.product.image_url, photo);
+  const created = planImportSave(undefined, group("name, price, stock, option\nSilk Scarf, 1500, 8, "), "Default");
+  assert.ok(created);
+  assert.equal(created.product.image_url, null);
+});
+
 test("a new product with no price is skipped, and a new product with a price is created with its options", () => {
   assert.equal(planImportSave(undefined, group("name, price, stock, option\nSilk Scarf, , 8, "), "Default"), null);
   const plan = planImportSave(undefined, group("name, price, stock, option\nSilk Scarf, 1500, 8, "), "Default");
   assert.ok(plan);
   assert.equal(plan.created, true);
-  assert.deepEqual(plan.product, { name: "Silk Scarf", description: null, aliases: null, price_cents: 150000, active: true });
+  assert.deepEqual(plan.product, { name: "Silk Scarf", description: null, aliases: null, price_cents: 150000, active: true, image_url: null });
   assert.deepEqual(plan.variants, [{ label: "Default", stock_quantity: 8, price_cents: null }]);
 });
 
@@ -76,7 +86,7 @@ test("isStale only flags active products whose numbers are older than the thresh
   const now = Date.parse("2026-10-11T12:00:00Z");
   const base: Product = {
     id: "p", name: "x", description: null, price_cents: 1, active: true, aliases: null,
-    stock_checked_at: "2026-10-10T12:00:00Z", sold_out_until: null, product_variants: [],
+    stock_checked_at: "2026-10-10T12:00:00Z", sold_out_until: null, image_url: null, product_variants: [],
   };
   assert.equal(isStale(base, 14, now), false);
   assert.equal(isStale({ ...base, stock_checked_at: "2026-09-01T00:00:00Z" }, 14, now), true);

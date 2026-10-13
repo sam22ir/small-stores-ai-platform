@@ -4,17 +4,18 @@ import type { ImportProduct } from "./importer";
 export type Variant = { id: string; label: string; price_cents: number | null; stock_quantity: number; sku: string | null; updated_at: string };
 export type Product = {
   id: string; name: string; description: string | null; price_cents: number; active: boolean;
-  aliases: string | null; stock_checked_at: string; sold_out_until: string | null; product_variants: Variant[];
+  aliases: string | null; stock_checked_at: string; sold_out_until: string | null; image_url: string | null; product_variants: Variant[];
 };
 
-// What the save_product RPC takes (see supabase/migrations/0024_dashboard_rpcs.sql). The product is the
+// What the save_product RPC takes (see supabase/migrations/0024_dashboard_rpcs.sql and 0029_product_images.sql). The product is the
 // full state: a missing key is not "unchanged", so every field must be sent. Variants missing from the
 // list are deleted, so every existing variant has to be sent back too.
-export type SaveProduct = { name: string; description: string | null; aliases: string | null; price_cents: number; active: boolean };
+// image_url is written on every save (null clears the photo), so callers must send the current value back.
+export type SaveProduct = { name: string; description: string | null; aliases: string | null; price_cents: number; active: boolean; image_url: string | null };
 export type SaveVariant = { id?: string; label: string; stock_quantity: number; price_cents: number | null };
 
 // The fields the import needs from a product that already exists.
-export type ExistingProduct = Pick<Product, "id" | "name" | "description" | "aliases" | "price_cents" | "active"> & {
+export type ExistingProduct = Pick<Product, "id" | "name" | "description" | "aliases" | "price_cents" | "active" | "image_url"> & {
   product_variants: Pick<Variant, "id" | "label" | "stock_quantity" | "price_cents">[];
 };
 
@@ -44,7 +45,7 @@ export function planImportSave(found: ExistingProduct | undefined, g: ImportProd
     if (g.priceCents === null) return null;
     return {
       created: true,
-      product: { name: g.name, description: g.description || null, aliases: g.aliases || null, price_cents: g.priceCents, active: true },
+      product: { name: g.name, description: g.description || null, aliases: g.aliases || null, price_cents: g.priceCents, active: true, image_url: null },
       variants: g.options.map((o) => ({ label: o.label || defaultLabel, stock_quantity: o.stock ?? 0, price_cents: o.priceCents })),
     };
   }
@@ -74,6 +75,7 @@ export function planImportSave(found: ExistingProduct | undefined, g: ImportProd
       aliases: g.aliases || found.aliases,
       price_cents: g.priceCents ?? found.price_cents,
       active: found.active,
+      image_url: found.image_url ?? null,
     },
     variants: [...kept, ...added],
   };

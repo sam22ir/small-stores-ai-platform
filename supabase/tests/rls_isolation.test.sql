@@ -479,7 +479,42 @@ select is((store_insights('11111111-0000-0000-0000-00000000000a', 7) ->> 'reply_
   (select reply_credits from stores where id = '11111111-0000-0000-0000-00000000000a'),
   'insights report the store reply credits');
 
+-- Product photos (0029_product_images.sql). User A is still authenticated here.
+select lives_ok($$insert into storage.objects (bucket_id, name) values
+  ('product-images', '11111111-0000-0000-0000-00000000000a/photo-a.jpg')$$,
+  'a member can upload a product photo under their own store folder');
+
+select ok(pg_temp.write_denied($$insert into storage.objects (bucket_id, name) values
+  ('product-images', '22222222-0000-0000-0000-00000000000b/photo-b.jpg')$$),
+  'a member cannot upload a product photo under another store folder');
+
+select ok(pg_temp.write_denied($$insert into storage.objects (bucket_id, name) values
+  ('product-images', 'not-a-uuid/photo.jpg')$$),
+  'a folder that is not a store id is rejected without a cast error');
+
+-- Update and delete are checked through the policy catalog, not by running them against storage internals.
+select is((select array_agg(cmd::text order by cmd) from pg_policies
+           where schemaname = 'storage' and tablename = 'objects' and policyname like 'product_images_member_%'
+             and 'authenticated' = any(roles)),
+  array['DELETE', 'INSERT', 'SELECT', 'UPDATE'],
+  'product-images storage policies exist for authenticated on select, insert, update and delete');
+
+select lives_ok($$select save_product('11111111-0000-0000-0000-00000000000a', null,
+  '{"name":"Photo own","price_cents":100,"image_url":"https://x.test/storage/v1/object/public/product-images/11111111-0000-0000-0000-00000000000a/a.jpg"}', '[]')$$,
+  'save_product accepts a photo URL in its own store folder');
+
+select lives_ok($$select save_product('11111111-0000-0000-0000-00000000000a', null,
+  '{"name":"Photo foreign","price_cents":100,"image_url":"https://x.test/storage/v1/object/public/product-images/22222222-0000-0000-0000-00000000000b/b.jpg"}', '[]')$$,
+  'save_product accepts a foreign photo URL without failing (the URL is dropped)');
+
 reset role;
+
+select is((select image_url from products where name = 'Photo own'),
+  'https://x.test/storage/v1/object/public/product-images/11111111-0000-0000-0000-00000000000a/a.jpg',
+  'save_product stores the photo URL of its own store folder');
+
+select is((select image_url from products where name = 'Photo foreign'), null::text,
+  'save_product stores null for a photo URL of another store folder');
 
 -- Final state (superuser): denied writes changed nothing.
 select is((select name from products where id = 'a2000000-0000-0000-0000-00000000000a'), 'Product A v2',

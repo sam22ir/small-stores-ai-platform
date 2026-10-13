@@ -49,7 +49,7 @@ export function Catalog() {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("products")
-      .select("id,name,description,price_cents,active,aliases,stock_checked_at,sold_out_until,product_variants(id,label,price_cents,stock_quantity,sku,updated_at)")
+      .select("id,name,description,price_cents,active,aliases,stock_checked_at,sold_out_until,image_url,product_variants(id,label,price_cents,stock_quantity,sku,updated_at)")
       .order("name", { ascending: true })
       .order("label", { referencedTable: "product_variants", ascending: true });
     if (error) { setFailed(true); return; }

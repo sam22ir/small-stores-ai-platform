@@ -293,6 +293,26 @@ try {
   await page.click("[role=dialog] button:has-text('Cancel')");
   await page.waitForSelector("[role=dialog]", { state: "detached" });
 
+  // 4b2. product photo: picked, previewed, uploaded, saved with the product, shown as a thumbnail, then removed
+  const PHOTO_URL = /\/storage\/v1\/object\/public\/product-images\/[^/]+\/[0-9a-f-]{36}\.jpg$/; // store folder is "s1" in the mock
+  const PNG_1X1 = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+  await hoodie().getByRole("button", { name: "Edit" }).click();
+  await page.waitForSelector("[role=dialog]");
+  await page.setInputFiles("[role=dialog] input[type=file]", { name: "hoodie.png", mimeType: "image/png", buffer: PNG_1X1 });
+  await page.waitForSelector("[role=dialog] img[src*='/product-images/']", { timeout: 5000 }).catch(() => {});
+  ok("a picked photo is uploaded to the product-images bucket and previewed", await logged((l) => l.startsWith("POST /storage/v1/object/product-images/")) && await page.isVisible("[role=dialog] img[src*='/product-images/']"));
+  await page.click("[role=dialog] button[type=submit]");
+  await page.waitForSelector("[role=dialog]", { state: "detached" });
+  ok("saving sends the uploaded photo URL with the product", await rpcSeen("save_product", (a) => a.p_product_id === "p1" && PHOTO_URL.test(a.p_product.image_url ?? "")));
+  ok("the product row shows the photo thumbnail", await hoodie().locator("img[alt='Black Hoodie'][loading='lazy']").first().waitFor({ timeout: 5000 }).then(() => true, () => false));
+
+  await hoodie().getByRole("button", { name: "Edit" }).click();
+  await page.waitForSelector("[role=dialog]");
+  await page.click("[role=dialog] button:has-text('Remove photo')");
+  await page.click("[role=dialog] button[type=submit]");
+  await page.waitForSelector("[role=dialog]", { state: "detached" });
+  ok("removing the photo saves a null image_url and deletes the stored file", await rpcSeen("save_product", (a) => a.p_product_id === "p1" && a.p_product.image_url === null) && await logged((l) => l.startsWith("DELETE /storage/v1/object/product-images")));
+
   // 4c. stock +/- go through adjust_stock and show the number it returns (L: 30)
   await variantRow(page, "Black Hoodie", "L").getByRole("button", { name: "Increase stock" }).click();
   ok("stock + calls adjust_stock with +1 and shows the stored quantity", await rpcSeen("adjust_stock", (a) => a.p_variant_id === "v3" && a.p_delta === 1) && await stockShows(page, "Black Hoodie", "L", 31));

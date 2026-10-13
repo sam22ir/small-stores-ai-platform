@@ -54,10 +54,16 @@ export function ProductRow({ p, currency, onEdit, onRemove, onToggleActive, onMa
       className="flex flex-col gap-3 rounded-wakil-lg border-2 border-ink bg-slip p-4 shadow-ink-sm"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-[15px] font-extrabold text-ink">{p.name}</div>
-          {p.aliases && <div className="truncate text-[13px] text-soft">{p.aliases}</div>}
-          <div className="mt-1 text-[15px] font-bold">{formatMoney(p.price_cents, currency, lang)}{!p.active && <span className="text-[13px] font-normal text-soft"> · {t("catalog.hidden")}</span>}</div>
+        <div className="flex min-w-0 items-start gap-3">
+          {p.image_url && (
+            <img src={p.image_url} alt={p.name} loading="lazy" width={56} height={56}
+              className="size-14 shrink-0 rounded-wakil border-2 border-ink/15 object-cover" />
+          )}
+          <div className="min-w-0">
+            <div className="text-[15px] font-extrabold text-ink">{p.name}</div>
+            {p.aliases && <div className="truncate text-[13px] text-soft">{p.aliases}</div>}
+            <div className="mt-1 text-[15px] font-bold">{formatMoney(p.price_cents, currency, lang)}{!p.active && <span className="text-[13px] font-normal text-soft"> · {t("catalog.hidden")}</span>}</div>
+          </div>
         </div>
         <div className="flex shrink-0 gap-2">
           <Button size="sm" variant="outline" className="min-h-11" onPress={onEdit}>{t("common.edit")}</Button>
