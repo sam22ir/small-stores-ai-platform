@@ -72,14 +72,32 @@ reports `provider` and `fell_back`, and `agent_runs` records the provider and wh
 
 Unit tests (fake model client, catalog and database, no network): `npm install && npm test`.
 
-To score whichever model the function is currently configured with (12 scenarios: catalog use, hidden stock counts,
-handoff, injection, Arabic, Darija in Latin letters, French, free greeting/thanks replies, store info), run against the
-seeded demo store. `EVAL_ORDERS=1` adds the multi-turn order flow (turn on "Take orders" for that store first):
+To score whichever model the function is currently configured with (36 scenarios: catalog use, hidden stock counts,
+handoff and human requests, out-of-stock and unknown-policy answers, prompt injection, language and script, Darija in Latin
+letters, French, emoji- and markdown-free replies, free greeting/thanks replies, store info), run against the seeded demo
+store. `EVAL_ORDERS=1` adds the multi-turn order flow (turn on "Take orders" for that store first).
+
+**This makes real model calls and costs tokens.** Each case is one message through the configured model, and the
+function allows 60 test messages per store per hour, so a full run uses most of that allowance. Run it only against a
+dedicated eval store, never a real customer store:
+
+1. Apply `supabase/seed.sql` to the project that `PLAYGROUND_URL` points at. Locally, `supabase db reset` applies it; on a
+   hosted project, run the file in the SQL editor. Use a project that holds no customer stores. The seed creates its own
+   "Demo Boutique" store, separate from customer stores, and does nothing if one with that name already exists.
+2. Find its id: `select id from stores where name = 'Demo Boutique';`. Put only that id in `PLAYGROUND_STORE_IDS`
+   on the function, and use it as `STORE_ID`. Never set either to a customer store. Test messages are written as
+   conversations, messages and `agent_runs` rows in that store.
+3. Run:
 
 ```sh
 PLAYGROUND_URL=https://<project-ref>.supabase.co/functions/v1/assistant-chat \
-PLAYGROUND_SECRET=... STORE_ID=<demo store id> npm run eval
+PLAYGROUND_SECRET=... STORE_ID=<eval store id> npm run eval
 ```
+
+Options: `EVAL_ONLY=substr1,substr2` runs only the cases whose name contains one of the substrings (case-insensitive;
+it exits 2 if nothing matches). The run ends with `N/M checks passed` and exits 1 if any check fails. A 429 means the
+hourly cap was reached: wait an hour, or run fewer cases. The checks are mechanical (tool calls, handoff flag, banned
+patterns), so read the printed replies too.
 
 ## Setup
 
