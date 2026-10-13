@@ -34,8 +34,13 @@ function Stat({ testId, label, value }: { testId: string; label: string; value: 
   );
 }
 
-// Hand-built SVG bars (no chart library). The chart is decorative for sighted users; the sr-only table and
-// the aria-label carry the same numbers for screen readers. The chart stays LTR so time runs left to right.
+// Hand-built bars (no chart library). Every bar shows its count, the busiest value is named on the scale line,
+// days without activity keep a thin tick so the time axis stays readable, and each column has a hover title.
+// The chart is decorative for sighted users; the sr-only table and the aria-label carry the same numbers for
+// screen readers. The chart stays LTR so time runs left to right.
+// Pixel heights: percentages collapse inside a flex column. The chart is h-40 (160px); the top 20px hold the count above the tallest bar.
+const BAR_AREA = 140;
+
 function BarChart({ title, label, days, dataKey, fill, lang, dayHeader }: {
   title: string;
   label: string;
@@ -47,34 +52,50 @@ function BarChart({ title, label, days, dataKey, fill, lang, dayHeader }: {
 }) {
   const reduced = useMotionSafe();
   const heights = barHeights(days, dataKey);
-  const width = Math.max(days.length, 1) * 10;
-  const first = days[0];
-  const last = days[days.length - 1];
+  const numberFmt = new Intl.NumberFormat(LOCALES[lang]);
+  const peak = Math.max(0, ...days.map((d) => Number(d[dataKey]) || 0));
+  // With many days the counts above the bars would collide, so they are shown for short ranges only.
+  const showCounts = days.length <= 14;
+  // Date labels: every day for a week, otherwise about one in five plus the last day.
+  const labelEvery = days.length <= 7 ? 1 : 5;
+  const showDate = (i: number) => i % labelEvery === 0 || i === days.length - 1;
   return (
     <figure className="m-0 flex flex-col gap-2 rounded-wakil-lg border-2 border-ink bg-slip p-4 shadow-ink-sm">
-      <figcaption className="text-sm font-bold text-ink">{title}</figcaption>
-      <div dir="ltr" className="h-36 w-full">
-        <svg role="img" aria-label={label} viewBox={`0 0 ${width} 100`} preserveAspectRatio="none" className="h-full w-full" focusable="false">
-          {heights.map((h, i) => (
-            <m.rect
-              key={days[i].day}
-              x={i * 10 + 2}
-              y={100 - h * 100}
-              width={6}
-              height={h * 100}
-              className={fill}
-              initial={reduced ? false : { scaleY: 0 }}
-              animate={{ scaleY: 1 }}
-              style={{ transformOrigin: "50% 100%", transformBox: "fill-box" }}
-              transition={{ duration: dur.base, ease: ease.out }}
-            />
-          ))}
-        </svg>
+      <figcaption className="flex items-baseline justify-between gap-2 text-sm font-bold text-ink">
+        <span>{title}</span>
+        <span className="text-xs font-semibold tabular-nums text-soft" aria-hidden="true">{numberFmt.format(peak)}</span>
+      </figcaption>
+      <div role="img" aria-label={label} dir="ltr" className="relative flex h-40 w-full items-stretch gap-1 border-b-2 border-ink/30">
+        {/* The top line is the busiest day's value, so bar heights can be read against it. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-5 border-t border-dashed border-ink/15" />
+        {heights.map((h, i) => {
+          const value = Number(days[i][dataKey]) || 0;
+          const tip = `${formatDay(days[i].day, lang)}: ${numberFmt.format(value)}`;
+          return (
+            <div key={days[i].day} title={tip} className="flex min-w-0 flex-1 flex-col items-center justify-end">
+              {showCounts && (
+                <span aria-hidden="true" className="mb-0.5 text-[11px] font-bold tabular-nums leading-none text-ink">{value > 0 ? numberFmt.format(value) : ""}</span>
+              )}
+              {value > 0 ? (
+                <m.div
+                  className={`w-full max-w-10 rounded-t-md ${fill}`}
+                  style={{ height: Math.max(Math.round(h * BAR_AREA), 4), transformOrigin: "50% 100%" }}
+                  initial={reduced ? false : { scaleY: 0 }}
+                  animate={{ scaleY: 1 }}
+                  transition={{ duration: dur.base, ease: ease.out }}
+                />
+              ) : (
+                <div className="h-0.5 w-full max-w-10 rounded-full bg-ink/20" />
+              )}
+            </div>
+          );
+        })}
       </div>
-      {first && last && (
-        <div dir="ltr" className="flex justify-between text-xs text-soft" aria-hidden="true">
-          <span>{formatDay(first.day, lang)}</span>
-          <span>{formatDay(last.day, lang)}</span>
+      {days.length > 0 && (
+        <div dir="ltr" className="flex gap-1 text-[10px] leading-tight text-soft" aria-hidden="true">
+          {days.map((d, i) => (
+            <span key={d.day} className="min-w-0 flex-1 whitespace-nowrap text-center">{showDate(i) ? formatDay(d.day, lang) : ""}</span>
+          ))}
         </div>
       )}
       <table className="sr-only">
@@ -187,7 +208,7 @@ export function Insights() {
                 label={t("insights.chartLabel", { name: t("insights.chartConversations"), total: nf.format(totals.conversations), days: range })}
                 days={data.days}
                 dataKey="conversations"
-                fill="fill-blue"
+                fill="bg-blue"
                 lang={lang}
                 dayHeader={t("insights.day")}
               />
@@ -196,7 +217,7 @@ export function Insights() {
                 label={t("insights.chartLabel", { name: t("insights.chartOrders"), total: nf.format(totals.orders), days: range })}
                 days={data.days}
                 dataKey="orders"
-                fill="fill-ink"
+                fill="bg-ink"
                 lang={lang}
                 dayHeader={t("insights.day")}
               />
