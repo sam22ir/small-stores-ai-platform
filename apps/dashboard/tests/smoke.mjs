@@ -792,19 +792,24 @@ try {
     ok("insights page is reachable from the nav", await page.isVisible("h1:has-text('Insights')"));
     ok("stat cards show the 7-day totals from store_insights", await cardsMatch(page, want7));
     ok("first load asks for 7 days", await logged((l) => l.includes("/rest/v1/rpc/store_insights") && l.includes('"p_days":7')));
-    ok("the bar charts have accessible labels and a data table", await page.isVisible("svg[role=img][aria-label^='Conversations per day']") && await page.locator("table.sr-only tbody tr").count() === 14);
+    ok("the bar charts have accessible labels and a data table", await page.isVisible("[role=img][aria-label^='Conversations per day']") && await page.locator("table.sr-only tbody tr").count() === 14);
     await page.click("[role=tab]:has-text('30 days')");
     ok("30-day toggle asks for 30 days", await logged((l) => l.includes("/rest/v1/rpc/store_insights") && l.includes('"p_days":30')));
     await page.waitForFunction((n) => document.querySelector("[data-testid=insights-stat-orders] .text-2xl")?.textContent?.trim() === n, String(want30.totals.orders), { timeout: 3000 }).catch(() => {});
     ok("the 30-day window holds more orders than the 7-day one", want30.totals.orders > want7.totals.orders);
     ok("stat cards show the 30-day totals after the toggle", await cardsMatch(page, want30));
+    await page.waitForTimeout(900); // the bars animate in
+    ok("the busiest day's bar has a real height (not collapsed)", await page.evaluate(() => {
+      const bars = [...document.querySelectorAll("figure [role=img] div[class*='rounded-t-md']")];
+      return bars.length > 0 && Math.max(...bars.map((b) => b.getBoundingClientRect().height)) > 100;
+    }));
     await page.screenshot({ path: OUT + "11-insights-30d.png" });
 
     // An empty window shows the empty state instead of charts.
     state.insightsEmpty = true;
     await page.reload();
     await page.waitForSelector("[data-testid=insights-empty]", { timeout: 5000 }).catch(() => {});
-    ok("an all-zero window shows the empty state and no charts", await page.isVisible("[data-testid=insights-empty]") && (await card(page, "conversations")) === "0" && (await page.locator("svg[role=img]").count()) === 0);
+    ok("an all-zero window shows the empty state and no charts", await page.isVisible("[data-testid=insights-empty]") && (await card(page, "conversations")) === "0" && (await page.locator("figure [role=img]").count()) === 0);
     state.insightsEmpty = false;
     ok("no runtime errors on the insights page", errors.length === 0);
     if (errors.length) console.log(errors.join("\n"));
