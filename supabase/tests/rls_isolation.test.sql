@@ -340,6 +340,20 @@ reset role;
 select is((select handed_off_at from conversations where id = 'a5300000-0000-0000-0000-00000000000a'), null::timestamptz,
   'owner takeover with unchanged reason does not stamp handed_off_at');
 
+-- handoff_summary: written by the agent only. A member cannot write it, and the trigger clears it when the chat leaves 'human'.
+update conversations set handoff_summary = 'Wants 2 hoodies, size M' where id = 'a5300000-0000-0000-0000-00000000000a';
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+set local role authenticated;
+select throws_ok($$update conversations set handoff_summary = 'Hacked' where id = 'a5300000-0000-0000-0000-00000000000a'$$,
+  '42501', NULL, 'a member cannot write handoff_summary');
+reset role;
+select is((select handoff_summary from conversations where id = 'a5300000-0000-0000-0000-00000000000a'), 'Wants 2 hoodies, size M',
+  'handoff_summary is untouched by the rejected member write');
+update conversations set status = 'bot' where id = 'a5300000-0000-0000-0000-00000000000a';
+select is((select handoff_summary from conversations where id = 'a5300000-0000-0000-0000-00000000000a'), null::text,
+  'handoff_summary is cleared when the chat leaves human');
+update conversations set status = 'human' where id = 'a5300000-0000-0000-0000-00000000000a';
+
 -- Inbox (user A) ----------------------------------------------------------------------
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-0000-0000-00000000000a","role":"authenticated"}', true);
 set local role authenticated;

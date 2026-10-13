@@ -52,6 +52,7 @@ const fr: Dict = {
   "inbox.emptyAssistant": "Aucune conversation pour l'instant.",
   "inbox.emptyClosed": "Aucune conversation clôturée.",
   "inbox.reason": "Pourquoi elle vous a été transmise",
+  "inbox.summary": "Résumé",
   "inbox.customer": "Client",
   "inbox.noMessages": "Aucun message",
   "inbox.waitingCount": "{n} client(s) attendent",

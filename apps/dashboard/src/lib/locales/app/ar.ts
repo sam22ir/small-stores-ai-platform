@@ -52,6 +52,7 @@ const ar: Dict = {
   "inbox.emptyAssistant": "لا توجد محادثات بعد.",
   "inbox.emptyClosed": "لا توجد محادثات مغلقة.",
   "inbox.reason": "سبب تحويلها إليك",
+  "inbox.summary": "ملخص",
   "inbox.customer": "زبون",
   "inbox.noMessages": "لا توجد رسائل",
   "inbox.waitingCount": "{n} زبائن ينتظرون",

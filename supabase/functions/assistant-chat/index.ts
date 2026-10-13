@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
 
     if (action === "reset") {
       await db.from("conversations")
-        .update({ status: "bot", handoff_reason: null })
+        .update({ status: "bot", handoff_reason: null, handoff_summary: null })
         .eq("id", conversation.id);
       return json({ status: "bot" });
     }

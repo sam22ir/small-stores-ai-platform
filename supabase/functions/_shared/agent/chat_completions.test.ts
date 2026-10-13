@@ -246,3 +246,19 @@ test("maxAttempts: 1 disables the retry on 429", async () => {
   await assert.rejects(runAgentChatCompletions({ ...base, fetchImpl, maxAttempts: 1 }), /429/);
   assert.equal(calls.length, 1);
 });
+
+test("handoff summary travels with the handoff reason (chat completions)", async () => {
+  const { fetchImpl } = fakeFetch([
+    toolCall("handoff_to_owner", '{"reason":"wants to order","summary":"Hoodie M x2, Oran."}'),
+    text("The owner will reply."),
+  ]);
+  const r = await runAgentChatCompletions({ ...base, fetchImpl });
+  assert.equal(r.handoffSummary, "Hoodie M x2, Oran.");
+});
+
+test("a handoff without a summary field has a null summary (chat completions)", async () => {
+  const { fetchImpl } = fakeFetch([toolCall("handoff_to_owner", '{"reason":"wants to order"}'), text("The owner will reply.")]);
+  const r = await runAgentChatCompletions({ ...base, fetchImpl });
+  assert.equal(r.handoffReason, "wants to order");
+  assert.equal(r.handoffSummary, null);
+});
