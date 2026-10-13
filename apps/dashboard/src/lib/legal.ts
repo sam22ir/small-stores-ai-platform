@@ -8,5 +8,5 @@ export const legal = {
   operator: env.VITE_LEGAL_OPERATOR || "[Operator name: set VITE_LEGAL_OPERATOR]",
   location: env.VITE_LEGAL_LOCATION || "Algeria",
   email: env.VITE_LEGAL_EMAIL || "[Contact email: set VITE_LEGAL_EMAIL]",
-  updated: "5 October 2026",
+  updated: "13 October 2026",
 };

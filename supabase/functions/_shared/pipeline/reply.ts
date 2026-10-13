@@ -12,6 +12,8 @@ import {
 import { DEFAULT_MODEL, runAgent } from "../agent/run.ts";
 import { errorKind } from "../agent/errors.ts";
 import type { AgentResult, ChatMessage } from "../agent/types.ts";
+import { fetchImageDataUrl } from "../meta/media.ts";
+import { MAX_IMAGES } from "../meta/webhook.ts";
 import { supabaseCatalog, supabaseFaq, supabaseOrders } from "./ports.ts";
 import { claimCapAlert, getUsage, loadLookups } from "./usage.ts";
 import { billingState, claimBillingAlert } from "../billing.ts";
@@ -191,17 +193,43 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
 
   const { data: rows, error: histErr } = await db
     .from("messages")
-    .select("direction,body")
+    .select("direction,body,attachments")
     .eq("conversation_id", conversation.id)
     .order("created_at", { ascending: false })
     .limit(HISTORY_LIMIT);
   if (histErr) throw histErr;
-  const history: ChatMessage[] = (rows ?? []).reverse()
+  const ordered = (rows ?? []).slice().reverse();
+  const history: ChatMessage[] = ordered
     .filter((m) => m.body)
     .map((m) => ({
       role: m.direction === "inbound" ? "user" : "assistant",
       text: m.body as string,
     }));
+
+  // Photos sent since our last reply (newest MAX_IMAGES, see meta/webhook.ts). Fetched only when a model that sees images
+  // may answer; the photos go on the last customer turn, and text-only providers never receive them.
+  const useVision = useOpenAICompatible ? !!primary?.vision || !!fallback?.vision : true;
+  if (useVision) {
+    const urls: string[] = [];
+    for (let i = ordered.length - 1; i >= 0 && ordered[i].direction === "inbound"; i--) {
+      const atts = (ordered[i].attachments ?? []) as { type?: string; url?: string }[];
+      for (const a of atts) {
+        if (a.type === "image" && a.url && urls.length < MAX_IMAGES) urls.push(a.url);
+      }
+    }
+    if (urls.length) {
+      const fetched = await Promise.all(urls.reverse().map((u) => fetchImageDataUrl(u)));
+      const images = fetched.flatMap((r) => {
+        if (r.ok) return [{ dataUrl: r.dataUrl }];
+        console.warn("media: image skipped", r.reason);
+        return [];
+      });
+      const lastCustomer = history.map((m) => m.role).lastIndexOf("user");
+      if (images.length && lastCustomer >= 0) history[lastCustomer] = { ...history[lastCustomer], images };
+    }
+  }
+  // The same history without photos, for providers that can't see them.
+  const textOnlyHistory = history.map((m) => ({ role: m.role, text: m.text }));
 
   const lookups = await loadLookups(db, conversation.id);
 
@@ -253,6 +281,7 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
         run: (p, limits) =>
           runAgentChatCompletions({
             ...common,
+            history: p.vision ? history : textOnlyHistory,
             baseUrl: p.baseUrl,
             apiKey: p.apiKey,
             model: p.model,

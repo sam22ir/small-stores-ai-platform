@@ -62,3 +62,18 @@ test("signatures: valid with either configured secret, otherwise rejected", asyn
   assert.ok(!await validSignature(raw, "sha256=zz", ["ig-secret"]));
   assert.ok(!await validSignature(raw, sign("ig-secret"), [undefined, ""])); // no secret configured
 });
+
+test("image attachments keep their links (at most three); other attachments don't", () => {
+  const image = (url: string) => ({ type: "image", payload: { url } });
+  const [e] = parseWebhook(ig([msg({ text: undefined, attachments: [image("https://a.fbcdn.net/1.jpg"), { type: "audio", payload: { url: "https://x/a.mp4" } }, image("https://a.fbcdn.net/2.jpg"), image("https://a.fbcdn.net/3.jpg"), image("https://a.fbcdn.net/4.jpg")] })]));
+  assert.deepEqual(e.images, ["https://a.fbcdn.net/1.jpg", "https://a.fbcdn.net/2.jpg", "https://a.fbcdn.net/3.jpg"]);
+  assert.equal(e.text, "[image]");
+  assert.equal("images" in parseWebhook(ig([msg({ attachments: [{ type: "audio" }] })]))[0], false);
+});
+
+test("stickers (sent as image attachments with a sticker_id) are not photos", () => {
+  const sticker = { type: "image", payload: { url: "https://scontent.fbcdn.net/s.png", sticker_id: 369239263222822 } };
+  const [e] = parseWebhook(ig([msg({ text: undefined, attachments: [sticker] })]));
+  assert.equal("images" in e, false);
+  assert.equal(e.text, "[image]");
+});

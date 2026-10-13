@@ -120,3 +120,13 @@ test("a failing name lookup is ignored, and a known name isn't looked up again",
   await ingestEvent({ ...deps, lookupName: () => { looked++; return Promise.resolve("x"); } }, event({ mid: "mid-2" }));
   assert.equal(looked, 0);
 });
+
+test("photo links are stored as message attachments; text-only messages store none", async () => {
+  const { tables, deps } = setup();
+  await ingestEvent(deps, event({ mid: "photo", images: ["https://scontent.cdninstagram.com/a.jpg"] }));
+  await ingestEvent(deps, event({ mid: "plain" }));
+  const photo = tables.messages.find((m) => m.platform_message_id === "photo");
+  const plain = tables.messages.find((m) => m.platform_message_id === "plain");
+  assert.deepEqual(photo?.attachments, [{ type: "image", url: "https://scontent.cdninstagram.com/a.jpg" }]);
+  assert.equal(plain && "attachments" in plain, false);
+});

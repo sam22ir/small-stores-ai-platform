@@ -12,6 +12,8 @@ export interface ProviderConfig {
   tokenParam: "max_tokens" | "max_completion_tokens";
   reasoningEffort?: string;
   temperature?: number;
+  // The model accepts photos (`${prefix}VISION=true`). Off by default: a text-only model rejects images.
+  vision: boolean;
 }
 
 type Env = (key: string) => string | undefined;
@@ -43,6 +45,7 @@ export function providerFromEnv(
       : "max_tokens",
     reasoningEffort: get(`${prefix}REASONING_EFFORT`) || undefined,
     temperature: temp ? Number(temp) : undefined,
+    vision: get(`${prefix}VISION`) === "true",
   };
 }
 

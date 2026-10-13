@@ -92,6 +92,8 @@ export interface FaqPort {
 export interface ChatMessage {
   role: "user" | "assistant";
   text: string;
+  // Photos the customer sent, as data URLs (see meta/media.ts). Only set on the last customer turn.
+  images?: { dataUrl: string }[];
 }
 
 export interface ToolCallLog {

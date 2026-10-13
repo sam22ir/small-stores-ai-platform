@@ -42,20 +42,47 @@ function isFrontierModel(model: string): boolean {
   return /^claude-(opus-5|fable-5|sonnet-5-5)/.test(model);
 }
 
+export type ImageType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+
+// One turn after merging: consecutive same-role messages become one turn.
+export interface Turn {
+  role: "user" | "assistant";
+  text: string;
+  images: { dataUrl: string }[];
+}
+
 // The API combines consecutive same-role turns, but the first must be `user`.
-export function toMessageParams(history: ChatMessage[]): MessageParam[] {
-  const out: MessageParam[] = [];
+export function mergeTurns(history: ChatMessage[]): Turn[] {
+  const out: Turn[] = [];
   for (const m of history) {
     if (!m.text.trim()) continue;
     const last = out[out.length - 1];
     if (last && last.role === m.role) {
-      last.content = `${last.content as string}\n${m.text}`;
+      last.text = `${last.text}\n${m.text}`;
+      last.images.push(...(m.images ?? []));
     } else {
-      out.push({ role: m.role, content: m.text });
+      out.push({ role: m.role, text: m.text, images: [...(m.images ?? [])] });
     }
   }
   while (out.length && out[0].role !== "user") out.shift();
   return out;
+}
+
+// Splits a data URL from meta/media.ts into the media type and base64 data Anthropic expects.
+export function imageSource(dataUrl: string): { media_type: ImageType; data: string } | null {
+  const m = /^data:(image\/(?:jpeg|png|gif|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  return m ? { media_type: m[1] as ImageType, data: m[2] } : null;
+}
+
+export function toMessageParams(history: ChatMessage[]): MessageParam[] {
+  return mergeTurns(history).map((t): MessageParam => {
+    const images = t.images.flatMap((i): Anthropic.Beta.Messages.BetaImageBlockParam[] => {
+      const source = imageSource(i.dataUrl);
+      return source ? [{ type: "image", source: { type: "base64", ...source } }] : [];
+    });
+    if (images.length === 0) return { role: t.role, content: t.text };
+    return { role: t.role, content: [{ type: "text", text: t.text }, ...images] };
+  });
 }
 
 const LATIN_DARIJA_SYSTEM =

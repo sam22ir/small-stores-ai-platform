@@ -73,6 +73,92 @@ test("runs tool calls, scoped to the store, and returns the final answer", async
   assert.equal(second.at(-1).tool_call_id, "c1");
 });
 
+test("a customer turn with photos is sent as text plus image_url parts", async () => {
+  const dataUrl = "data:image/png;base64,iVBORw==";
+  const { fetchImpl, calls } = fakeFetch([text("Yes, that hoodie.")]);
+  await runAgentChatCompletions({
+    ...base,
+    history: [
+      { role: "user", text: "hello" },
+      { role: "assistant", text: "Hi!" },
+      { role: "user", text: "[image]", images: [{ dataUrl }] },
+    ],
+    fetchImpl,
+  });
+  const msgs = calls[0].body.messages;
+  assert.equal(msgs.at(-1).role, "user");
+  assert.deepEqual(msgs.at(-1).content, [
+    { type: "text", text: "[image]" },
+    { type: "image_url", image_url: { url: dataUrl } },
+  ]);
+  assert.equal(msgs[1].content, "hello"); // earlier turns stay plain text
+  assert.equal(msgs[2].content, "Hi!");
+});
+
+test("text-only turns keep plain string content", async () => {
+  const { fetchImpl, calls } = fakeFetch([text("Hi!")]);
+  await runAgentChatCompletions({ ...base, fetchImpl });
+  assert.equal(calls[0].body.messages.at(-1).content, "black hoodie in M?");
+});
+
+test("a photo the endpoint refuses is retried once without photos, and the run still answers", async () => {
+  const dataUrl = "data:image/png;base64,iVBORw==";
+  const { fetchImpl, calls } = fakeFetch([
+    { status: 400, body: { error: { message: "This model does not support image input" } } },
+    text("I can't see the photo, but the owner can."),
+  ]);
+  const r = await runAgentChatCompletions({
+    ...base,
+    history: [{ role: "user", text: "[image]", images: [{ dataUrl }] }],
+    fetchImpl,
+  });
+  assert.equal(r.reply, "I can't see the photo, but the owner can.");
+  assert.equal(calls.length, 2);
+  assert.ok(Array.isArray(calls[0].body.messages.at(-1).content));
+  assert.equal(calls[1].body.messages.at(-1).content, "[image]");
+});
+
+test("after a refusal the rest of the run stays text-only", async () => {
+  const dataUrl = "data:image/png;base64,iVBORw==";
+  const { fetchImpl, calls } = fakeFetch([
+    { status: 400, body: { error: { message: "image input not supported" } } },
+    toolCall("search_products", '{"query":"hoodie"}'),
+    text("Done."),
+  ]);
+  await runAgentChatCompletions({
+    ...base,
+    history: [{ role: "user", text: "[image]", images: [{ dataUrl }] }],
+    fetchImpl,
+  });
+  assert.equal(calls.length, 3);
+  for (const c of calls.slice(1)) {
+    assert.ok(c.body.messages.some((m: { content: unknown }) => m.content === "[image]"));
+    assert.ok(c.body.messages.every((m: { content: unknown }) => !Array.isArray(m.content)));
+  }
+});
+
+test("a refusal that still fails without photos throws, so it counts as a provider failure", async () => {
+  const dataUrl = "data:image/png;base64,iVBORw==";
+  const { fetchImpl } = fakeFetch([
+    { status: 400, body: { error: { message: "image input not supported" } } },
+    { status: 400, body: { error: { message: "bad request" } } },
+  ]);
+  await assert.rejects(
+    runAgentChatCompletions({ ...base, history: [{ role: "user", text: "[image]", images: [{ dataUrl }] }], fetchImpl }),
+    /LLM request failed \(400\)/,
+  );
+});
+
+test("an ordinary 400 (not about images) is not retried", async () => {
+  const dataUrl = "data:image/png;base64,iVBORw==";
+  const { fetchImpl, calls } = fakeFetch([{ status: 400, body: { error: { message: "invalid api key" } } }]);
+  await assert.rejects(
+    runAgentChatCompletions({ ...base, history: [{ role: "user", text: "[image]", images: [{ dataUrl }] }], fetchImpl }),
+    /LLM request failed \(400\)/,
+  );
+  assert.equal(calls.length, 1);
+});
+
 test("invalid tool-argument JSON becomes a tool error, not a crash", async () => {
   const { fetchImpl, calls } = fakeFetch([toolCall("search_products", "{oops"), text("Let me ask the owner.")]);
   const r = await runAgentChatCompletions({ ...base, fetchImpl });

@@ -96,6 +96,8 @@ export async function ingestEvent(deps: IngestDeps, event: InboundEvent): Promis
       sender: "customer",
       body: event.text,
       platform_message_id: event.mid,
+      // Photo links only (they expire); the image itself is fetched when the reply is built.
+      ...(event.images?.length ? { attachments: event.images.map((url) => ({ type: "image", url })) } : {}),
     })
     .select("id")
     .single();
