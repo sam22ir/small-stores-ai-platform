@@ -197,8 +197,11 @@ unless `overwrite` is `true`. Editing a synced fee in the dashboard turns it int
 Sync failures answer `200` with `{"ok":false,"reason"}`: `bad_credentials`, `rate_limited` (with `retryAfter` seconds),
 `currency_mismatch` (store currency is not DZD), `not_connected`, `failed`. The last error is kept on the connection.
 
-**Unverified against Yalidine's own docs:** the fees path (`deliveryfees`, falling back to `fees`) and the per-commune
-price field names. Confirm them with a real merchant account before relying on synced prices.
+**Sources.** The response shape (`to_wilaya_name`, `per_commune` with `express_home`, `express_desk`, ...) comes from
+the community SDK (npm `yalidine`), not from Yalidine's own docs. That shape has no wilaya id, so the destination is
+resolved from its name. **Still unverified:** the fees path (`deliveryfees`, falling back to `fees`) and whether the
+`from_wilaya_id` filter is honoured (rows naming another origin are skipped either way). Confirm with a real merchant
+account before relying on synced prices.
 
 ## meta-webhook
 

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Alert, Button, Input, Label, ListBox, Select, TextField } from "@heroui/react";
 import { supabase } from "../../lib/supabase";
 import { useI18n } from "../../lib/i18n";
 import { formatTime } from "../../lib/format";
 import { WILAYAS } from "../../lib/wilayas";
+import { cleanCredential, guessWilaya } from "../../lib/yalidine";
 import { CARD, SECTION_TITLE } from "./shared";
 
 type FeeType = "home" | "desk";
@@ -44,8 +45,10 @@ async function callCarrier(body: Record<string, unknown>): Promise<CarrierResult
   return (data ?? { ok: false, reason: "failed" }) as CarrierResult;
 }
 
+const STEP_KEYS = ["yalidine.step1", "yalidine.step2", "yalidine.step3", "yalidine.step4"] as const;
+
 // Yalidine delivery fees: connect the account once, then sync its fees into the store's delivery fees.
-export function YalidineCard({ storeId, currency, onSynced }: { storeId: string; currency: string; onSynced: () => void }) {
+export function YalidineCard({ storeId, currency, onSynced, address }: { storeId: string; currency: string; onSynced: () => void; address?: string }) {
   const { t, lang } = useI18n();
   const dzd = currency === "DZD";
   const [status, setStatus] = useState<Status | null>(null);
@@ -56,6 +59,10 @@ export function YalidineCard({ storeId, currency, onSynced }: { storeId: string;
   const [apiToken, setApiToken] = useState("");
   const [wilaya, setWilaya] = useState<string | null>(null);
   const [feeType, setFeeType] = useState<FeeType>("home");
+  const [showToken, setShowToken] = useState(false);
+  // The wilaya that was guessed from the store address, while the owner has not changed it.
+  const [guessedWilaya, setGuessedWilaya] = useState<string | null>(null);
+  const guessDone = useRef(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.rpc("carrier_status", { p_store_id: storeId });
@@ -65,28 +72,43 @@ export function YalidineCard({ storeId, currency, onSynced }: { storeId: string;
   }, [storeId]);
   useEffect(() => { if (dzd) void load(); }, [dzd, load]);
 
+  // Preselect the origin wilaya from the store address, once, and only while the form is shown and still empty.
+  useEffect(() => {
+    if (guessDone.current || !status || status.connected) return;
+    guessDone.current = true;
+    if (wilaya !== null || !address) return;
+    const g = guessWilaya(address, WILAYAS);
+    if (g !== null) {
+      setWilaya(String(g));
+      setGuessedWilaya(String(g));
+    }
+  }, [status, address, wilaya]);
+
   function resultText(r: { added?: number; updated?: number; skipped?: number }) {
     return t("yalidine.result", { added: r.added ?? 0, updated: r.updated ?? 0, skipped: r.skipped ?? 0 });
   }
 
-  // The token leaves state as soon as the form is submitted; it is never kept or logged.
+  // The token stays in state if Yalidine rejects it, so the owner can fix the ID and retry.
+  // It is cleared only after a successful connect. It is never logged.
   async function connect(e: FormEvent) {
     e.preventDefault();
-    const id = apiId.trim();
-    const token = apiToken;
+    const id = cleanCredential(apiId);
+    const token = cleanCredential(apiToken);
     const origin = wilaya === null ? 0 : Number(wilaya);
     if (!id || !token || !origin) return;
-    setApiToken("");
     setBusy(true); setNotice(null);
     const r = await callCarrier({ action: "connect", store_id: storeId, api_id: id, api_token: token, from_wilaya_id: origin, fee_type: feeType });
     setBusy(false);
     if (r.ok) {
       setApiId("");
-      setNotice({ kind: "ok", text: resultText(r) });
+      setApiToken("");
+      setNotice({ kind: "ok", text: t("yalidine.connected", { n: (r.added ?? 0) + (r.updated ?? 0) }) });
       await load();
       onSynced();
     } else {
       setNotice({ kind: "error", text: errorText(t, r.reason) });
+      // The credentials may have been saved before the first sync failed; show the real state.
+      await load();
     }
   }
 
@@ -116,7 +138,7 @@ export function YalidineCard({ storeId, currency, onSynced }: { storeId: string;
   }
 
   const connected = status?.connected === true ? status : null;
-  const formReady = !busy && apiId.trim() !== "" && apiToken !== "" && wilaya !== null;
+  const formReady = !busy && cleanCredential(apiId) !== "" && cleanCredential(apiToken) !== "" && wilaya !== null;
 
   return (
     <section className={CARD} aria-labelledby="sec-yalidine">
@@ -149,19 +171,39 @@ export function YalidineCard({ storeId, currency, onSynced }: { storeId: string;
 
       {dzd && status && !connected && (
         <form onSubmit={connect} className="flex flex-col gap-3" autoComplete="off">
+          <details className="rounded-wakil border border-ink/15 bg-paper/60 px-3 py-2.5 text-[14px] text-ink">
+            <summary className="cursor-pointer font-semibold">{t("yalidine.guideTitle")}</summary>
+            <div className="mt-3 flex flex-col gap-3">
+              <a href="https://yalidine.app" target="_blank" rel="noopener noreferrer"
+                className="inline-flex min-h-9 w-fit items-center rounded-full border-2 border-ink px-3.5 text-[13px] font-semibold text-ink no-underline hover:bg-ink/5">
+                {t("yalidine.openYalidine")}
+              </a>
+              <ol className="m-0 flex list-decimal flex-col gap-1.5 ps-5">
+                {STEP_KEYS.map((k) => <li key={k}>{t(k)}</li>)}
+              </ol>
+              <p className="m-0 text-[13px] text-soft">{t("yalidine.supportNote")}</p>
+            </div>
+          </details>
           <div className="grid gap-3 sm:grid-cols-2">
             <TextField value={apiId} onChange={setApiId} autoComplete="off">
               <Label>{t("yalidine.apiId")}</Label>
               <Input autoComplete="off" />
             </TextField>
-            <TextField value={apiToken} onChange={setApiToken} autoComplete="new-password">
-              <Label>{t("yalidine.apiToken")}</Label>
-              <Input type="password" autoComplete="new-password" />
-            </TextField>
+            <div className="flex items-end gap-2">
+              <TextField value={apiToken} onChange={setApiToken} autoComplete="new-password" className="min-w-0 grow">
+                <Label>{t("yalidine.apiToken")}</Label>
+                <Input type={showToken ? "text" : "password"} autoComplete="new-password" />
+              </TextField>
+              <Button variant="ghost" size="sm" className="mb-1 shrink-0 font-semibold"
+                aria-label={showToken ? t("yalidine.hideToken") : t("yalidine.showToken")}
+                aria-pressed={showToken} onPress={() => setShowToken((v) => !v)}>
+                {showToken ? t("yalidine.hideToken") : t("yalidine.showToken")}
+              </Button>
+            </div>
             <div className="flex flex-col gap-1.5">
               <Label>{t("yalidine.originWilaya")}</Label>
               <Select aria-label={t("yalidine.originWilaya")} selectedKey={wilaya} placeholder={t("yalidine.pickWilaya")}
-                onSelectionChange={(k) => setWilaya(k == null ? null : String(k))} className="w-full">
+                onSelectionChange={(k) => { setWilaya(k == null ? null : String(k)); setGuessedWilaya(null); }} className="w-full">
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>
                   <ListBox>
@@ -169,6 +211,9 @@ export function YalidineCard({ storeId, currency, onSynced }: { storeId: string;
                   </ListBox>
                 </Select.Popover>
               </Select>
+              {guessedWilaya !== null && wilaya === guessedWilaya && (
+                <span className="text-[12px] text-soft">{t("yalidine.guessedHint")}</span>
+              )}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>{t("yalidine.feeType")}</Label>

@@ -23,7 +23,7 @@ type Step = {
 export function SetupChecklist() {
   const { t } = useI18n();
   const { store } = useStore();
-  const { data } = useSetupData();
+  const { data } = useSetupData(store!.id);
   const [hidden, setHidden] = useState(() => isSetupHidden(store!.id));
   const reduced = useMotionSafe();
   if (!data || hidden) return null;
@@ -39,6 +39,10 @@ export function SetupChecklist() {
     { id: "test", title: "setup.test.title", desc: "setup.test.desc", done: data.tested, actions: [{ to: "/assistant", label: "setup.test.action" }] },
     { id: "orders", title: "setup.orders.title", desc: "setup.orders.desc", done: store!.orders_enabled, optional: true, actions: [{ to: "/settings", label: "setup.orders.action" }] },
     { id: "channel", title: "setup.channel.title", desc: "setup.channel.desc", done: data.channels > 0, optional: true, actions: [{ to: "/assistant", label: "setup.channel.action" }] },
+    // Yalidine is only offered to DZD stores that take orders in chat (delivery fees are used then).
+    ...(store!.currency === "DZD" && store!.orders_enabled
+      ? [{ id: "carrier", title: "setup.carrier.title" as const, desc: "setup.carrier.desc" as const, done: data.carrier, optional: true, actions: [{ to: "/settings?tab=delivery", label: "setup.carrier.action" as const }] }]
+      : []),
   ];
   const required = steps.filter((s) => !s.optional);
   const done = required.filter((s) => s.done).length;

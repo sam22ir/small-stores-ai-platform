@@ -139,7 +139,8 @@ export function Settings() {
       </div>
 
       <div role="tabpanel" id="panel-delivery" aria-labelledby="tab-delivery" className={show("delivery")}>
-        <YalidineCard storeId={s.id} currency={s.currency} onSynced={() => setFeesVersion((v) => v + 1)} />
+        <YalidineCard storeId={s.id} currency={s.currency} onSynced={() => setFeesVersion((v) => v + 1)}
+          address={fieldsFromStore(s.business_info_fields, s.business_info).address} />
         <DeliveryFees key={feesVersion} storeId={s.id} currency={s.currency} />
       </div>
 
