@@ -76,6 +76,9 @@ export async function fetchImageDataUrl(url: string, opts: FetchImageOptions = {
   const doFetch = opts.fetch ?? fetch;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES;
+  // A plain timer (not AbortSignal.timeout, whose timer doesn't keep the event loop alive) covers the whole download.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     let current: URL;
     try {
@@ -89,7 +92,7 @@ export async function fetchImageDataUrl(url: string, opts: FetchImageOptions = {
     for (let hop = 0;; hop++) {
       const rejected = rejectUrl(current);
       if (rejected) return { ok: false, reason: rejected };
-      res = await doFetch(current.href, { redirect: "manual", signal: AbortSignal.timeout(timeoutMs) });
+      res = await doFetch(current.href, { redirect: "manual", signal: ctrl.signal });
       if (res.status < 300 || res.status >= 400) break;
       if (hop >= MAX_REDIRECTS) return { ok: false, reason: "too many redirects" };
       const location = res.headers.get("location");
@@ -116,5 +119,7 @@ export async function fetchImageDataUrl(url: string, opts: FetchImageOptions = {
   } catch (err) {
     // Timeouts, network errors and aborted reads all end here: a photo is optional, never fatal.
     return { ok: false, reason: err instanceof Error ? err.name : "fetch failed" };
+  } finally {
+    clearTimeout(timer);
   }
 }
