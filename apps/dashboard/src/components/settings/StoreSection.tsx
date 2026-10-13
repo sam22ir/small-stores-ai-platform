@@ -73,13 +73,17 @@ export function StoreFields({ name, onNameChange, currency, onCurrencyChange, ti
 }
 
 // Assistant tab: what the assistant knows, whether it is on, and whether it takes orders.
-export function AssistantFields({ info, onInfoChange, agentOn, onAgentChange, ordersOn, onOrdersChange }: {
+export function AssistantFields({ info, onInfoChange, agentOn, onAgentChange, ordersOn, onOrdersChange, replyTone, onReplyToneChange, replyEmoji, onReplyEmojiChange }: {
   info: InfoFields;
   onInfoChange: (k: InfoKey, v: string) => void;
   agentOn: boolean;
   onAgentChange: (v: boolean) => void;
   ordersOn: boolean;
   onOrdersChange: (v: boolean) => void;
+  replyTone: "friendly" | "formal";
+  onReplyToneChange: (v: "friendly" | "formal") => void;
+  replyEmoji: boolean;
+  onReplyEmojiChange: (v: boolean) => void;
 }) {
   const { t } = useI18n();
   return (
@@ -103,6 +107,22 @@ export function AssistantFields({ info, onInfoChange, agentOn, onAgentChange, or
         <Toggle checked={agentOn} onChange={onAgentChange} label={t("settings.agent")} help={t("settings.agentHelp")} />
         <div className="border-t border-ink/10 pt-4">
           <Toggle checked={ordersOn} onChange={onOrdersChange} label={t("settings.orders")} help={t("settings.ordersHelp")} />
+        </div>
+        <div className="flex flex-col gap-1.5 border-t border-ink/10 pt-4">
+          <Label>{t("settings.tone")}</Label>
+          <p className="mb-0 text-[13px] text-soft">{t("settings.toneHelp")}</p>
+          <Select aria-label={t("settings.tone")} selectedKey={replyTone} onSelectionChange={(k) => onReplyToneChange(String(k) === "formal" ? "formal" : "friendly")} className="w-full sm:w-72">
+            <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+            <Select.Popover>
+              <ListBox>
+                <ListBox.Item id="friendly" textValue={t("settings.toneFriendly")}>{t("settings.toneFriendly")}<ListBox.ItemIndicator /></ListBox.Item>
+                <ListBox.Item id="formal" textValue={t("settings.toneFormal")}>{t("settings.toneFormal")}<ListBox.ItemIndicator /></ListBox.Item>
+              </ListBox>
+            </Select.Popover>
+          </Select>
+        </div>
+        <div className="border-t border-ink/10 pt-4">
+          <Toggle checked={replyEmoji} onChange={onReplyEmojiChange} label={t("settings.emoji")} help={t("settings.emojiHelp")} />
         </div>
       </section>
     </>

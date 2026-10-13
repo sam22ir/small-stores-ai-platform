@@ -723,6 +723,8 @@ export type Database = {
           trial_ends_at: string
           orders_enabled: boolean
           reply_credits: number
+          reply_emoji: boolean
+          reply_tone: "friendly" | "formal"
           timezone: string
         }
         Insert: {
@@ -739,6 +741,8 @@ export type Database = {
           trial_ends_at?: string
           orders_enabled?: boolean
           reply_credits?: number
+          reply_emoji?: boolean
+          reply_tone?: "friendly" | "formal"
           timezone?: string
         }
         Update: {
@@ -754,6 +758,8 @@ export type Database = {
           plan_status?: "trial" | "active" | "past_due"
           trial_ends_at?: string
           orders_enabled?: boolean
+          reply_emoji?: boolean
+          reply_tone?: "friendly" | "formal"
           timezone?: string
         }
         Relationships: []

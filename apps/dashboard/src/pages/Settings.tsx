@@ -61,6 +61,8 @@ export function Settings() {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const agentOn = enabled ?? s.agent_enabled;
   const [ordersOn, setOrdersOn] = useState(s.orders_enabled);
+  const [replyTone, setReplyTone] = useState<"friendly" | "formal">(s.reply_tone ?? "friendly");
+  const [replyEmoji, setReplyEmoji] = useState(s.reply_emoji ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -74,6 +76,7 @@ export function Settings() {
     const { error: err } = await supabase.from("stores").update({
       name: name.trim(), currency, timezone, business_info: composeInfo(info) || null, business_info_fields: info,
       orders_enabled: ordersOn,
+      reply_tone: replyTone, reply_emoji: replyEmoji,
       ...(enabled === null ? {} : { agent_enabled: enabled }),
     }).eq("id", s.id);
     if (err) { setError(t("common.error")); toast.danger(t("common.error")); }
@@ -124,6 +127,8 @@ export function Settings() {
             info={info} onInfoChange={(k: InfoKey, v: string) => setInfo((f) => ({ ...f, [k]: v }))}
             agentOn={agentOn} onAgentChange={setEnabled}
             ordersOn={ordersOn} onOrdersChange={setOrdersOn}
+            replyTone={replyTone} onReplyToneChange={setReplyTone}
+            replyEmoji={replyEmoji} onReplyEmojiChange={setReplyEmoji}
           />
         </div>
         {error && <Alert status="danger"><Alert.Content><Alert.Description role="alert">{error}</Alert.Description></Alert.Content></Alert>}
