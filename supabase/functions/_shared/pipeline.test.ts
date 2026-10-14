@@ -842,7 +842,7 @@ test("the order rules are in the prompt when orders are on", async () => {
   await handleInbound(input("je veux commander", "customer", { orders_enabled: true }));
   const system = bodies[0].messages[0].content as string;
   assert.match(system, /Collecting the order details is YOUR job, not the owner's/);
-  assert.match(system, /Never hand off because details are missing, partial or invalid: ask for them/);
+  assert.match(system, /Everything else in an order is handled by talking to the customer: missing or partial details, an invalid phone/);
 });
 
 const dzMessages = () => [{ id: "m1", conversation_id: "c1", direction: "inbound", body: "wach kayen hoodie noir taille M?", _seq: 0 }];
