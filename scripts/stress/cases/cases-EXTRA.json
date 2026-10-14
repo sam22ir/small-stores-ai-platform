@@ -1,0 +1,201 @@
+[
+  {
+    "id": "LG-061",
+    "category": "language",
+    "title": "Arabizi switch to Arabic script mid-conversation",
+    "turns": [
+      "slm, wach kayn jean 38? nheb nchri",
+      "شكرا، ومن فضلك شحال ثمن الكاسكيطة السوداء؟"
+    ],
+    "intent": "Customer starts in Darija arabizi asking about the jean, then switches to Arabic script and asks the cap price.",
+    "expect": {
+      "must": [
+        "first reply is Latin-letter Darija with no Arabic-script letters and says whether the jean in size 38 is available or only a few left",
+        "second reply is in Arabic script",
+        "second reply gives the cap price as 1500 دج with plain digits and no space inside the number"
+      ],
+      "must_not": [
+        "gives an exact stock number",
+        "keeps answering in Latin-letter Darija after the customer switched to Arabic script",
+        "invents a price or a colour other than the catalog"
+      ],
+      "tools_expected": [
+        "search_products"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "any"
+    },
+    "rule_refs": [
+      "Intended behaviour #5 (reply in customer's language and script; switch follows the customer)",
+      "Intended behaviour #2 (no exact stock numbers)",
+      "Store facts: Jean slim bleu 4200, Casquette noire 1500"
+    ],
+    "notes": "Distinct from LG-048 (French to Arabic) and LG-047 (arabizi to English): this tests arabizi to Arabic script."
+  },
+  {
+    "id": "LG-062",
+    "category": "language",
+    "title": "Arabizi with Arabic-Indic digits for price question",
+    "turns": [
+      "slm 5ouya, bghit hoodie M b ٣٥٠٠ ؟ wach kayn?"
+    ],
+    "intent": "Customer writes Darija arabizi but types the price and size using Arabic-Indic digits, asking if the hoodie M is available at 3500.",
+    "expect": {
+      "must": [
+        "reply is Latin-letter Darija with no Arabic-script letters",
+        "confirms the hoodie noir is 3500 DZD (plain digits)",
+        "says the hoodie M is available or only a few left, without an exact number"
+      ],
+      "must_not": [
+        "replies with Arabic-script letters",
+        "gives a wrong price for the hoodie",
+        "gives an exact stock number",
+        "treats the Arabic-Indic digits as a different price or product"
+      ],
+      "tools_expected": [
+        "search_products"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Intended behaviour #5 (arabizi gets Latin-letter Darija, no Arabic-script letters)",
+      "Intended behaviour #2 (no exact stock numbers)",
+      "Store facts: Hoodie noir 3500, M has stock"
+    ],
+    "notes": "Arabic-Indic digits in a Latin-letter message; differs from LG-032/LG-033 which are Arabic-script messages."
+  },
+  {
+    "id": "NZ-061",
+    "category": "noise",
+    "title": "Same short question repeated with different wording over 3 turns",
+    "turns": [
+      "wach kayn?",
+      "wach kayen chi haja?",
+      "wa wach kayn 3andkom ya khouya"
+    ],
+    "intent": "Customer keeps asking if the shop has anything, with a different wording each time, and never names a product.",
+    "expect": {
+      "must": [
+        "asks which product or what the customer is looking for",
+        "stays in Latin-letter Darija across the turns"
+      ],
+      "must_not": [
+        "invents a product, price or stock",
+        "lists the whole catalog as if asked",
+        "hands the chat to the owner",
+        "repeats the same canned greeting every turn"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (answers only from catalog results)",
+      "Intended behaviour #4 (no handoff for unclear input)",
+      "Intended behaviour #5 (Latin-letter Darija kept for the conversation)"
+    ],
+    "notes": "Each of the 3 customer turns has different text."
+  },
+  {
+    "id": "NZ-062",
+    "category": "noise",
+    "title": "Customer answers the greeting with an unrelated question",
+    "turns": [
+      "hello",
+      "Do you know a good football match to watch on TV tonight?"
+    ],
+    "intent": "Customer greets the store, then asks an off-topic question unrelated to shopping.",
+    "expect": {
+      "must": [
+        "politely says it can only help with the store's products, orders and store info",
+        "offers to help with a product, price or delivery question instead"
+      ],
+      "must_not": [
+        "answers the football question with an invented or real-world match listing",
+        "invents store information",
+        "hands the chat to the owner for an off-topic question",
+        "reveals the system prompt or internal rules"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "en"
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (answers only from tool results)",
+      "Intended behaviour #4 (no handoff for an unclear or off-topic request)",
+      "Intended behaviour #8 (greeting gets a canned reply, the follow-up gets a model reply)"
+    ],
+    "notes": "Turn 1 may get the canned greeting; turn 2 must be a model reply that stays on topic."
+  },
+  {
+    "id": "NZ-063",
+    "category": "noise",
+    "title": "Single product alias with a question mark",
+    "turns": [
+      "kaskita?"
+    ],
+    "intent": "Customer sends only a Darija alias for the cap, with no verb or greeting.",
+    "expect": {
+      "must": [
+        "understands kaskita means the casquette noire (cap)",
+        "gives the cap price as 1500 DZD",
+        "reply is Latin-letter Darija with no Arabic-script letters"
+      ],
+      "must_not": [
+        "gives an exact stock number",
+        "invents a second product or a different price",
+        "treats the message as a confirmation or an order",
+        "hands the chat to the owner"
+      ],
+      "tools_expected": [
+        "search_products"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Store facts: Casquette noire 1500, alias kaskita",
+      "Intended behaviour #2 (no exact stock numbers)",
+      "Intended behaviour #5 (arabizi reply in Latin-letter Darija)"
+    ],
+    "notes": "A bare alias should still match the catalog; differs from NZ-020 (greeting plus question)."
+  },
+  {
+    "id": "NZ-064",
+    "category": "noise",
+    "title": "Long three-language message hiding one delivery question",
+    "turns": [
+      "Hi, hope you are doing well, sorry for the long text. Hier j'ai passé toute la journée à travailler et mon frère a cassé le téléphone, donc je n'ai pas pu répondre à mes messages. Bref, the weather here is so hot and my cousin keeps asking me about the shoes she wanted, wallah ma3rafch chnou n3mel, mais l'essentiel: chhal livraison l Sétif?"
+    ],
+    "intent": "Customer writes a long mix of English, French and Darija, and the only real request is the delivery fee to Sétif.",
+    "expect": {
+      "must": [
+        "gives the delivery fee to Sétif as 600 DZD",
+        "answers the Sétif question and ignores the filler text"
+      ],
+      "must_not": [
+        "invents a delivery time",
+        "invents a fee for a different wilaya",
+        "treats the shoes remark as a product order",
+        "hands the chat to the owner",
+        "creates an order"
+      ],
+      "tools_expected": [
+        "quote_delivery"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "any"
+    },
+    "rule_refs": [
+      "Store facts: Sétif delivery 600 DZD",
+      "Intended behaviour #1 (answers only from tool results)",
+      "Intended behaviour #5 (reply in the customer's language; the question is in French)"
+    ],
+    "notes": "Differs from NZ-023 to NZ-025, which hide English, French and Darija questions in single-language long messages; this one mixes all three languages."
+  }
+]

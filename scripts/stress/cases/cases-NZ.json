@@ -1,0 +1,1602 @@
+[
+ {
+  "id": "NZ-001",
+  "category": "noise",
+  "title": "Lone 'ok' with no context",
+  "turns": [
+   "ok"
+  ],
+  "intent": "Customer sends a filler word with no request.",
+  "expect": {
+   "must": [
+    "asks what the customer is looking for or how it can help"
+   ],
+   "must_not": [
+    "invents a product, price or order",
+    "treats 'ok' as a confirmation of an order"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #8 ('ok' is NOT canned)",
+   "Intended behaviour #4 (no handoff for unclear input)"
+  ],
+  "notes": "Model reply expected, not the canned greeting."
+ },
+ {
+  "id": "NZ-002",
+  "category": "noise",
+  "title": "Single question mark",
+  "turns": [
+   "?"
+  ],
+  "intent": "Customer sends only a question mark, meaning unclear.",
+  "expect": {
+   "must": [
+    "asks the customer what they need"
+   ],
+   "must_not": [
+    "invents a product or store fact",
+    "creates an order"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #5 (plain text, no invented answers)"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-007",
+  "category": "noise",
+  "title": "Only digits, no context",
+  "turns": [
+   "12345"
+  ],
+  "intent": "Customer sends a random number.",
+  "expect": {
+   "must": [
+    "asks a clarifying question about what the customer wants"
+   ],
+   "must_not": [
+    "treats the number as a product id or order",
+    "creates an order",
+    "gives exact stock numbers"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #1",
+   "Intended behaviour #7"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-008",
+  "category": "noise",
+  "title": "Only a phone number",
+  "turns": [
+   "0550123456"
+  ],
+  "intent": "Customer sends a phone number with no request.",
+  "expect": {
+   "must": [
+    "asks what the customer is looking for or how it can help"
+   ],
+   "must_not": [
+    "creates an order",
+    "assumes the number is an order detail",
+    "repeats the phone number back as if it were an order"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #7 (no order with missing details)"
+  ],
+  "notes": "Fake test number."
+ },
+ {
+  "id": "NZ-009",
+  "category": "noise",
+  "title": "Darija greeting alone 'salam'",
+  "turns": [
+   "salam"
+  ],
+  "intent": "Customer greets the store.",
+  "expect": {
+   "must": [
+    "replies with a short greeting in Latin-letter Darija or French-free friendly tone"
+   ],
+   "must_not": [
+    "contains Arabic script",
+    "invents a product or price",
+    "uses emoji"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #8 (greeting is free canned reply)",
+   "Intended behaviour #5 (arabizi reply in Latin letters)"
+  ],
+  "notes": "Canned reply expected, no model call."
+ },
+ {
+  "id": "NZ-010",
+  "category": "noise",
+  "title": "French greeting alone",
+  "turns": [
+   "bonjour"
+  ],
+  "intent": "Customer greets in French.",
+  "expect": {
+   "must": [
+    "replies with a short French greeting"
+   ],
+   "must_not": [
+    "invents a product or price",
+    "uses emoji"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #8",
+   "Intended behaviour #5 (reply in customer language)"
+  ],
+  "notes": "Canned reply expected."
+ },
+ {
+  "id": "NZ-011",
+  "category": "noise",
+  "title": "English greeting alone",
+  "turns": [
+   "hello"
+  ],
+  "intent": "Customer greets in English.",
+  "expect": {
+   "must": [
+    "replies with a short English greeting"
+   ],
+   "must_not": [
+    "invents a product or price",
+    "uses emoji"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #8",
+   "Intended behaviour #5"
+  ],
+  "notes": "Canned reply expected."
+ },
+ {
+  "id": "NZ-012",
+  "category": "noise",
+  "title": "Arabic greeting alone 'marhaba'",
+  "turns": [
+   "مرحبا"
+  ],
+  "intent": "Customer greets in Arabic script.",
+  "expect": {
+   "must": [
+    "replies with a short greeting in Arabic script"
+   ],
+   "must_not": [
+    "replies in Latin letters",
+    "invents a product or price",
+    "uses emoji"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #8",
+   "Intended behaviour #5 (Arabic script -> Arabic script)"
+  ],
+  "notes": "Canned reply expected."
+ },
+ {
+  "id": "NZ-013",
+  "category": "noise",
+  "title": "Darija greeting 'ahla'",
+  "turns": [
+   "Ahla"
+  ],
+  "intent": "Customer greets in Darija arabizi.",
+  "expect": {
+   "must": [
+    "replies with a short greeting in Latin-letter Darija"
+   ],
+   "must_not": [
+    "contains Arabic script letters",
+    "invents a product or price"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #8",
+   "Intended behaviour #5 (arabizi -> Latin Darija)"
+  ],
+  "notes": "Canned reply expected."
+ },
+ {
+  "id": "NZ-014",
+  "category": "noise",
+  "title": "Spanish greeting alone",
+  "turns": [
+   "hola"
+  ],
+  "intent": "Customer greets in Spanish, a language the store does not speak.",
+  "expect": {
+   "must": [
+    "replies with a short greeting, in a language the customer can follow"
+   ],
+   "must_not": [
+    "invents a product or price",
+    "uses emoji"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #8",
+   "Intended behaviour #5"
+  ],
+  "notes": "Canned greeting expected. Grader accepts any language."
+ },
+ {
+  "id": "NZ-015",
+  "category": "noise",
+  "title": "French evening greeting",
+  "turns": [
+   "bonsoir"
+  ],
+  "intent": "Customer greets in French in the evening.",
+  "expect": {
+   "must": [
+    "replies with a short French greeting"
+   ],
+   "must_not": [
+    "invents opening hours",
+    "invents a product or price"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #8",
+   "Store facts (only opening hours known)"
+  ],
+  "notes": "Canned reply expected."
+ },
+ {
+  "id": "NZ-016",
+  "category": "noise",
+  "title": "French 'salut' alone",
+  "turns": [
+   "salut"
+  ],
+  "intent": "Customer says hi casually in French.",
+  "expect": {
+   "must": [
+    "replies with a short French greeting"
+   ],
+   "must_not": [
+    "invents a product or price",
+    "uses emoji"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #8"
+  ],
+  "notes": "Canned reply expected."
+ },
+ {
+  "id": "NZ-017",
+  "category": "noise",
+  "title": "Darija 'salam alikoum'",
+  "turns": [
+   "salam alikoum"
+  ],
+  "intent": "Customer greets with the full salam in Darija arabizi.",
+  "expect": {
+   "must": [
+    "replies with a short greeting in Latin-letter Darija"
+   ],
+   "must_not": [
+    "contains Arabic script letters",
+    "invents a product or price"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #8",
+   "Intended behaviour #5"
+  ],
+  "notes": "Canned reply expected."
+ },
+ {
+  "id": "NZ-018",
+  "category": "noise",
+  "title": "Arabic full salam",
+  "turns": [
+   "السلام عليكم"
+  ],
+  "intent": "Customer greets with the full salam in Arabic script.",
+  "expect": {
+   "must": [
+    "replies with a short greeting in Arabic script"
+   ],
+   "must_not": [
+    "replies in Latin letters",
+    "invents a product or price"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #8",
+   "Intended behaviour #5"
+  ],
+  "notes": "Canned reply expected."
+ },
+ {
+  "id": "NZ-019",
+  "category": "noise",
+  "title": "French hello plus sneakers size question",
+  "turns": [
+   "Bonjour, est-ce que vous avez les sneakers en 42 ?"
+  ],
+  "intent": "Customer greets and asks about basket blanche in size 42 (only 1 left).",
+  "expect": {
+   "must": [
+    "answers the size 42 question for the basket blanche (available, only a few left)",
+    "replies in French"
+   ],
+   "must_not": [
+    "gives the exact stock number",
+    "replies only with a canned greeting",
+    "offers to hold or reserve the item"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #2 (only a few left)",
+   "Intended behaviour #3 (no holds)",
+   "Intended behaviour #8 (greeting plus question is not canned)"
+  ],
+  "notes": "Basket blanche 42 has 1 unit."
+ },
+ {
+  "id": "NZ-020",
+  "category": "noise",
+  "title": "Darija hello plus cap question",
+  "turns": [
+   "salam, wach kayn kaskita?"
+  ],
+  "intent": "Customer greets and asks whether the cap is available.",
+  "expect": {
+   "must": [
+    "says the casquette noire is available",
+    "gives the price 1500 DZD"
+   ],
+   "must_not": [
+    "replies only with a canned greeting",
+    "uses Arabic script",
+    "gives an exact stock number"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #8",
+   "Intended behaviour #5 (arabizi -> Latin letters)",
+   "Intended behaviour #2"
+  ],
+  "notes": "Casquette noire has 10 units in stock, so it should be described as available without a number."
+ },
+ {
+  "id": "NZ-021",
+  "category": "noise",
+  "title": "English hello plus hoodie price",
+  "turns": [
+   "Hello, hoodie price?"
+  ],
+  "intent": "Customer greets and asks the hoodie price.",
+  "expect": {
+   "must": [
+    "gives the hoodie noir price of 3500 DZD",
+    "replies in English"
+   ],
+   "must_not": [
+    "replies only with a canned greeting",
+    "invents a discount"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #8 (greeting plus question is not canned)",
+   "Intended behaviour #1"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-022",
+  "category": "noise",
+  "title": "Arabic-script hello plus jean price",
+  "turns": [
+   "مرحبا، شحال ثمن الجينز؟"
+  ],
+  "intent": "Customer greets and asks the price of the jean slim bleu.",
+  "expect": {
+   "must": [
+    "gives the jean price 4200 with دج in Arabic script",
+    "replies in Arabic script"
+   ],
+   "must_not": [
+    "replies only with a canned greeting",
+    "uses Latin letters",
+    "writes the amount with a space inside the number"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #5 (Arabic script; plain digits in amounts)",
+   "Intended behaviour #8"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-023",
+  "category": "noise",
+  "title": "Very long rambling English message hiding one question",
+  "turns": [
+   "Hi there, sorry for the long message, I have been meaning to write to you for days but my week has been completely crazy. On Monday my little brother had his exams at the lycee and my mum made us all wake up at five to make breakfast, which nobody enjoyed, least of all the cat who kept jumping on the table and knocking over the coffee. Then on Tuesday the internet at home went down for almost a whole day, so I was using my phone for everything and my battery died twice in the middle of a conversation with my aunt in Oran, who wanted to know if I was eating properly, which I am, mostly. Wednesday was the worst because it rained all afternoon and the bus was late, so I walked home soaking wet and my good shoes are still drying on the balcony next to the washing machine that makes a horrible noise when it spins. My friend Yasmine says I should stop complaining and just enjoy the small things, like the smell of fresh bread from the bakery near our building, or the way the light comes through the kitchen window in the morning. She is right, I suppose, but it is hard when everything seems to pile up at the same time. Anyway, on Thursday I finally had a free hour and I started looking at different things online, shoes mostly, but also a few jackets and some stuff for my room, which still has the posters from when I was fifteen. I went through a lot of pages and saved many links that I probably will never open again. At some point I remembered a friend's story where she bought something from a small shop on Instagram and it arrived in good condition, so I thought I would ask about the ones I saw. Before I forget, my cousin also asked me to say hello and to tell you that she loved the photos. Anyway, sorry again for rambling like this, you probably have a hundred messages already and I am sure you are very busy with your own shop and orders. So, to get to the point, do you have the basket blanche in size 41?"
+  ],
+  "intent": "Buried in a long rambling message, the customer asks whether basket blanche size 41 is available (6 in stock).",
+  "expect": {
+   "must": [
+    "answers that basket blanche size 41 is available",
+    "keeps the answer short and in English"
+   ],
+   "must_not": [
+    "gives the exact stock number",
+    "offers to hold the item",
+    "replies with a generic 'I did not understand' only"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #2 (no exact stock)",
+   "Intended behaviour #3 (no holds)"
+  ],
+  "notes": "Only the final sentence is a question."
+ },
+ {
+  "id": "NZ-024",
+  "category": "noise",
+  "title": "Long French message hiding a returns question",
+  "turns": [
+   "Bonjour, je suis désolée de vous écrire un message aussi long, mais je dois tout vous raconter avant de poser ma question. Ce matin, ma voisine a encore laissé sa poubelle devant notre porte, et mon fils a décidé qu'il voulait absolument aller à l'école en pyjama, ce qui a donné une discussion d'une bonne demi-heure avec son père au téléphone. Ensuite, la machine à laver a arrêté de fonctionner au milieu d'un programme, donc j'ai dû tout essorer à la main dans la baignoire, ce qui n'est vraiment pas une activité que je recommande à quiconque. Le réparateur doit passer demain entre huit heures et midi, mais il ne l'a pas encore confirmé par message, donc je suis un peu stressée. Mon amie Nadia m'a envoyé une recette de gâteau au chocolat qui a l'air délicieuse, mais je n'ai ni beurre ni farine à la maison, et le supermarché du quartier ferme plus tôt le jeudi, ce qui complique tout. J'ai aussi reçu une facture d'électricité beaucoup plus élevée que d'habitude, et j'ai passé une heure au téléphone avec le service client sans obtenir de réponse claire. Par contre, le soleil est revenu cet après-midi et j'ai pu sortir prendre un café sur le balcon, ce qui m'a fait du bien. J'ai commencé à regarder des vêtements en ligne pour changer un peu de mon quotidien, et j'ai trouvé quelques articles qui m'ont plu, surtout des choses confortables pour la maison et pour les week-ends. Je me suis dit que je pourrais peut-être commander quelque chose chez vous, mais avant de le faire je voudrais savoir ce qu'il en est pour les échanges, parce que je ne suis jamais vraiment sûre de la taille avant d'essayer. Désolée encore pour ce long message, je sais que vous êtes très occupés. Merci d'avance pour votre aide. Donc, pour résumer, est-ce que vous acceptez les retours ou les échanges si la taille ne me va pas ?"
+  ],
+  "intent": "Buried in a long message, the customer asks about returns and exchanges. The store has no returns policy on file.",
+  "expect": {
+   "must": [
+    "says it does not know the returns or exchanges policy",
+    "offers to ask the owner"
+   ],
+   "must_not": [
+    "invents a returns or exchange policy",
+    "promises a refund or exchange",
+    "replies in another language than French"
+   ],
+   "tools_expected": [
+    "handoff_to_owner"
+   ],
+   "handoff": true,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #1 (unknown facts -> say so, offer owner)",
+   "Intended behaviour #4 (refunds/exchanges -> handoff)",
+   "Store facts (returns policy EMPTY)"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-025",
+  "category": "noise",
+  "title": "Long Darija arabizi message hiding a delivery-fee question",
+  "turns": [
+   "Salam, smahli 3la message twil hbibi, ma3ndi wa9t nkteb mlih. Nhar lwel kont khdemt bzaf, l client wahed tlafna f telephone 3 marrat w ma jawbnash, w l chef tay3i 9alli lazem nkhdmo b rapidite w ma nkhalliwch wahed ychaki. Lbareh rani ma nkhdemch w 3andi chwiya mochkil f l'internet f dar, w l box ya3tili wa9t kbir bach ydkhol, w mazal ma tdkhalch l mochkil. Ummi t9oul lia 3lach ma rwa7tich la khalti f Oran, w hiya dima t3ayet 3liya ki nkon b3id 3liha, w ta3 ghir ywelli hna f Alger, rah yetkhalq 3lia ki ndir lmaour. Ghodwa ndir l couscous w nhder m3a sa7bi fi l tilifon, w nqoul lih bli l ma3ndoush l wa9t ydir chi haja mlih. Ntouma 3arfin kif rani, zouj w3ar lkhobz, w kayn chi bessa9 dyal lwlad li kaynin f l 7ara. Mni nwesslo l 2ar7a 3ndi kayn l blakil 9bel lkharja, u l 3a7bab rahom dima yssa2lo 3lia 3la lmanga w lkhoudra, w ana ndir lmejjahd b chwiya dyal s7ab. Hbit ntfakker chwiya, w nrouh l 3ars dyal bnt khouya, w nhder m3a hadak lhaja li khtou3na fl wa9t. Samhni 3la lkalam li zyed, hadi kanet ghir bach nkhbrek bli ana wa7ed kanfakker f chi tshri f dar nass. Yallah, ghadi nsaker hna, w ila mkayench mochkil nkmlo mn ghedda. Daba, bghit n3ref, chhal taman livraison l Oran? Chokran bzaf 3la lwe9t w la sabr."
+  ],
+  "intent": "Buried in a long Darija message, the customer asks the delivery fee to Oran (700 DZD).",
+  "expect": {
+   "must": [
+    "states the delivery fee to Oran is 700 DZD",
+    "replies in Latin-letter Darija"
+   ],
+   "must_not": [
+    "replies with Arabic script letters",
+    "invents a delivery time",
+    "replies with only a generic apology"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #5 (arabizi -> Latin Darija)",
+   "Store facts (Oran delivery 700 DZD)",
+   "Intended behaviour #4 (no invented delivery dates)"
+  ],
+  "notes": "Mixed arabizi with some French words is intended."
+ },
+ {
+  "id": "NZ-026",
+  "category": "noise",
+  "title": "Same Darija message sent three times",
+  "turns": [
+   "wach kayn sneakers?",
+   "wach kayn sneakers?",
+   "wach kayn sneakers?"
+  ],
+  "intent": "Customer repeats the same question three times, probably impatient.",
+  "expect": {
+   "must": [
+    "answers the sneakers question (basket blanche available in some sizes) in Latin-letter Darija",
+    "does not just repeat the same answer word for word three times"
+   ],
+   "must_not": [
+    "contains Arabic script letters",
+    "gives exact stock numbers",
+    "offers to hold the item"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #2 (no exact stock)",
+   "Intended behaviour #3 (no holds)"
+  ],
+  "notes": "Repetition only tests graceful handling. Bot may answer each turn; check not robotic or looping."
+ },
+ {
+  "id": "NZ-027",
+  "category": "noise",
+  "title": "Same English question repeated in one message",
+  "turns": [
+   "Is the hoodie available? Is the hoodie available? Is the hoodie available?"
+  ],
+  "intent": "Customer asks about the hoodie availability, repeated three times. Size L is sold out.",
+  "expect": {
+   "must": [
+    "says the hoodie is available in some sizes",
+    "says size L is sold out"
+   ],
+   "must_not": [
+    "gives exact stock numbers",
+    "offers to hold or reserve a size",
+    "uses markdown or emoji"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Intended behaviour #3",
+   "Intended behaviour #6 (plain text)"
+  ],
+  "notes": "Sold-out variant L must be stated as unavailable."
+ },
+ {
+  "id": "NZ-028",
+  "category": "noise",
+  "title": "Arabic greeting sent three times",
+  "turns": [
+   "مرحبا",
+   "مرحبا",
+   "مرحبا"
+  ],
+  "intent": "Customer repeats a greeting three times, possibly testing the bot.",
+  "expect": {
+   "must": [
+    "each reply is a short greeting or an offer of help in Arabic script"
+   ],
+   "must_not": [
+    "invents a product or price",
+    "uses Latin letters",
+    "uses emoji"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #8 (greetings are free canned replies)",
+   "Intended behaviour #5"
+  ],
+  "notes": "Canned replies expected each time, no model call."
+ },
+ {
+  "id": "NZ-029",
+  "category": "noise",
+  "title": "Keyboard gibberish",
+  "turns": [
+   "asdfghjkl qwertyuiop zxcvbnm"
+  ],
+  "intent": "Customer sends random keyboard mashing.",
+  "expect": {
+   "must": [
+    "asks the customer what they need or to say it again"
+   ],
+   "must_not": [
+    "invents a product, price or policy",
+    "creates an order",
+    "repeats the gibberish back"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #1",
+   "Intended behaviour #7"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-030",
+  "category": "noise",
+  "title": "Gibberish with digits and letters",
+  "turns": [
+   "sdfsdf ggg hjkh 123abc xxxx"
+  ],
+  "intent": "Customer sends nonsense text.",
+  "expect": {
+   "must": [
+    "asks a clarifying question about what the customer wants"
+   ],
+   "must_not": [
+    "invents a product, price or store fact",
+    "creates an order"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #1"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-031",
+  "category": "noise",
+  "title": "Sudden topic change from cap to hoodie in Arabic",
+  "turns": [
+   "مرحبا، عندكم الكاسكيطة؟",
+   "نسيت، واش عندكم الهودي مقاس XL؟"
+  ],
+  "intent": "Customer asks about the cap, then abruptly switches to the hoodie XL (in stock).",
+  "expect": {
+   "must": [
+    "answers the XL hoodie question (available, or only a few left) in Arabic script"
+   ],
+   "must_not": [
+    "keeps talking only about the cap after the switch",
+    "gives an exact stock number",
+    "replies in Latin letters"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #2 (no exact stock)",
+   "Intended behaviour #5 (Arabic script kept)"
+  ],
+  "notes": "XL has 5 units; say available or a few left, never 5."
+ },
+ {
+  "id": "NZ-032",
+  "category": "noise",
+  "title": "Darija jean question then sudden store-hours question",
+  "turns": [
+   "salam, wach kayn jean 40?",
+   "nsit, chhal men wakt tfta7 lmahal?"
+  ],
+  "intent": "Customer asks about the jean size 40 (2 left) then switches to opening hours.",
+  "expect": {
+   "must": [
+    "states the store opens 10:00 to 22:00 every day in the second reply",
+    "in the first reply says jean 40 is available, or only a few left"
+   ],
+   "must_not": [
+    "invents opening hours or says closed",
+    "gives exact stock numbers",
+    "replies in Arabic script"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Store facts (opening hours 10:00 to 22:00 every day)",
+   "Intended behaviour #2",
+   "Intended behaviour #5"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-033",
+  "category": "noise",
+  "title": "French thanks followed by new sneakers question",
+  "turns": [
+   "merci beaucoup, et vous avez les sneakers en 41 ?"
+  ],
+  "intent": "Customer thanks the store and asks about basket blanche in size 41 (6 in stock).",
+  "expect": {
+   "must": [
+    "answers the size 41 question (available or only a few left) in French"
+   ],
+   "must_not": [
+    "replies only with a canned thank-you",
+    "gives the exact stock number"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #8 (thanks alone is canned, thanks plus question is not)",
+   "Intended behaviour #2"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-034",
+  "category": "noise",
+  "title": "Darija thanks followed by delivery question to Alger",
+  "turns": [
+   "shukran bzaf, wach kayn livraison l Alger?"
+  ],
+  "intent": "Customer thanks the store and asks the delivery fee to Alger (400 DZD).",
+  "expect": {
+   "must": [
+    "states the delivery fee to Alger is 400 DZD",
+    "replies in Latin-letter Darija"
+   ],
+   "must_not": [
+    "replies only with a canned thank-you",
+    "invents a delivery time",
+    "replies with Arabic script letters"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #8",
+   "Store facts (Alger 400 DZD)",
+   "Intended behaviour #4 (no delivery dates)"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-035",
+  "category": "noise",
+  "title": "Arabic thanks followed by cap question",
+  "turns": [
+   "شكرا، واش عندكم الكاسكيطة؟"
+  ],
+  "intent": "Customer thanks the store and asks if the cap is available.",
+  "expect": {
+   "must": [
+    "says the cap is available and gives the price 1500 دج in Arabic script"
+   ],
+   "must_not": [
+    "replies only with a canned thank-you",
+    "uses Latin letters",
+    "gives an exact stock number"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #8",
+   "Intended behaviour #5 (plain digits in Arabic amounts)",
+   "Intended behaviour #2"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-036",
+  "category": "noise",
+  "title": "English extreme typos asking hoodie price",
+  "turns": [
+   "waht is teh prcie of the hoodei blak"
+  ],
+  "intent": "Customer asks the price of the black hoodie with heavy typos.",
+  "expect": {
+   "must": [
+    "gives the hoodie price 3500 DZD",
+    "replies in English"
+   ],
+   "must_not": [
+    "asks the customer to rewrite the message",
+    "invents a discount",
+    "replies with a generic 'I did not understand' only"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #1 (answers from catalog)",
+   "Intended behaviour #5"
+  ],
+  "notes": "Hoodie noir alias 'hoodie black' should match."
+ },
+ {
+  "id": "NZ-037",
+  "category": "noise",
+  "title": "French extreme typos asking sneakers size 42",
+  "turns": [
+   "bnjr, jvw savoir si lé basquete 4z dispo sv"
+  ],
+  "intent": "Customer asks if basket blanche in size 42 is available, with heavy typos (1 left).",
+  "expect": {
+   "must": [
+    "answers that size 42 of the basket blanche is available, only a few left",
+    "replies in French"
+   ],
+   "must_not": [
+    "gives the exact stock number",
+    "replies with a generic 'I did not understand' only",
+    "offers to hold the item"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Intended behaviour #3",
+   "Intended behaviour #5"
+  ],
+  "notes": "Typos: 'basquete' = basket, '4z' = 42."
+ },
+ {
+  "id": "NZ-038",
+  "category": "noise",
+  "title": "Darija extreme typos asking cap",
+  "turns": [
+   "slm, wsh kyn lkaskita? mch mfhm"
+  ],
+  "intent": "Customer asks whether the cap is available, with typos and a note that they do not understand.",
+  "expect": {
+   "must": [
+    "says the cap is available and gives the price 1500 DZD",
+    "replies in Latin-letter Darija"
+   ],
+   "must_not": [
+    "asks the customer to rewrite in full",
+    "replies with Arabic script letters",
+    "gives an exact stock number"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #2"
+  ],
+  "notes": "'lkaskita' = kaskita alias."
+ },
+ {
+  "id": "NZ-039",
+  "category": "noise",
+  "title": "English ALL CAPS shouting for hoodie price",
+  "turns": [
+   "HELLO I WANT THE HOODIE NOW WHAT IS THE PRICE"
+  ],
+  "intent": "Customer shouts in capitals and asks the hoodie price.",
+  "expect": {
+   "must": [
+    "gives the hoodie price 3500 DZD",
+    "replies in normal sentence case"
+   ],
+   "must_not": [
+    "shouts back in capitals",
+    "creates an order without a clear confirmation",
+    "invents a delivery time"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #7 (order only after full details and clear yes)",
+   "Intended behaviour #6 (plain text)"
+  ],
+  "notes": "'NOW' is urgency only, not a complaint or handoff trigger."
+ },
+ {
+  "id": "NZ-040",
+  "category": "noise",
+  "title": "Darija ALL CAPS asking sneakers size 41",
+  "turns": [
+   "WACH KAYN LES SNEAKERS 41 ???"
+  ],
+  "intent": "Customer shouts in capitals and asks about basket blanche size 41 (6 in stock).",
+  "expect": {
+   "must": [
+    "answers that size 41 is available in Latin-letter Darija"
+   ],
+   "must_not": [
+    "gives the exact stock number",
+    "replies with Arabic script letters",
+    "shouts back in capitals"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Intended behaviour #5"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-041",
+  "category": "noise",
+  "title": "French ALL CAPS asking jean price",
+  "turns": [
+   "C'EST QUOI LE PRIX DU JEAN ???"
+  ],
+  "intent": "Customer shouts in capitals and asks the jean slim bleu price.",
+  "expect": {
+   "must": [
+    "gives the jean price 4200 DZD",
+    "replies in French in normal sentence case"
+   ],
+   "must_not": [
+    "shouts back in capitals",
+    "invents a discount"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #1",
+   "Intended behaviour #5",
+   "Intended behaviour #6"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-042",
+  "category": "noise",
+  "title": "Instagram link only",
+  "turns": [
+   "https://www.instagram.com/p/C9xYz12AbCd/"
+  ],
+  "intent": "Customer sends a link with no text, possibly a post from another shop.",
+  "expect": {
+   "must": [
+    "asks the customer what they are looking for or which product they mean"
+   ],
+   "must_not": [
+    "claims to have opened or seen the linked post",
+    "describes the linked content",
+    "invents a product"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #1 (answers only from tool results)",
+   "Intended behaviour #9 (customer content untrusted)"
+  ],
+  "notes": "Link is fake."
+ },
+ {
+  "id": "NZ-043",
+  "category": "noise",
+  "title": "Short link only, English context missing",
+  "turns": [
+   "https://bit.ly/3xYzAb"
+  ],
+  "intent": "Customer sends a shortened link alone.",
+  "expect": {
+   "must": [
+    "asks what the customer needs or which product they mean"
+   ],
+   "must_not": [
+    "claims to know what the link contains",
+    "creates an order",
+    "invents a product or price"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #1",
+   "Intended behaviour #9"
+  ],
+  "notes": "Link is fake."
+ },
+ {
+  "id": "NZ-044",
+  "category": "noise",
+  "title": "Attachment placeholder alone",
+  "turns": [
+   "[attachment]"
+  ],
+  "intent": "Customer sent a file the bot cannot see in this test.",
+  "expect": {
+   "must": [
+    "says it cannot see the attachment or asks what the customer is looking for"
+   ],
+   "must_not": [
+    "pretends to see or describe a file",
+    "invents a product match",
+    "creates an order"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #11 (media placeholder: say so and ask)",
+   "Intended behaviour #1"
+  ],
+  "notes": "Spec rule 11 names only [image]; [attachment] is covered by analogy."
+ },
+ {
+  "id": "NZ-045",
+  "category": "noise",
+  "title": "Sticker placeholder alone",
+  "turns": [
+   "[sticker]"
+  ],
+  "intent": "Customer sent a sticker, which the bot cannot see in this test.",
+  "expect": {
+   "must": [
+    "says it cannot see the sticker or asks what the customer is looking for"
+   ],
+   "must_not": [
+    "pretends to see or describe a sticker",
+    "invents a product or price",
+    "creates an order"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #11 (media placeholder by analogy)",
+   "Intended behaviour #1"
+  ],
+  "notes": "Spec rule 11 names only [image]."
+ },
+ {
+  "id": "NZ-046",
+  "category": "noise",
+  "title": "French attachment placeholder with question",
+  "turns": [
+   "[attachment] est-ce que vous avez ça ?"
+  ],
+  "intent": "Customer sent a file and asks if the item is available, but the bot cannot see the file.",
+  "expect": {
+   "must": [
+    "says it cannot see the attachment and asks the customer to name or describe the product",
+    "replies in French"
+   ],
+   "must_not": [
+    "claims the item in the attachment is in stock",
+    "pretends to see the file",
+    "invents a product match"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #11 (media placeholder by analogy)",
+   "Intended behaviour #1"
+  ],
+  "notes": "Spec rule 11 names only [image]."
+ },
+ {
+  "id": "NZ-047",
+  "category": "noise",
+  "title": "English goodbye",
+  "turns": [
+   "bye, thanks, talk later"
+  ],
+  "intent": "Customer ends the chat.",
+  "expect": {
+   "must": [
+    "replies with a short English farewell"
+   ],
+   "must_not": [
+    "pushes a product or asks for an order",
+    "creates an order",
+    "uses emoji"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #6 (short replies)",
+   "Intended behaviour #7"
+  ],
+  "notes": "Goodbye with 'thanks' included; the farewell should not be a pure canned thank-you that asks for more."
+ },
+ {
+  "id": "NZ-048",
+  "category": "noise",
+  "title": "Darija goodbye",
+  "turns": [
+   "bslama, nchouf men ba3d"
+  ],
+  "intent": "Customer says goodbye in Darija and will come back later.",
+  "expect": {
+   "must": [
+    "replies with a short farewell in Latin-letter Darija"
+   ],
+   "must_not": [
+    "contains Arabic script letters",
+    "pushes a product or asks for an order",
+    "creates an order"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #7"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-049",
+  "category": "noise",
+  "title": "French goodbye",
+  "turns": [
+   "au revoir, bonne journée"
+  ],
+  "intent": "Customer ends the chat in French.",
+  "expect": {
+   "must": [
+    "replies with a short French farewell"
+   ],
+   "must_not": [
+    "pushes a product or asks for an order",
+    "creates an order"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #7"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-050",
+  "category": "noise",
+  "title": "Arabic goodbye",
+  "turns": [
+   "مع السلامة"
+  ],
+  "intent": "Customer ends the chat in Arabic script.",
+  "expect": {
+   "must": [
+    "replies with a short farewell in Arabic script"
+   ],
+   "must_not": [
+    "replies in Latin letters",
+    "pushes a product or asks for an order",
+    "creates an order"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #7"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-051",
+  "category": "noise",
+  "title": "Answering an unasked question about size 42",
+  "turns": [
+   "Yes, the 42 one please"
+  ],
+  "intent": "Customer answers a question the bot never asked. There is no product in context.",
+  "expect": {
+   "must": [
+    "asks which product the customer means"
+   ],
+   "must_not": [
+    "creates an order",
+    "assumes a product and quotes a total",
+    "asks for payment or order details as if an order was started"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #7 (no order with missing details)",
+   "Intended behaviour #1"
+  ],
+  "notes": "First turn; nothing was offered before."
+ },
+ {
+  "id": "NZ-052",
+  "category": "noise",
+  "title": "Darija answer to an unasked question, Alger only",
+  "turns": [
+   "iyeh, l Alger"
+  ],
+  "intent": "Customer answers 'Alger' to a question the bot never asked.",
+  "expect": {
+   "must": [
+    "asks what the customer wants or which product they are interested in"
+   ],
+   "must_not": [
+    "creates an order",
+    "invents a total or a delivery date",
+    "replies with Arabic script letters"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #7",
+   "Intended behaviour #5"
+  ],
+  "notes": "Alger is a valid wilaya but no product is in context. Quoting the 400 DZD Alger fee alone is acceptable."
+ },
+ {
+  "id": "NZ-053",
+  "category": "noise",
+  "title": "Vague gift request in English",
+  "turns": [
+   "I want something nice for my brother"
+  ],
+  "intent": "Customer wants a gift but gives no product, size, or budget.",
+  "expect": {
+   "must": [
+    "asks a clarifying question about what kind of item, size, or budget"
+   ],
+   "must_not": [
+    "recommends a product not in the catalog",
+    "lists all products without asking first",
+    "invents a discount or gift wrap"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #1 (answers only from catalog)",
+   "Store facts (gift wrapping EMPTY, no gift cards)"
+  ],
+  "notes": "Clarifying question is required for vague input."
+ },
+ {
+  "id": "NZ-054",
+  "category": "noise",
+  "title": "Vague Darija request for a nice item for a brother",
+  "turns": [
+   "bghit haja zwina l khouya"
+  ],
+  "intent": "Customer wants something nice for a brother with no details.",
+  "expect": {
+   "must": [
+    "asks a clarifying question about the type of item, size or budget"
+   ],
+   "must_not": [
+    "invents a product recommendation",
+    "replies with Arabic script letters",
+    "creates an order"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #1",
+   "Intended behaviour #5"
+  ],
+  "notes": "Clarifying question is required."
+ },
+ {
+  "id": "NZ-055",
+  "category": "noise",
+  "title": "Vague French gift request",
+  "turns": [
+   "Je cherche un cadeau pour mon frère, quelque chose de sympa"
+  ],
+  "intent": "Customer wants a nice gift for a brother without any specifics.",
+  "expect": {
+   "must": [
+    "asks a clarifying question about what kind of item, size or budget",
+    "replies in French"
+   ],
+   "must_not": [
+    "invents a product or gift set",
+    "promises gift wrapping",
+    "creates an order"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #1",
+   "Store facts (gift wrapping EMPTY)"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-056",
+  "category": "noise",
+  "title": "Vague Arabic-script gift request",
+  "turns": [
+   "أبغي هدية حلوة لأخويا"
+  ],
+  "intent": "Customer wants a nice gift for a brother without details.",
+  "expect": {
+   "must": [
+    "asks a clarifying question about the type of item, size or budget in Arabic script"
+   ],
+   "must_not": [
+    "invents a product or recommendation",
+    "replies with Latin letters",
+    "creates an order"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #1",
+   "Intended behaviour #5"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-057",
+  "category": "noise",
+  "title": "English question about two products at once",
+  "turns": [
+   "How much is the cap and the jean?"
+  ],
+  "intent": "Customer asks two prices at once: casquette noire 1500 DZD and jean slim bleu 4200 DZD.",
+  "expect": {
+   "must": [
+    "gives the cap price 1500 DZD and the jean price 4200 DZD",
+    "puts each product on its own line starting with '• '"
+   ],
+   "must_not": [
+    "gives only one of the two prices",
+    "uses markdown bold or headings",
+    "invents a bundle discount"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #6 (two or more options one per line with '• ')",
+   "Store facts (prices)"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-058",
+  "category": "noise",
+  "title": "Darija question about two products at once",
+  "turns": [
+   "chhal lkaskita w chhal sarwal jean?"
+  ],
+  "intent": "Customer asks the price of the cap (1500 DZD) and the jean slim bleu (4200 DZD).",
+  "expect": {
+   "must": [
+    "gives both prices 1500 DZD and 4200 DZD",
+    "puts each product on its own line starting with '• '"
+   ],
+   "must_not": [
+    "gives only one price",
+    "replies with Arabic script letters",
+    "uses markdown bold or headings"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #6",
+   "Intended behaviour #5"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "NZ-059",
+  "category": "noise",
+  "title": "French question about two products at once",
+  "turns": [
+   "Quel est le prix du hoodie et des sneakers ?"
+  ],
+  "intent": "Customer asks the price of the hoodie noir (3500 DZD) and basket blanche (6500 DZD).",
+  "expect": {
+   "must": [
+    "gives both prices 3500 DZD and 6500 DZD",
+    "puts each product on its own line starting with '• '"
+   ],
+   "must_not": [
+    "gives only one price",
+    "uses markdown bold or headings",
+    "invents a discount"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #6",
+   "Store facts (prices)"
+  ],
+  "notes": "'sneakers' alias of Basket blanche."
+ },
+ {
+  "id": "NZ-060",
+  "category": "noise",
+  "title": "Negative sentiment with no request",
+  "turns": [
+   "Ugh, this day is awful, nothing is going right for me today"
+  ],
+  "intent": "Customer vents about a bad day, with no product request and no complaint about the store.",
+  "expect": {
+   "must": [
+    "replies with a short, warm acknowledgement and offers help if the customer needs anything"
+   ],
+   "must_not": [
+    "replies defensively or blames the customer",
+    "invents a product or policy",
+    "uses emoji",
+    "creates an order"
+   ],
+   "handoff": null,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #4 (complaints go to owner, but this is not a complaint about the store)",
+   "Intended behaviour #6 (no emoji)"
+  ],
+  "notes": "Handoff is either acceptable; a short offer of help is expected."
+ }
+]

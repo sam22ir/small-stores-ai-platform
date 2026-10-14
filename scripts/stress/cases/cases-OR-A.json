@@ -1,0 +1,1640 @@
+[
+  {
+    "id": "OR-001",
+    "category": "ordering",
+    "title": "Sbadri 41 Alger, all details in one message",
+    "turns": [
+      "salam, bghit sbadri 41",
+      "smiti Karim Hadj, 0550123456, Alger, Bab Ezzouar cite 1000 logements bloc 4 apt 12",
+      "iyeh confirmi"
+    ],
+    "intent": "Buy one Basket blanche size 41 for Alger, giving name, phone, wilaya and address together, then confirm.",
+    "expect": {
+      "must": [
+        "quotes the Alger delivery fee of 400 DZD",
+        "shows an order summary with item, delivery and total 6900 DZD (6500 + 400), one line per item starting with bullet",
+        "asks for a clear confirmation before creating the order",
+        "creates the order after the customer's final confirmation",
+        "replies in Latin-letter Darija"
+      ],
+      "must_not": [
+        "creates the order before the customer confirms the summary",
+        "shows an exact stock count for size 41",
+        "promises a delivery date",
+        "uses markdown or emoji",
+        "replies with Arabic-script letters"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #6", "Intended behaviour #7", "Store facts: Alger delivery 400"],
+    "notes": "Clean flow, all details in turn 2, confirm in turn 3. Phone without spaces."
+  },
+  {
+    "id": "OR-002",
+    "category": "ordering",
+    "title": "Kaskita Unique to Oran, details spread over turns",
+    "turns": [
+      "bghit nchri kaskita",
+      "smiti Amine Boudiaf",
+      "0661234567",
+      "Oran, hay el Badr rue 12 n 5",
+      "iyeh nakedh"
+    ],
+    "intent": "Order the black cap (Unique) delivered to Oran; the customer gives each detail in its own turn.",
+    "expect": {
+      "must": [
+        "quotes the Oran delivery fee of 700 DZD",
+        "shows an order summary with total 2200 DZD (1500 + 700) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the final confirmation"
+      ],
+      "must_not": [
+        "creates the order before the customer confirms",
+        "states an exact stock number for the cap",
+        "promises a delivery date",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: Oran delivery 700", "Store facts: Casquette noire Unique"],
+    "notes": "Spread flow: item, name, phone, wilaya+address, confirm. Turn 2 has no item info, bot must ask for the rest."
+  },
+  {
+    "id": "OR-003",
+    "category": "ordering",
+    "title": "Two hoodies M to Constantine",
+    "turns": [
+      "bghit 2 hoodie noir taille M",
+      "smiti Ilyes Mezian, 0770123456, Constantine",
+      "cite Zouaghi 200 logts bt B n 3",
+      "iyeh confirmi"
+    ],
+    "intent": "Order quantity 2 of the black hoodie size M for Constantine.",
+    "expect": {
+      "must": [
+        "reflects quantity 2 in the order summary",
+        "quotes the Constantine delivery fee of 700 DZD",
+        "shows total 7700 DZD (2 x 3500 + 700) in bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the final confirmation"
+      ],
+      "must_not": [
+        "creates the order before the customer confirms",
+        "states the exact remaining stock of size M",
+        "uses markdown or emoji",
+        "treats quantity 2 as one piece"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: Hoodie M has 3 in stock", "Store facts: Constantine delivery 700"],
+    "notes": "Quantity 2 on a variant with 3 in stock (in stock). Wilaya written with Latin spelling."
+  },
+  {
+    "id": "OR-004",
+    "category": "ordering",
+    "title": "Sbadri 42 Setif in Arabic script",
+    "turns": [
+      "السلام، نحب نطلب سبادري مقاس 42",
+      "اسمي كريم بلحاج، رقمي 0550.12.34.56، ولاية سطيف، العنوان حي 8 ماي 1945 عمارة 5",
+      "نعم، أؤكد الطلب"
+    ],
+    "intent": "Order the last pair of size 42 Basket blanche for Setif, written in Arabic script.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "quotes the Setif delivery fee of 600 DZD",
+        "writes amounts as plain digits with no space inside the number",
+        "shows an order summary with total 7100 DZD as bullet lines",
+        "creates the order after the customer's confirmation"
+      ],
+      "must_not": [
+        "replies in French or English",
+        "states the exact stock count for size 42",
+        "creates the order before the customer confirms",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "ar"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #6", "Store facts: Setif delivery 600"],
+    "notes": "Size 42 has 1 left, so it is in stock and orderable. Phone uses dots."
+  },
+  {
+    "id": "OR-005",
+    "category": "ordering",
+    "title": "Blue slim jean 40 to Tebessa in English",
+    "turns": [
+      "hi, I'd like the blue slim jean in size 40",
+      "my name is Yacine Ferhat",
+      "phone +213550123456, wilaya Tebessa",
+      "address: Cite El Afia, rue 1 Novembre, building 7",
+      "yes I confirm"
+    ],
+    "intent": "Order the slim blue jean size 40 for Tebessa, giving details across several turns in English.",
+    "expect": {
+      "must": [
+        "replies in English",
+        "quotes the delivery fee of 1200 DZD for Tebessa",
+        "shows an order summary with total 5400 DZD (4200 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the final confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for size 40",
+        "promises a delivery date",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "en"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: other wilayas delivery 1200"],
+    "notes": "Phone in +213 format. Wilaya written without accent."
+  },
+  {
+    "id": "OR-006",
+    "category": "ordering",
+    "title": "Basket 41 to Tizi Ouzou, structured French message",
+    "turns": [
+      "Bonjour, je voudrais commander les baskets blanches pointure 41.",
+      "Nom : Samia Taleb, téléphone 05 50 12 34 56, wilaya : Tizi Ouzou, adresse : Hai Said Mekbel, bt 14 n 2",
+      "Oui je confirme la commande."
+    ],
+    "intent": "Order the white baskets size 41 for Tizi Ouzou in French, with name, phone, wilaya and address in one message.",
+    "expect": {
+      "must": [
+        "replies in French",
+        "quotes the delivery fee of 1200 DZD for Tizi Ouzou",
+        "shows an order summary with total 7700 DZD (6500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the customer's confirmation"
+      ],
+      "must_not": [
+        "replies in Arabic script or English",
+        "states the exact stock count",
+        "creates the order before confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: other wilayas delivery 1200"],
+    "notes": "Phone with spaces. Confirmation in French."
+  },
+  {
+    "id": "OR-007",
+    "category": "ordering",
+    "title": "Casquette to Bechar in French",
+    "turns": [
+      "Salut, je veux la casquette noire svp",
+      "Mon nom c'est Nadir Kaci, mon numéro 0661234567, je suis à Béchar, cité 1200 logements bt 9",
+      "oui je confirme"
+    ],
+    "intent": "Order the black cap for Bechar with details in one message, then confirm in French.",
+    "expect": {
+      "must": [
+        "replies in French",
+        "quotes the delivery fee of 1200 DZD for Bechar",
+        "shows an order summary with total 2700 DZD (1500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the customer's confirmation"
+      ],
+      "must_not": [
+        "creates the order before the confirmation",
+        "states the exact stock count",
+        "uses markdown or emoji",
+        "promises a delivery date"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Casquette noire Unique"],
+    "notes": "Wilaya written with accent; the bot should match it to Bechar."
+  },
+  {
+    "id": "OR-008",
+    "category": "ordering",
+    "title": "Black hoodie XL to Blida in English",
+    "turns": [
+      "I want to order the black hoodie in XL, please.",
+      "Name: Lina Brahimi. Phone: 0770123456. Wilaya: Blida. Address: Cite 19 Mai, bloc C, apt 4.",
+      "yes I confirm the order"
+    ],
+    "intent": "Order the black hoodie XL for Blida in English, one message of details, then confirm.",
+    "expect": {
+      "must": [
+        "replies in English",
+        "quotes the delivery fee of 1200 DZD for Blida",
+        "shows an order summary with total 4700 DZD (3500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the final confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for XL",
+        "creates the order before the confirmation",
+        "offers to hold or reserve the hoodie",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "en"
+    },
+    "rule_refs": ["Intended behaviour #3", "Intended behaviour #7", "Store facts: Hoodie XL has 5 in stock"],
+    "notes": "The first turn is an order statement, not a question, so the flow reaches a summary."
+  },
+  {
+    "id": "OR-009",
+    "category": "ordering",
+    "title": "Jean 38 to Annaba, Darija in four turns",
+    "turns": [
+      "bghit sarwal jean 38",
+      "smiti Lyes Rahmani",
+      "0770123456 w ana f Annaba, hay Seket Ghrib",
+      "iyeh confirmi"
+    ],
+    "intent": "Order the slim jean size 38 for Annaba, with details spread out, then confirm.",
+    "expect": {
+      "must": [
+        "replies in Latin-letter Darija",
+        "quotes the delivery fee of 1200 DZD for Annaba",
+        "shows an order summary with total 5400 DZD (4200 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies with Arabic-script letters",
+        "states the exact stock count for size 38",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Jean 38 has 4 in stock"],
+    "notes": "Sarwal alias for the jean. Phone without spaces. Address not complete until turn 3 (street detail vague, the bot may ask for more)."
+  },
+  {
+    "id": "OR-010",
+    "category": "ordering",
+    "title": "Black cap to Constantine in Algerian Arabic",
+    "turns": [
+      "واش، نحب نطلب الكاسكيطة السودة",
+      "الاسم: سليمة بوزيد، الهاتف: +213661234567، الولاية: قسنطينة، العنوان: حي بوذراع صالح، عمارة 3 شقة 6",
+      "نعم، أؤكد الطلب"
+    ],
+    "intent": "Order the black cap for Constantine written in Algerian Arabic script with all details in one message.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "quotes the Constantine delivery fee of 700 DZD",
+        "writes amounts as plain digits with no space inside the number",
+        "shows an order summary with total 2200 DZD (1500 + 700) as bullet lines",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies in Latin letters",
+        "states the exact stock count",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "ar"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Constantine delivery 700"],
+    "notes": "Cap alias in Arabic script; phone in +213 format."
+  },
+  {
+    "id": "OR-011",
+    "category": "ordering",
+    "title": "Basket 42 to Oran in French",
+    "turns": [
+      "Bonjour, je prends les baskets blanches 42 pour Oran",
+      "Karima Hamdi, 0550.12.34.56, Oran, quartier Gambetta, rue Ibn Sina n 22",
+      "Oui je confirme la commande."
+    ],
+    "intent": "Order the last pair of size 42 Basket blanche for Oran, in French, then confirm.",
+    "expect": {
+      "must": [
+        "replies in French",
+        "quotes the Oran delivery fee of 700 DZD",
+        "shows an order summary with total 7200 DZD (6500 + 700) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for size 42",
+        "offers to hold or reserve the pair",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #2", "Intended behaviour #3", "Intended behaviour #7", "Store facts: Basket 42 has 1 left"],
+    "notes": "Size 42 has 1 left, so it may be described as only a few left; no exact count and no hold."
+  },
+  {
+    "id": "OR-012",
+    "category": "ordering",
+    "title": "Two hoodies M to Alger in English",
+    "turns": [
+      "I need 2 black hoodies size M",
+      "Name: Rania Saidi, phone 0550123456, Alger, address El Biar, rue Didouche n 8",
+      "yes I confirm"
+    ],
+    "intent": "Order two black hoodies size M delivered to Alger, English, three turns.",
+    "expect": {
+      "must": [
+        "replies in English",
+        "reflects quantity 2 in the summary",
+        "quotes the Alger delivery fee of 400 DZD",
+        "shows total 7400 DZD (2 x 3500 + 400) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for size M",
+        "creates the order before the confirmation",
+        "treats the order as one hoodie",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "en"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: Hoodie M has 3 in stock", "Store facts: Alger delivery 400"],
+    "notes": "Quantity 2 of a variant with 3 in stock."
+  },
+  {
+    "id": "OR-013",
+    "category": "ordering",
+    "title": "Two pairs sbadri 41 to Oran, Darija",
+    "turns": [
+      "salam bghit zouj sbadri 41",
+      "smiti Mourad Chaib, 0661234567, wahran, Hai Yasmine, bloc C n 7",
+      "iyeh confirmi"
+    ],
+    "intent": "Order two pairs of Basket blanche size 41 for Oran, in Darija with Latin letters.",
+    "expect": {
+      "must": [
+        "replies in Latin-letter Darija",
+        "reflects quantity 2 in the summary",
+        "quotes the Oran delivery fee of 700 DZD",
+        "shows total 13700 DZD (2 x 6500 + 700) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies with Arabic-script letters",
+        "states the exact stock count for size 41",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Basket 41 has 6 in stock"],
+    "notes": "Quantity 2 on a variant with 6 in stock. Wilaya in Darija spelling (wahran)."
+  },
+  {
+    "id": "OR-014",
+    "category": "ordering",
+    "title": "Jean 40 to Setif in Arabic script",
+    "turns": [
+      "ابغي السروال الجينز مقاس 40",
+      "اسمي يوسف مرابط",
+      "رقمي 0770123456 والولاية سطيف",
+      "العنوان: حي 1000 مسكن، عمارة 12",
+      "نعم أؤكد"
+    ],
+    "intent": "Order the slim jean size 40 for Setif in Arabic script, details spread over four turns, then confirm.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "quotes the Setif delivery fee of 600 DZD",
+        "writes amounts as plain digits with no space inside the number",
+        "shows an order summary with total 4800 DZD (4200 + 600) as bullet lines",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies in Latin letters",
+        "states the exact stock count for size 40",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "ar"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Setif delivery 600"],
+    "notes": "Jean alias sarwal in Arabic script (سروال جينز). Jean 40 has 2 in stock."
+  },
+  {
+    "id": "OR-015",
+    "category": "ordering",
+    "title": "Black cap to Alger, details spread in French",
+    "turns": [
+      "Bonjour, je souhaite acheter une casquette noire.",
+      "Je m'appelle Lamia Ouali",
+      "Mon numéro : +213 661 23 45 67",
+      "Je suis à Alger, adresse : Hydra, villa 4 rue des Roses",
+      "Oui je confirme"
+    ],
+    "intent": "Buy the black cap delivered to Alger, giving each detail in turn, in French.",
+    "expect": {
+      "must": [
+        "replies in French",
+        "quotes the Alger delivery fee of 400 DZD",
+        "shows an order summary with total 1900 DZD (1500 + 400) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "creates the order before the confirmation",
+        "states the exact stock count",
+        "uses markdown or emoji",
+        "promises a delivery date"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Alger delivery 400"],
+    "notes": "Five customer turns. Phone with +213 and spaces."
+  },
+  {
+    "id": "OR-016",
+    "category": "ordering",
+    "title": "White sneakers 41 to Constantine, English all-in-one",
+    "turns": [
+      "hi i want to buy the white sneakers 41",
+      "Full name: Nassim Hadjadj, phone 05 50 12 34 56, wilaya Constantine, address Ali Mendjeli UV 08 bloc 2 apt 5",
+      "yes I confirm the order"
+    ],
+    "intent": "Order the white sneakers size 41 for Constantine; name, phone, wilaya and address in one message.",
+    "expect": {
+      "must": [
+        "replies in English",
+        "quotes the Constantine delivery fee of 700 DZD",
+        "shows an order summary with total 7200 DZD (6500 + 700) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count",
+        "creates the order before the confirmation",
+        "uses markdown or emoji",
+        "promises a delivery date"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "en"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Constantine delivery 700"],
+    "notes": "Sneakers alias. Phone with spaces."
+  },
+  {
+    "id": "OR-017",
+    "category": "ordering",
+    "title": "Hoodie XL to Tlemcen, Darija spread over turns",
+    "turns": [
+      "bghit hoodie noir XL",
+      "smiti Hamza Benmoussa",
+      "0550.12.34.56, Tlemcen",
+      "adresse: Imama, rue Abdelkader 14",
+      "iyeh confirmi"
+    ],
+    "intent": "Order the black hoodie XL for Tlemcen, details spread over five turns in Darija.",
+    "expect": {
+      "must": [
+        "replies in Latin-letter Darija",
+        "quotes the delivery fee of 1200 DZD for Tlemcen",
+        "shows an order summary with total 4700 DZD (3500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies with Arabic-script letters",
+        "states the exact stock count for XL",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Hoodie XL has 5 in stock"],
+    "notes": "Hoodie alias not used; product named with 'hoodie noir'. Five customer turns."
+  },
+  {
+    "id": "OR-018",
+    "category": "ordering",
+    "title": "Jean 38 to Setif with typo, French",
+    "turns": [
+      "Salut, je veux le jean slim bleu en 38.",
+      "Ahmed Zerrouki, 0550123456, Setif, adresse cité des 200 logements bt A",
+      "oui je confirme"
+    ],
+    "intent": "Order the slim jean size 38 for Setif, the wilaya written without accent, then confirm in French.",
+    "expect": {
+      "must": [
+        "replies in French",
+        "matches the typed wilaya to Setif and quotes the delivery fee of 600 DZD",
+        "shows an order summary with total 4800 DZD (4200 + 600) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "says the wilaya is not served when it is",
+        "creates the order before the confirmation",
+        "states the exact stock count for size 38",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: Setif delivery 600", "Store facts: Jean 38 has 4 in stock"],
+    "notes": "Wilaya typo: 'Setif' without accent."
+  },
+  {
+    "id": "OR-019",
+    "category": "ordering",
+    "title": "Hoodie M to Bejaia in English",
+    "turns": [
+      "Hi, can I order the black hoodie, size M?",
+      "Name Sofiane Amrani, 0770123456, Bejaia, Targa Ouzemour street 9",
+      "yes, I confirm"
+    ],
+    "intent": "Order the black hoodie size M for Bejaia, English, three turns.",
+    "expect": {
+      "must": [
+        "replies in English",
+        "quotes the delivery fee of 1200 DZD for Bejaia",
+        "shows an order summary with total 4700 DZD (3500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for size M",
+        "creates the order before the confirmation",
+        "uses markdown or emoji",
+        "says Bejaia is not served"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "en"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: other wilayas delivery 1200", "Store facts: Hoodie M has 3 in stock"],
+    "notes": "Bejaia written without the accent."
+  },
+  {
+    "id": "OR-020",
+    "category": "ordering",
+    "title": "Cap to Tebessa with typo, Darija",
+    "turns": [
+      "salam bghit kaskita",
+      "smiti Adel Hamidi, 0661234567, Tbessa, rue Hassi Bahbah n 5",
+      "iyeh nakedh"
+    ],
+    "intent": "Order the cap for Tbessa with a typo in the wilaya name, in Darija.",
+    "expect": {
+      "must": [
+        "replies in Latin-letter Darija",
+        "matches Tbessa to Tebessa and quotes the delivery fee of 1200 DZD",
+        "shows an order summary with total 2700 DZD (1500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "says the wilaya is not served",
+        "creates the order before the confirmation",
+        "states the exact stock count",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: other wilayas delivery 1200", "Store facts: Casquette noire Unique"],
+    "notes": "Kaskita alias in Latin letters. Wilaya typo 'Tbessa'."
+  },
+  {
+    "id": "OR-021",
+    "category": "ordering",
+    "title": "Sbadri 41 to Alger in Arabic script",
+    "turns": [
+      "السلام عليكم، نبغي السبادري مقاس 41",
+      "الاسم: رشيد عمروش، الهاتف 0550123456، الولاية الجزائر، العنوان: بئر مراد رايس، شارع 1 نوفمبر رقم 9",
+      "نعم، أؤكد الطلب"
+    ],
+    "intent": "Order the Basket blanche size 41 for Alger, written in Arabic script with the alias.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "quotes the Alger delivery fee of 400 DZD",
+        "writes amounts as plain digits with no space inside the number",
+        "shows an order summary with total 6900 DZD (6500 + 400) as bullet lines",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies in Latin letters",
+        "states the exact stock count for size 41",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "ar"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Alger delivery 400"],
+    "notes": "Alias sbadri in Arabic script, wilaya in Arabic script (الجزائر)."
+  },
+  {
+    "id": "OR-022",
+    "category": "ordering",
+    "title": "Basket 41 to Oran, six turns in French",
+    "turns": [
+      "Bonjour, les baskets blanches pointure 41 svp.",
+      "Mon nom : Amel Rahmani",
+      "Mon numéro : 0550.12.34.56",
+      "Wilaya : Oran",
+      "Adresse : Es Sénia, cité 1200 logements, bloc 5, appartement 3",
+      "Oui je confirme la commande."
+    ],
+    "intent": "Order the Basket blanche size 41 for Oran, each detail in its own turn, with the confirmation last.",
+    "expect": {
+      "must": [
+        "replies in French",
+        "quotes the Oran delivery fee of 700 DZD",
+        "shows an order summary with total 7200 DZD (6500 + 700) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "creates the order before the confirmation",
+        "states the exact stock count",
+        "repeats a question the customer already answered in the same conversation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: Oran delivery 700", "Intended behaviour #6"],
+    "notes": "Six turns, the maximum. Each turn answers one missing field."
+  },
+  {
+    "id": "OR-023",
+    "category": "ordering",
+    "title": "Two jeans 40 to Alger in English",
+    "turns": [
+      "I want 2 blue slim jeans size 40",
+      "Name: Walid Bensalem, phone +213 550 12 34 56, wilaya Alger, address Kouba, cite Ain Naadja, bloc 9",
+      "yes I confirm"
+    ],
+    "intent": "Order two blue slim jeans size 40 for Alger, English, three turns.",
+    "expect": {
+      "must": [
+        "replies in English",
+        "reflects quantity 2 in the summary",
+        "quotes the Alger delivery fee of 400 DZD",
+        "shows total 8800 DZD (2 x 4200 + 400) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for size 40",
+        "creates the order before the confirmation",
+        "treats the order as one jean",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "en"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: Jean 40 has 2 in stock", "Store facts: Alger delivery 400"],
+    "notes": "Quantity 2 equals the 2 units in stock for size 40, so it is still orderable."
+  },
+  {
+    "id": "OR-024",
+    "category": "ordering",
+    "title": "Sbadri 41 to Bechar in Darija",
+    "turns": [
+      "salam, bghit sbadri 41",
+      "smiti Chahrazed Yahiaoui w num 0770123456",
+      "wilaya Bechar, adresse hay Boukaiss bt 12",
+      "iyeh confirmi"
+    ],
+    "intent": "Order the Basket blanche size 41 for Bechar in Darija, details spread over three turns.",
+    "expect": {
+      "must": [
+        "replies in Latin-letter Darija",
+        "quotes the delivery fee of 1200 DZD for Bechar",
+        "shows an order summary with total 7700 DZD (6500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies with Arabic-script letters",
+        "states the exact stock count for size 41",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: other wilayas delivery 1200"],
+    "notes": "Wilaya written without accent."
+  },
+  {
+    "id": "OR-025",
+    "category": "ordering",
+    "title": "Black cap to Ghardaia in French",
+    "turns": [
+      "Bonjour, je veux une casquette noire.",
+      "Je m'appelle Fares Saadi",
+      "Numéro 0661234567, wilaya Ghardaïa",
+      "Adresse : Bounoura, rue 5 n 18",
+      "oui je confirme"
+    ],
+    "intent": "Order the black cap for Ghardaia, details spread across turns, in French.",
+    "expect": {
+      "must": [
+        "replies in French",
+        "quotes the delivery fee of 1200 DZD for Ghardaia",
+        "shows an order summary with total 2700 DZD (1500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "creates the order before the confirmation",
+        "states the exact stock count",
+        "uses markdown or emoji",
+        "says Ghardaia is not served"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: other wilayas delivery 1200", "Store facts: Casquette noire Unique"],
+    "notes": "Wilaya with accent. Five customer turns."
+  },
+  {
+    "id": "OR-026",
+    "category": "ordering",
+    "title": "White basket 42 to Batna in English",
+    "turns": [
+      "Hello, I'd like the white basket, size 42, please.",
+      "Name: Meriem Chelghoum, phone 0550123456, wilaya Batna, address Hai Ben Boulaid, rue 12 n 4",
+      "Yes, I confirm."
+    ],
+    "intent": "Order the white basket size 42 for Batna, English, three turns.",
+    "expect": {
+      "must": [
+        "replies in English",
+        "quotes the delivery fee of 1200 DZD for Batna",
+        "shows an order summary with total 7700 DZD (6500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for size 42",
+        "offers to hold or reserve the basket",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "en"
+    },
+    "rule_refs": ["Intended behaviour #2", "Intended behaviour #3", "Intended behaviour #7", "Store facts: Basket 42 has 1 left"],
+    "notes": "Last pair in size 42; orderable but low stock."
+  },
+  {
+    "id": "OR-027",
+    "category": "ordering",
+    "title": "Two hoodies M to Oran in Arabic script",
+    "turns": [
+      "نبغي زوج هودي أسود مقاس M",
+      "اسمي كمال بوعلام، رقمي 0661234567، الولاية وهران، العنوان حي السلام، عمارة 7",
+      "أؤكد الطلب"
+    ],
+    "intent": "Order two black hoodies size M for Oran in Arabic script, wilaya in Arabic script.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "reflects quantity 2 in the summary",
+        "quotes the Oran delivery fee of 700 DZD",
+        "shows total 7700 DZD (2 x 3500 + 700) as bullet lines",
+        "writes amounts as plain digits with no space inside the number",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies in Latin letters",
+        "states the exact stock count for size M",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "ar"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #6", "Intended behaviour #7", "Store facts: Oran delivery 700"],
+    "notes": "Quantity 2 of hoodie M (3 in stock). Wilaya in Arabic script (وهران)."
+  },
+  {
+    "id": "OR-028",
+    "category": "ordering",
+    "title": "Jean 38 to Mostaganem, Darija with French confirm",
+    "turns": [
+      "bghit sarwal jean 38",
+      "smiti Nour Eddine Bouzid, 0550123456, Mostaganem, hay Plateau bt 2",
+      "oui je confirme"
+    ],
+    "intent": "Order the slim jean size 38 for Mostaganem; confirms with the French word oui.",
+    "expect": {
+      "must": [
+        "replies in Latin-letter Darija",
+        "quotes the delivery fee of 1200 DZD for Mostaganem",
+        "shows an order summary with total 5400 DZD (4200 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the 'oui je confirme' confirmation"
+      ],
+      "must_not": [
+        "replies with Arabic-script letters",
+        "states the exact stock count for size 38",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: other wilayas delivery 1200"],
+    "notes": "Mixed Darija and French confirmation."
+  },
+  {
+    "id": "OR-029",
+    "category": "ordering",
+    "title": "Two pairs of basket 41 to Setif in French",
+    "turns": [
+      "Bonjour, je veux 2 paires de baskets blanches 41.",
+      "Nom : Sabrina Ouchene, tél 0770123456, wilaya Sétif, adresse Cité Ain Arnat, bloc 3",
+      "Oui je confirme la commande."
+    ],
+    "intent": "Order two pairs of white baskets size 41 for Setif, in French, three turns.",
+    "expect": {
+      "must": [
+        "replies in French",
+        "reflects quantity 2 in the summary",
+        "quotes the Setif delivery fee of 600 DZD",
+        "shows total 13600 DZD (2 x 6500 + 600) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for size 41",
+        "creates the order before the confirmation",
+        "treats the order as one pair",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: Setif delivery 600", "Store facts: Basket 41 has 6 in stock"],
+    "notes": "Quantity 2 on a variant with 6 in stock."
+  },
+  {
+    "id": "OR-030",
+    "category": "ordering",
+    "title": "Black cap to Tizi Ouzou with typo, English",
+    "turns": [
+      "hey can i get the black cap?",
+      "name: Lydia Amara, phone 05 50 12 34 56, wilaya Tizi Wzou, address Hai Tala Athmane n 14",
+      "yes I confirm"
+    ],
+    "intent": "Order the black cap for Tizi Ouzou; the wilaya is typed as Tizi Wzou.",
+    "expect": {
+      "must": [
+        "replies in English",
+        "matches Tizi Wzou to Tizi Ouzou and quotes the delivery fee of 1200 DZD",
+        "shows an order summary with total 2700 DZD (1500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "says the wilaya is not served",
+        "creates the order before the confirmation",
+        "states the exact stock count",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "en"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: other wilayas delivery 1200"],
+    "notes": "Typo in wilaya name, phone with spaces."
+  },
+  {
+    "id": "OR-031",
+    "category": "ordering",
+    "title": "Hoodie XL to Alger in Darija",
+    "turns": [
+      "salam nheb hoodie noir XL",
+      "smiti Mehdi Lounes w l num 0661234567, Alger Centre, rue Larbi Ben M'hidi n 22",
+      "iyeh confirmi"
+    ],
+    "intent": "Order the black hoodie XL for Alger in Darija, three turns.",
+    "expect": {
+      "must": [
+        "replies in Latin-letter Darija",
+        "quotes the Alger delivery fee of 400 DZD",
+        "shows an order summary with total 3900 DZD (3500 + 400) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies with Arabic-script letters",
+        "states the exact stock count for XL",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Hoodie XL has 5 in stock"],
+    "notes": "Wilaya given as Alger Centre, which the bot should accept as Alger."
+  },
+  {
+    "id": "OR-032",
+    "category": "ordering",
+    "title": "Jean 40 to Constantine in Arabic script",
+    "turns": [
+      "ابغي جينز سروال أزرق مقاس 40",
+      "الاسم: سعاد زيتوني، الهاتف 0550.12.34.56، الولاية قسنطينة، العنوان: المنظر الجميل، عمارة 9 شقة 2",
+      "نعم، أؤكد"
+    ],
+    "intent": "Order the slim blue jean size 40 for Constantine in Arabic script.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "quotes the Constantine delivery fee of 700 DZD",
+        "writes amounts as plain digits with no space inside the number",
+        "shows an order summary with total 4900 DZD (4200 + 700) as bullet lines",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies in Latin letters",
+        "states the exact stock count for size 40",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "ar"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Constantine delivery 700"],
+    "notes": "Jean in Arabic script, phone with dots."
+  },
+  {
+    "id": "OR-033",
+    "category": "ordering",
+    "title": "Black hoodie M to Annaba with typo, French",
+    "turns": [
+      "Bonjour, je souhaite commander le hoodie noir taille M.",
+      "Yanis Bouchama",
+      "0550123456",
+      "Wilaya : Anaba. Adresse : El Bouni, cité 500 logements, bt C n 6",
+      "Oui je confirme"
+    ],
+    "intent": "Order the black hoodie size M for Annaba, with the wilaya typo Anaba, in French.",
+    "expect": {
+      "must": [
+        "replies in French",
+        "matches Anaba to Annaba and quotes the delivery fee of 1200 DZD",
+        "shows an order summary with total 4700 DZD (3500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "says the wilaya is not served",
+        "creates the order before the confirmation",
+        "states the exact stock count for size M",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: other wilayas delivery 1200"],
+    "notes": "Five turns, the wilaya typo is in turn 4."
+  },
+  {
+    "id": "OR-034",
+    "category": "ordering",
+    "title": "Sneakers 41 to Jijel in English",
+    "turns": [
+      "Hi, I want to order sneakers 41 please",
+      "Full name Kenza Lakhdari, phone +213661234567, Jijel, address Ouled Yahia Khedrouch, house 3",
+      "yes I confirm"
+    ],
+    "intent": "Order the Basket blanche size 41 for Jijel, English, three turns, using the sneakers alias.",
+    "expect": {
+      "must": [
+        "replies in English",
+        "quotes the delivery fee of 1200 DZD for Jijel",
+        "shows an order summary with total 7700 DZD (6500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for size 41",
+        "creates the order before the confirmation",
+        "uses markdown or emoji",
+        "promises a delivery date"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "en"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: other wilayas delivery 1200"],
+    "notes": "Sneakers alias maps to Basket blanche."
+  },
+  {
+    "id": "OR-035",
+    "category": "ordering",
+    "title": "Cap to Skikda in Darija",
+    "turns": [
+      "salam bghit cap noir",
+      "smiti Redouane Ziane",
+      "0770123456, Skikda, hay Benchaib 3",
+      "iyeh confirmi"
+    ],
+    "intent": "Order the black cap for Skikda, Darija, details spread over four turns.",
+    "expect": {
+      "must": [
+        "replies in Latin-letter Darija",
+        "quotes the delivery fee of 1200 DZD for Skikda",
+        "shows an order summary with total 2700 DZD (1500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies with Arabic-script letters",
+        "states the exact stock count",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: other wilayas delivery 1200"],
+    "notes": "Alias cap in Latin letters."
+  },
+  {
+    "id": "OR-036",
+    "category": "ordering",
+    "title": "Jean 40 to Alger in French, all details in one message",
+    "turns": [
+      "Bonjour, je veux le jean slim bleu taille 40.",
+      "Nom Lynda Mecheri, tel 0661234567, Alger, adresse Dely Ibrahim, rue des Pins n 7",
+      "Je confirme la commande, oui."
+    ],
+    "intent": "Order the slim blue jean size 40 for Alger in French, details in one message.",
+    "expect": {
+      "must": [
+        "replies in French",
+        "quotes the Alger delivery fee of 400 DZD",
+        "shows an order summary with total 4600 DZD (4200 + 400) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for size 40",
+        "creates the order before the confirmation",
+        "uses markdown or emoji",
+        "promises a delivery date"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Alger delivery 400"],
+    "notes": "Jean size 40 has 2 in stock, orderable."
+  },
+  {
+    "id": "OR-037",
+    "category": "ordering",
+    "title": "White sneakers 42 to Boumerdes in English",
+    "turns": [
+      "Hi! I'd like the white sneakers in 42",
+      "My name is Tarek Oukil, phone 0550.12.34.56",
+      "I live in Boumerdes, address: Cite 05 Juillet, bloc A, apt 8",
+      "yes I confirm"
+    ],
+    "intent": "Order the last pair of size 42 Basket blanche for Boumerdes in English.",
+    "expect": {
+      "must": [
+        "replies in English",
+        "quotes the delivery fee of 1200 DZD for Boumerdes",
+        "shows an order summary with total 7700 DZD (6500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for size 42",
+        "offers to hold or reserve the pair",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "en"
+    },
+    "rule_refs": ["Intended behaviour #2", "Intended behaviour #3", "Intended behaviour #7", "Store facts: Basket 42 has 1 left"],
+    "notes": "Low-stock size 42, only a few left wording is acceptable."
+  },
+  {
+    "id": "OR-038",
+    "category": "ordering",
+    "title": "Sbadri 41 to Tebessa in Arabic script",
+    "turns": [
+      "نحب نطلب السبادري مقاس 41",
+      "اسمي أسماء حمدي، رقم الهاتف 0770123456، الولاية تبسة، العنوان حي 1 نوفمبر، رقم 14",
+      "نعم أؤكد الطلب"
+    ],
+    "intent": "Order the Basket blanche size 41 for Tebessa in Arabic script, wilaya written in Arabic.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "quotes the delivery fee of 1200 DZD for Tebessa",
+        "writes amounts as plain digits with no space inside the number",
+        "shows an order summary with total 7700 DZD (6500 + 1200) as bullet lines",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies in Latin letters",
+        "states the exact stock count for size 41",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "ar"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: other wilayas delivery 1200"],
+    "notes": "Wilaya in Arabic script (تبسة)."
+  },
+  {
+    "id": "OR-039",
+    "category": "ordering",
+    "title": "Two hoodies M to Blida in Darija",
+    "turns": [
+      "bghit zouj hoodie M",
+      "smiti Abdelkader Mesbah, 0661234567, Blida, cite 19 mai n 4",
+      "iyeh nakedh"
+    ],
+    "intent": "Order two black hoodies size M for Blida in Darija.",
+    "expect": {
+      "must": [
+        "replies in Latin-letter Darija",
+        "reflects quantity 2 in the summary",
+        "quotes the delivery fee of 1200 DZD for Blida",
+        "shows total 8200 DZD (2 x 3500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies with Arabic-script letters",
+        "states the exact stock count for size M",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: Hoodie M has 3 in stock", "Store facts: other wilayas delivery 1200"],
+    "notes": "Quantity 2 of hoodie M (3 in stock). Quantity word zouj is Darija for two."
+  },
+  {
+    "id": "OR-040",
+    "category": "ordering",
+    "title": "Jean 38 to Ouargla in English",
+    "turns": [
+      "I need the slim jeans in 38.",
+      "Name: Hichem Belkacem, number 0550123456, wilaya Ouargla, address Hai Sonatrach, villa 11",
+      "yes, confirm please"
+    ],
+    "intent": "Order the slim jean size 38 for Ouargla in English, three turns.",
+    "expect": {
+      "must": [
+        "replies in English",
+        "quotes the delivery fee of 1200 DZD for Ouargla",
+        "shows an order summary with total 5400 DZD (4200 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for size 38",
+        "creates the order before the confirmation",
+        "uses markdown or emoji",
+        "promises a delivery date"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "en"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: Jean 38 has 4 in stock", "Store facts: other wilayas delivery 1200"],
+    "notes": "Jean alias 'jeans' in English."
+  },
+  {
+    "id": "OR-041",
+    "category": "ordering",
+    "title": "Black cap to Constantine in French, spread details",
+    "turns": [
+      "Bonjour, une casquette noire svp",
+      "Je m'appelle Riad Benhamida",
+      "Téléphone : 0550.12.34.56, wilaya Constantine",
+      "Adresse : Bellevue, rue Mohamed Khemisti n 33",
+      "oui je confirme"
+    ],
+    "intent": "Order the black cap for Constantine in French, one detail per turn, then confirm.",
+    "expect": {
+      "must": [
+        "replies in French",
+        "quotes the Constantine delivery fee of 700 DZD",
+        "shows an order summary with total 2200 DZD (1500 + 700) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "creates the order before the confirmation",
+        "states the exact stock count",
+        "uses markdown or emoji",
+        "repeats a question already answered"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: Constantine delivery 700", "Intended behaviour #6"],
+    "notes": "Five customer turns."
+  },
+  {
+    "id": "OR-042",
+    "category": "ordering",
+    "title": "Sbadri 41 to Setif in Darija",
+    "turns": [
+      "salam nheb sbadri 41",
+      "smiti Nassima Benkhelil w num 0550123456, Setif, hay el Ouens bt 6",
+      "iyeh confirmi"
+    ],
+    "intent": "Order the Basket blanche size 41 for Setif in Darija.",
+    "expect": {
+      "must": [
+        "replies in Latin-letter Darija",
+        "quotes the Setif delivery fee of 600 DZD",
+        "shows an order summary with total 7100 DZD (6500 + 600) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies with Arabic-script letters",
+        "states the exact stock count for size 41",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Setif delivery 600"],
+    "notes": "Wilaya Setif without accent in Darija."
+  },
+  {
+    "id": "OR-043",
+    "category": "ordering",
+    "title": "Black hoodie XL to Bechar in Arabic script",
+    "turns": [
+      "ابغي هودي أسود XL",
+      "الاسم محمد زروقي، الهاتف 0661234567، الولاية بشار، العنوان حي 500 مسكن، عمارة 3",
+      "نعم، أؤكد الطلب"
+    ],
+    "intent": "Order the black hoodie XL for Bechar, written in Arabic script with wilaya in Arabic.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "quotes the delivery fee of 1200 DZD for Bechar",
+        "writes amounts as plain digits with no space inside the number",
+        "shows an order summary with total 4700 DZD (3500 + 1200) as bullet lines",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies in Latin letters",
+        "states the exact stock count for XL",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "ar"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Hoodie XL has 5 in stock"],
+    "notes": "Wilaya in Arabic script (بشار)."
+  },
+  {
+    "id": "OR-044",
+    "category": "ordering",
+    "title": "Two jeans 40 to Oran in Algerian Arabic",
+    "turns": [
+      "أبغي جوج جينزات زرقاء مقاس 40 لوهران",
+      "اسمي إلياس بوزيد",
+      "رقمي +213550123456 والولاية وهران، حي الصباح، عمارة 4، رقم 10",
+      "نعم، أؤكد الطلب"
+    ],
+    "intent": "Order two slim blue jeans size 40 for Oran in Algerian Arabic script, with quantity 2.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "reflects quantity 2 in the summary",
+        "quotes the Oran delivery fee of 700 DZD",
+        "shows total 9100 DZD (2 x 4200 + 700) as bullet lines",
+        "writes amounts as plain digits with no space inside the number",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies in Latin letters",
+        "states the exact stock count for size 40",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "ar"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: Jean 40 has 2 in stock"],
+    "notes": "Quantity 2 equals stock for size 40. Phone in +213 format."
+  },
+  {
+    "id": "OR-045",
+    "category": "ordering",
+    "title": "Black cap to Tipaza in English",
+    "turns": [
+      "Hey, can I order the black cap for delivery to Tipaza?",
+      "Name: Maya Hamidouche, phone 0770123456, address: Cherchell road, Hai El Amel n 12",
+      "yes I confirm"
+    ],
+    "intent": "Order the black cap delivered to Tipaza in English, wilaya given in the first message.",
+    "expect": {
+      "must": [
+        "replies in English",
+        "quotes the delivery fee of 1200 DZD for Tipaza",
+        "shows an order summary with total 2700 DZD (1500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count",
+        "creates the order before the confirmation",
+        "uses markdown or emoji",
+        "promises a delivery date"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "en"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: other wilayas delivery 1200", "Store facts: Casquette noire Unique"],
+    "notes": "Wilaya named in the first turn."
+  },
+  {
+    "id": "OR-046",
+    "category": "ordering",
+    "title": "Sbadri 41 to Tizi Ouzou, five turns in Darija",
+    "turns": [
+      "bghit nchri sbadri 41",
+      "smiti Massinissa Ait Ali",
+      "0550.12.34.56 w ana f Tizi Ouzou",
+      "adresse: Hai Amirouche, bt 5 n 12",
+      "iyeh confirmi"
+    ],
+    "intent": "Order the Basket blanche size 41 for Tizi Ouzou in Darija, details spread across turns.",
+    "expect": {
+      "must": [
+        "replies in Latin-letter Darija",
+        "quotes the delivery fee of 1200 DZD for Tizi Ouzou",
+        "shows an order summary with total 7700 DZD (6500 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies with Arabic-script letters",
+        "states the exact stock count for size 41",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: other wilayas delivery 1200"],
+    "notes": "Five customer turns."
+  },
+  {
+    "id": "OR-047",
+    "category": "ordering",
+    "title": "Hoodie M to Alger, four turns in French",
+    "turns": [
+      "Salut, je veux le hoodie noir en M.",
+      "Yasmine Hadj Mohand",
+      "05 50 12 34 56, Alger",
+      "Adresse : Oued Smar, cité 300 logements, bt 2 apt 7",
+      "oui je confirme"
+    ],
+    "intent": "Order the black hoodie size M for Alger in French, details spread across turns.",
+    "expect": {
+      "must": [
+        "replies in French",
+        "quotes the Alger delivery fee of 400 DZD",
+        "shows an order summary with total 3900 DZD (3500 + 400) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for size M",
+        "creates the order before the confirmation",
+        "uses markdown or emoji",
+        "promises a delivery date"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: Alger delivery 400", "Store facts: Hoodie M has 3 in stock"],
+    "notes": "Phone with spaces; wilaya on the same turn as the phone."
+  },
+  {
+    "id": "OR-048",
+    "category": "ordering",
+    "title": "Two pairs of basket 41 to Alger in English",
+    "turns": [
+      "I want 2 pairs of white sneakers size 41",
+      "Name: Oussama Bey, phone +213 661 23 45 67, wilaya Alger, address Kouba, cite Ain Naadja, bloc 9",
+      "yes I confirm"
+    ],
+    "intent": "Order two pairs of white sneakers size 41 for Alger in English.",
+    "expect": {
+      "must": [
+        "replies in English",
+        "reflects quantity 2 in the summary",
+        "quotes the Alger delivery fee of 400 DZD",
+        "shows total 13400 DZD (2 x 6500 + 400) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "states the exact stock count for size 41",
+        "creates the order before the confirmation",
+        "treats the order as one pair",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "en"
+    },
+    "rule_refs": ["Intended behaviour #7", "Store facts: Basket 41 has 6 in stock", "Store facts: Alger delivery 400"],
+    "notes": "Quantity 2 of size 41 (6 in stock)."
+  },
+  {
+    "id": "OR-049",
+    "category": "ordering",
+    "title": "Black cap to Chlef in Arabic script",
+    "turns": [
+      "نحب الكاسكيطة السوداء",
+      "الاسم: حكيم بن عيسى، الهاتف 0550123456، ولاية الشلف، العنوان: حي 20 أوت، عمارة 2",
+      "نعم، أؤكد الطلب."
+    ],
+    "intent": "Order the black cap for Chlef in Arabic script, with the alias in Arabic script.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "quotes the delivery fee of 1200 DZD for Chlef",
+        "writes amounts as plain digits with no space inside the number",
+        "shows an order summary with total 2700 DZD (1500 + 1200) as bullet lines",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies in Latin letters",
+        "states the exact stock count",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "ar"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: other wilayas delivery 1200"],
+    "notes": "Cap alias written in Arabic script (كاسكيطة)."
+  },
+  {
+    "id": "OR-050",
+    "category": "ordering",
+    "title": "Jean 38 to Djelfa in Darija, four turns",
+    "turns": [
+      "salam, bghit jean 38",
+      "Mohamed Ali Chenni",
+      "0661234567 w ana f Djelfa, hay el Nasr bt 7",
+      "iyeh confirmi"
+    ],
+    "intent": "Order the slim jean size 38 for Djelfa in Darija, details spread over four turns.",
+    "expect": {
+      "must": [
+        "replies in Latin-letter Darija",
+        "quotes the delivery fee of 1200 DZD for Djelfa",
+        "shows an order summary with total 5400 DZD (4200 + 1200) as bullet lines",
+        "asks for confirmation before creating the order",
+        "creates the order after the confirmation"
+      ],
+      "must_not": [
+        "replies with Arabic-script letters",
+        "states the exact stock count for size 38",
+        "creates the order before the confirmation",
+        "uses markdown or emoji"
+      ],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #5", "Intended behaviour #7", "Store facts: other wilayas delivery 1200"],
+    "notes": "Clean flow with the name alone in turn 2."
+  }
+]

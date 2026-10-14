@@ -1,0 +1,79 @@
+[
+  {
+    "id": "SAMPLE-001",
+    "category": "product_stock",
+    "title": "Asks for sneakers (alias) and gets the catalog answer",
+    "turns": ["salam, wach 3andkom sneakers?"],
+    "intent": "Customer asks whether the store has the sneakers (Basket blanche).",
+    "expect": {
+      "must": ["Mentions the Basket blanche product or sneakers from the catalog"],
+      "must_not": ["Gives exact stock numbers", "Invents products"],
+      "tools_expected": ["search_products"],
+      "handoff": false,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": ["Intended behaviour #1", "Intended behaviour #2"],
+    "notes": "Self-test case for the stub: exercises search_products."
+  },
+  {
+    "id": "SAMPLE-002",
+    "category": "ordering",
+    "title": "Two-turn order: product first, then name, phone, wilaya, address and confirmation",
+    "turns": [
+      "je veux commander une basket blanche 41",
+      "nom: Ahmed Benali, tel 0550123456, wilaya Alger, adresse: cite 1 rue 5 maison 12, je confirme"
+    ],
+    "intent": "Buy one pair of Basket blanche size 41, delivered to Alger, cash on delivery.",
+    "expect": {
+      "must": ["Quotes the delivery fee or total before creating the order", "Creates the order after the confirmation"],
+      "must_not": ["Creates an order without a confirmation", "Promises a delivery date"],
+      "tools_expected": ["search_products", "quote_delivery", "create_order"],
+      "handoff": false,
+      "order_created": true,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #7"],
+    "notes": "Self-test case for the stub: full order path, stock of 41 goes 6 -> 5, total 6500 + 400 DZD."
+  },
+  {
+    "id": "SAMPLE-003",
+    "category": "handoff",
+    "title": "Asks for a human, then writes again",
+    "turns": [
+      "bonjour, je veux parler a un humain svp",
+      "allo ?"
+    ],
+    "intent": "Customer wants the owner. The second message after the handoff must get no bot reply.",
+    "expect": {
+      "must": ["Hands the conversation to the owner in the first turn"],
+      "must_not": ["Replies to the second message while the conversation is with the owner"],
+      "tools_expected": ["handoff_to_owner"],
+      "handoff": true,
+      "order_created": false,
+      "language": "fr"
+    },
+    "rule_refs": ["Intended behaviour #4", "Intended behaviour #12"],
+    "notes": "Self-test case for the stub: the second turn must come back with reply null and status human."
+  },
+  {
+    "id": "SAMPLE-004",
+    "category": "ordering",
+    "title": "Orders a sold-out size (Jean slim 42, stock 0)",
+    "turns": [
+      "salam, jean slim 42 disponible ?",
+      "nom: Sara Kebir, tel 0661234567, wilaya Oran, adresse: rue 10 hay el badr, je confirme"
+    ],
+    "intent": "Buy the Jean slim bleu in size 42, which is sold out.",
+    "expect": {
+      "must": ["Does not create an order for a sold-out variant", "Tells the customer the size is not available"],
+      "must_not": ["Gives an exact stock number", "Offers to hold the item"],
+      "tools_expected": ["search_products", "create_order"],
+      "handoff": null,
+      "order_created": false,
+      "language": "fr"
+    },
+    "rule_refs": ["Store facts: Jean slim bleu 42 = 0", "Intended behaviour #7", "Intended behaviour #3"],
+    "notes": "Self-test case for the stub: place_order must reject with insufficient_stock; no order row and no stock change."
+  }
+]

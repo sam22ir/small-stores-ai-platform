@@ -1,0 +1,346 @@
+{
+ "store": {
+  "name": "algeria testing account",
+  "currency": "DZD",
+  "timezone": "UTC",
+  "business_info": "Opening hours: 10:00 to 22:00 every day",
+  "business_info_fields": {
+   "hours": "10:00 to 22:00 every day",
+   "other": "",
+   "address": "",
+   "payment": "",
+   "returns": "",
+   "delivery": ""
+  },
+  "orders_enabled": true,
+  "reply_tone": "friendly",
+  "reply_emoji": false
+ },
+ "products": [
+  {
+   "name": "Basket blanche",
+   "description": "Baskets blanches en cuir synthétique.",
+   "aliases": "sneakers, sbadri, سبادري",
+   "price_cents": 650000,
+   "active": true,
+   "has_photo": true,
+   "variants": [
+    {
+     "label": "41",
+     "price_cents": null,
+     "stock": 6
+    },
+    {
+     "label": "42",
+     "price_cents": null,
+     "stock": 1
+    },
+    {
+     "label": "43",
+     "price_cents": null,
+     "stock": 0
+    }
+   ]
+  },
+  {
+   "name": "Casquette noire",
+   "description": "Casquette réglable, brodée.",
+   "aliases": "cap, kaskita, كاسكيطة",
+   "price_cents": 150000,
+   "active": true,
+   "has_photo": true,
+   "variants": [
+    {
+     "label": "Unique",
+     "price_cents": null,
+     "stock": 10
+    }
+   ]
+  },
+  {
+   "name": "Hoodie noir",
+   "description": "Hoodie en coton, capuche, coupe oversize.",
+   "aliases": "kapuchon, sweat, هودي, hoodie black",
+   "price_cents": 350000,
+   "active": true,
+   "has_photo": false,
+   "variants": [
+    {
+     "label": "L",
+     "price_cents": null,
+     "stock": 0
+    },
+    {
+     "label": "M",
+     "price_cents": null,
+     "stock": 3
+    },
+    {
+     "label": "XL",
+     "price_cents": null,
+     "stock": 5
+    }
+   ]
+  },
+  {
+   "name": "Jean slim bleu",
+   "description": "Jean slim stretch, bleu délavé.",
+   "aliases": "jean, sarwal, سروال جينز",
+   "price_cents": 420000,
+   "active": true,
+   "has_photo": false,
+   "variants": [
+    {
+     "label": "38",
+     "price_cents": null,
+     "stock": 4
+    },
+    {
+     "label": "40",
+     "price_cents": null,
+     "stock": 2
+    },
+    {
+     "label": "42",
+     "price_cents": null,
+     "stock": 0
+    }
+   ]
+  }
+ ],
+ "delivery_fees": [
+  {
+   "wilaya": "Adrar",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Aïn Defla",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Aïn Témouchent",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Alger",
+   "fee_cents": 40000
+  },
+  {
+   "wilaya": "Annaba",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Batna",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Béchar",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Béjaïa",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Béni Abbès",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Biskra",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Blida",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Bordj Badji Mokhtar",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Bordj Bou Arréridj",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Bouira",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Boumerdès",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Chlef",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Constantine",
+   "fee_cents": 70000
+  },
+  {
+   "wilaya": "Djanet",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Djelfa",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "El Bayadh",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "El M'Ghair",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "El Menia",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "El Oued",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "El Tarf",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Ghardaïa",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Guelma",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Illizi",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "In Guezzam",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "In Salah",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Jijel",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Khenchela",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Laghouat",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "M'Sila",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Mascara",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Médéa",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Mila",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Mostaganem",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Naâma",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Oran",
+   "fee_cents": 70000
+  },
+  {
+   "wilaya": "Ouargla",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Ouled Djellal",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Oum El Bouaghi",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Relizane",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Saïda",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Sétif",
+   "fee_cents": 60000
+  },
+  {
+   "wilaya": "Sidi Bel Abbès",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Skikda",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Souk Ahras",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Tamanrasset",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Tébessa",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Tiaret",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Timimoun",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Tindouf",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Tipaza",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Tissemsilt",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Tizi Ouzou",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Tlemcen",
+   "fee_cents": 120000
+  },
+  {
+   "wilaya": "Touggourt",
+   "fee_cents": 120000
+  }
+ ],
+ "faq": []
+}
