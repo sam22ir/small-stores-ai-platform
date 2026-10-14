@@ -5,6 +5,18 @@ import { createOrder } from "./order.ts";
 import { asRecord, money, UUID } from "./shared.ts";
 import type { ToolContext, ToolOutcome } from "./shared.ts";
 
+// Instruction wording the model sometimes copies from the tool or prompt into the owner's summary
+// ("No need to include their phone", "do not include a phone number"). Drops those clauses only.
+// Side effect: a real fact phrased with "not included" (e.g. "size not included") is dropped too.
+const META_CLAUSE = /no need to include|not included|do not include|don't include|omitted|details withheld/i;
+const CLAUSE = /[^,;.!?؟…]*[,;.!?؟…]+\s*|[^,;.!?؟…]+$/g;
+
+export function stripSummaryMeta(summary: string): string {
+  const clauses = summary.match(CLAUSE) ?? [summary];
+  const kept = clauses.filter((c) => !META_CLAUSE.test(c)).join("").trim();
+  return kept.replace(/[,;]+$/, ".").trim();
+}
+
 export async function executeTool(
   name: string,
   input: unknown,
@@ -78,7 +90,7 @@ export async function executeTool(
       const reason = typeof args.reason === "string" && args.reason.trim()
         ? args.reason.trim().slice(0, 300)
         : "Customer needs the owner";
-      const summary = typeof args.summary === "string" ? args.summary.trim().slice(0, 400) : "";
+      const summary = typeof args.summary === "string" ? stripSummaryMeta(args.summary).slice(0, 400) : "";
       return {
         content:
           "Conversation handed to the owner. Tell the customer, in one short sentence, that the owner will reply personally.",

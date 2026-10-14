@@ -72,6 +72,57 @@ export function mergeTurns(history: ChatMessage[]): Turn[] {
   return out;
 }
 
+// The model sometimes writes the same text twice in one reply (a whole reply twice, or a sentence
+// twice, with or without a space between). Removes only exact repeats; kept text is copied as written.
+const REPEAT_MIN_CHARS = 12; // shorter pieces ("Oui.") may repeat legitimately
+const SENTENCE_PIECE = /[^.!?؟…]*[.!?؟…]+|[^.!?؟…]+$/g;
+
+// "X X" or "XX" where both halves are the same text: returns X.
+function wholeReplyTwice(text: string): string | null {
+  const t = text.trim();
+  const mid = Math.floor(t.length / 2);
+  for (let cut = mid - 3; cut <= mid + 3; cut++) {
+    if (cut <= 0 || cut >= t.length) continue;
+    const left = t.slice(0, cut).trim();
+    if (left.length >= REPEAT_MIN_CHARS && left === t.slice(cut).trim()) return left;
+  }
+  return null;
+}
+
+export function dedupeRepeatedText(text: string): string {
+  const source = wholeReplyTwice(text) ?? text;
+  const seen = new Set<string>();
+  const kept: string[] = [];
+  for (const line of source.split("\n")) {
+    const pieces = line.match(SENTENCE_PIECE);
+    if (!pieces) {
+      kept.push(line);
+      continue;
+    }
+    const out: string[] = [];
+    let dropped = false;
+    for (const piece of pieces) {
+      const key = piece.replace(/\s+/g, " ").trim();
+      if (key.length >= REPEAT_MIN_CHARS) {
+        if (seen.has(key)) {
+          dropped = true;
+          continue;
+        }
+        seen.add(key);
+      }
+      out.push(piece);
+    }
+    if (!dropped) {
+      kept.push(line);
+      continue;
+    }
+    const rebuilt = out.join("").trim();
+    if (rebuilt) kept.push(rebuilt);
+  }
+  const result = kept.join("\n");
+  return result === text ? text : result.trim();
+}
+
 // Splits a data URL from meta/media.ts into the media type and base64 data Anthropic expects.
 export function imageSource(dataUrl: string): { media_type: ImageType; data: string } | null {
   const m = /^data:(image\/(?:jpeg|png|gif|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
@@ -180,13 +231,14 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
     );
 
     if (response.stop_reason !== "tool_use" || toolUses.length === 0) {
-      reply = response.content
-        .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock =>
-          b.type === "text"
-        )
-        .map((b) => b.text)
-        .join("\n")
-        .trim();
+      reply = dedupeRepeatedText(
+        response.content
+          .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock =>
+            b.type === "text"
+          )
+          .map((b) => b.text)
+          .join("\n"),
+      ).trim();
       break;
     }
 
