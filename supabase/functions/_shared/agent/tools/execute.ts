@@ -1,4 +1,4 @@
-import { productView } from "./catalog.ts";
+import { noMatchSummary, productView } from "./catalog.ts";
 import { formatFaq } from "./faq.ts";
 import { sendProductPhoto } from "./photo.ts";
 import { createOrder } from "./order.ts";
@@ -45,7 +45,8 @@ export async function executeTool(
         return {
           content: JSON.stringify({
             results: [],
-            note: "No matching products. Don't guess; offer to check with the owner.",
+            note: "No matching products. Don't guess; if nothing in the list fits, offer to check with the owner.",
+            ...(await noMatchSummary(catalog, store.id, store.currency)),
           }),
         };
       }

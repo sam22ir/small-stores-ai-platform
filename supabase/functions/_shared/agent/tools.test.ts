@@ -323,13 +323,13 @@ test("a product marked sold out until later is reported out of stock, then back 
   };
   const during = { ...ctx(false), catalog: soldOut, now: new Date("2026-10-04T10:00:00Z") };
   const view = JSON.parse((await executeTool("search_products", { query: "hoodie" }, during)).content);
-  assert.equal(view.results[0].availability, "out_of_stock");
-  assert.equal(view.results[0].variants[0].availability, "out_of_stock");
+  assert.equal(view.results[0].availability, "out of stock");
+  assert.equal(view.results[0].variants[0].availability, "out of stock");
   assert.equal(view.results[0].variants[0].units_left, undefined);
 
   const after = { ...during, now: new Date("2026-10-05T10:00:00Z") };
   const back = JSON.parse((await executeTool("search_products", { query: "hoodie" }, after)).content);
-  assert.equal(back.results[0].availability, "available");
+  assert.equal(back.results[0].availability, "in stock");
 });
 
 // A catalog with several products, for the variant-resolution tests.
