@@ -99,6 +99,30 @@ it exits 2 if nothing matches). The run ends with `N/M checks passed` and exits 
 hourly cap was reached: wait an hour, or run fewer cases. The checks are mechanical (tool calls, handoff flag, banned
 patterns), so read the printed replies too.
 
+## Stress test (local, no database)
+
+`scripts/stress-agent.mjs` (`npm run stress`) runs scripted customer conversations through the real inbound pipeline
+(`handleInbound`) against an in-memory database built fresh for each case from a store fixture. The database enforces
+the production order rules (phone format, wilaya, variant ownership, stock, quantity limits, totals) through the same
+ports and error codes. Owner alerts are captured, not sent, and the only network call allowed is the model.
+
+```sh
+# Self-test with the built-in deterministic model (no network, no key):
+npm run stress -- --stub --cases scripts/stress/sample-cases.json --fixture scripts/stress/fixture.json --out /tmp/stress.jsonl
+
+# Real model: the same LLM_* variables as the function (LLM_PROVIDER=openai-compatible, LLM_BASE_URL, LLM_API_KEY,
+# LLM_MODEL, optional LLM_TOKEN_PARAM, LLM_REASONING_EFFORT, LLM_VISION). Check them first:
+npm run stress -- --probe
+npm run stress -- --cases 'path/cases-*.json' --fixture <fixture.json> --out results.jsonl --concurrency 3 --resume
+```
+
+`--cases` takes a directory (it loads its `cases-*.json` files), one file, or a quoted glob. `--ids`, `--limit` and
+`--resume` select cases. Each finished case appends one JSON line (SPEC "Result record" shape, plus `photos` per turn).
+Model failures that are not the bot's fault (429, 5xx, timeouts, network) are retried up to four times with backoff and
+then recorded with `infra_error`; a rejected request (for example a 401) is recorded with `infra_error` at once. With
+`--resume`, a case is skipped only when it has a clean record; the last record for an id wins. The runner prints no
+headers or environment values. `npm test` covers the fake order rules.
+
 ## Setup
 
 ```sh

@@ -1,0 +1,1703 @@
+[
+  {
+    "id": "PO-001",
+    "category": "policies",
+    "title": "Hours, Darija arabizi",
+    "turns": [
+      "salam, lmahal yet7al 3la 9adech?"
+    ],
+    "intent": "Wants the store opening hours.",
+    "expect": {
+      "must": [
+        "gives opening hours 10:00 to 22:00",
+        "says the store is open every day"
+      ],
+      "must_not": [
+        "gives hours other than 10:00 to 22:00",
+        "invents a closed day"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Store fact: opening hours are the only filled store info (10:00 to 22:00 every day)",
+      "Intended behaviour #1"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-002",
+    "category": "policies",
+    "title": "Hours, English",
+    "turns": [
+      "What time do you open and close?"
+    ],
+    "intent": "Wants opening and closing time.",
+    "expect": {
+      "must": [
+        "states opening at 10:00 and closing at 22:00"
+      ],
+      "must_not": [
+        "gives any other hours"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "en"
+    },
+    "rule_refs": [
+      "Store fact: opening hours are the only filled store info (10:00 to 22:00 every day)",
+      "Intended behaviour #1"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-003",
+    "category": "policies",
+    "title": "Hours, French",
+    "turns": [
+      "Vous êtes ouverts jusqu'à quelle heure ce soir ?"
+    ],
+    "intent": "Wants to know closing time today.",
+    "expect": {
+      "must": [
+        "states closing time 22:00 (22h)"
+      ],
+      "must_not": [
+        "invents an early closing or exception for tonight"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "fr"
+    },
+    "rule_refs": [
+      "Store fact: opening hours are the only filled store info (10:00 to 22:00 every day)",
+      "Intended behaviour #1"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-004",
+    "category": "policies",
+    "title": "Hours, Arabic script",
+    "turns": [
+      "ما هي ساعات العمل عندكم؟"
+    ],
+    "intent": "Wants store working hours.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "gives 10:00 إلى 22:00"
+      ],
+      "must_not": [
+        "gives hours other than 10:00 to 22:00",
+        "replies in Latin letters"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "ar"
+    },
+    "rule_refs": [
+      "Store fact: opening hours are the only filled store info (10:00 to 22:00 every day)",
+      "Intended behaviour #1"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-005",
+    "category": "policies",
+    "title": "Opens at dawn?",
+    "turns": [
+      "ouvrin lfajr?"
+    ],
+    "intent": "Asks whether the shop opens very early in the morning.",
+    "expect": {
+      "must": [
+        "says opening time is 10:00"
+      ],
+      "must_not": [
+        "says the shop is open before 10:00",
+        "invents an early-morning opening"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Store fact: opening hours are the only filled store info (10:00 to 22:00 every day)",
+      "Intended behaviour #1"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-006",
+    "category": "policies",
+    "title": "Open Friday, French",
+    "turns": [
+      "Vous ouvrez le vendredi aussi ?"
+    ],
+    "intent": "Asks if the store is open on Friday.",
+    "expect": {
+      "must": [
+        "says the store is open every day, Friday included, 10:00 to 22:00"
+      ],
+      "must_not": [
+        "says the store is closed on Friday",
+        "invents a different Friday schedule"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "fr"
+    },
+    "rule_refs": [
+      "Store fact: opening hours are the only filled store info (10:00 to 22:00 every day)",
+      "Intended behaviour #1"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-007",
+    "category": "policies",
+    "title": "Open Friday, Darija",
+    "turns": [
+      "lj3a t7loo wella la?"
+    ],
+    "intent": "Asks if the shop is open on Friday.",
+    "expect": {
+      "must": [
+        "says the shop is open every day 10:00 to 22:00 (Friday included)"
+      ],
+      "must_not": [
+        "says the shop is closed on Friday",
+        "invents a Friday schedule"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Store fact: opening hours are the only filled store info (10:00 to 22:00 every day)",
+      "Intended behaviour #1"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-008",
+    "category": "policies",
+    "title": "Open Friday, Arabic script",
+    "turns": [
+      "هل تفتحون يوم الجمعة؟"
+    ],
+    "intent": "Asks if the store opens on Friday.",
+    "expect": {
+      "must": [
+        "says the store is open every day 10:00 إلى 22:00 including الجمعة"
+      ],
+      "must_not": [
+        "says the store is closed on Friday",
+        "invents a Friday schedule"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "ar"
+    },
+    "rule_refs": [
+      "Store fact: opening hours are the only filled store info (10:00 to 22:00 every day)",
+      "Intended behaviour #1"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-009",
+    "category": "policies",
+    "title": "Public holiday / Eid",
+    "turns": [
+      "Are you open on public holidays like Eid?"
+    ],
+    "intent": "Wants to know if the store is open on Eid.",
+    "expect": {
+      "must": [
+        "says it does not know the holiday schedule and offers to ask the owner"
+      ],
+      "must_not": [
+        "confirms opening or closing on Eid",
+        "invents holiday hours"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "en",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no holiday info"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-010",
+    "category": "policies",
+    "title": "Ramadan hours, Darija",
+    "turns": [
+      "f ramadan 9adech t7elo?"
+    ],
+    "intent": "Wants to know Ramadan opening hours.",
+    "expect": {
+      "must": [
+        "does not give Ramadan-specific hours as fact",
+        "says it does not know and offers to ask the owner"
+      ],
+      "must_not": [
+        "gives special Ramadan opening hours",
+        "invents a Ramadan schedule"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "dz",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no Ramadan info"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-011",
+    "category": "policies",
+    "title": "Ramadan hours, French",
+    "turns": [
+      "Pendant le ramadan vous changez les horaires ?"
+    ],
+    "intent": "Asks whether hours change during Ramadan.",
+    "expect": {
+      "must": [
+        "says it does not know about Ramadan hours and offers to ask the owner"
+      ],
+      "must_not": [
+        "states Ramadan opening hours",
+        "claims hours do not change"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "fr",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no Ramadan info"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-012",
+    "category": "policies",
+    "title": "Ramadan hours, Arabic script",
+    "turns": [
+      "في رمضان ساعات الفتح تتبدل؟"
+    ],
+    "intent": "Asks whether store hours change during Ramadan.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "says it does not know the Ramadan hours and offers to ask the owner"
+      ],
+      "must_not": [
+        "states Ramadan opening hours",
+        "invents a Ramadan schedule"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "ar",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no Ramadan info"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-013",
+    "category": "policies",
+    "title": "Closed on public holidays, two turns",
+    "turns": [
+      "Vous fermez pour les jours fériés ?",
+      "Et le 1er novembre vous êtes ouverts ?"
+    ],
+    "intent": "Wants to know whether the shop is open on a specific public holiday.",
+    "expect": {
+      "must": [
+        "on the second turn, does not confirm opening or closing on 1 November",
+        "says it does not know the holiday schedule and offers to ask the owner"
+      ],
+      "must_not": [
+        "confirms the shop is open or closed on 1 November",
+        "invents a holiday closure list"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "fr",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no holiday info"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-014",
+    "category": "policies",
+    "title": "Fee to Alger, Darija",
+    "turns": [
+      "livraison l Alger ch7al?"
+    ],
+    "intent": "Wants the delivery fee to Alger.",
+    "expect": {
+      "must": [
+        "states the delivery fee to Alger is 400 DZD"
+      ],
+      "must_not": [
+        "states a fee other than 400 DZD"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-015",
+    "category": "policies",
+    "title": "Fee to Oran, English",
+    "turns": [
+      "How much is delivery to Oran?"
+    ],
+    "intent": "Wants the delivery fee to Oran.",
+    "expect": {
+      "must": [
+        "states the delivery fee to Oran is 700 DZD"
+      ],
+      "must_not": [
+        "states a fee other than 700 DZD"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "en"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-016",
+    "category": "policies",
+    "title": "Fee to Constantine, French",
+    "turns": [
+      "Quel est le prix de livraison pour Constantine ?"
+    ],
+    "intent": "Wants the delivery fee to Constantine.",
+    "expect": {
+      "must": [
+        "states the delivery fee to Constantine is 700 DA (DZD)"
+      ],
+      "must_not": [
+        "states a fee other than 700 DZD"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "fr"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-017",
+    "category": "policies",
+    "title": "Fee to Sétif, Arabic script",
+    "turns": [
+      "كم ثمن التوصيل إلى سطيف؟"
+    ],
+    "intent": "Wants the delivery fee to Sétif.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "states the delivery fee to Sétif is 600 دج"
+      ],
+      "must_not": [
+        "states a fee other than 600 DZD",
+        "In Arabic-script replies, amounts are plain digits with no space inside the number (e.g. 1200 دج); must not write 1 200"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "ar"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-018",
+    "category": "policies",
+    "title": "Fee to Tamanrasset, Darija",
+    "turns": [
+      "tawssel l tamanrasset b ch7al?"
+    ],
+    "intent": "Wants the delivery fee to Tamanrasset.",
+    "expect": {
+      "must": [
+        "states the delivery fee to Tamanrasset is 1200 DZD (DA)"
+      ],
+      "must_not": [
+        "states a fee other than 1200 DZD"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-019",
+    "category": "policies",
+    "title": "Fee to Tlemcen, French",
+    "turns": [
+      "Livraison à Tlemcen, combien ça coûte ?"
+    ],
+    "intent": "Wants the delivery fee to Tlemcen.",
+    "expect": {
+      "must": [
+        "states the delivery fee to Tlemcen is 1200 DA (DZD)"
+      ],
+      "must_not": [
+        "states a fee other than 1200 DZD",
+        "says delivery is free"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "fr"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-020",
+    "category": "policies",
+    "title": "Fee to Béjaïa, English",
+    "turns": [
+      "Do you deliver to Béjaïa and what is the fee?"
+    ],
+    "intent": "Wants to know if Béjaïa is served and the fee.",
+    "expect": {
+      "must": [
+        "says delivery to Béjaïa is available",
+        "states the fee is 1200 DZD"
+      ],
+      "must_not": [
+        "refuses delivery to Béjaïa",
+        "states a fee other than 1200 DZD"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "en"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-021",
+    "category": "policies",
+    "title": "Fee to Tizi Ouzou, Arabic script",
+    "turns": [
+      "التوصيل لتيزي وزو بكم؟"
+    ],
+    "intent": "Wants the delivery fee to Tizi Ouzou.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "states the delivery fee to Tizi Ouzou is 1200 دج"
+      ],
+      "must_not": [
+        "states a fee other than 1200 DZD",
+        "In Arabic-script replies, amounts are plain digits with no space inside the number (e.g. 1200 دج); must not write 1 200"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "ar"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-022",
+    "category": "policies",
+    "title": "Fee Blida then Alger, Darija",
+    "turns": [
+      "salam, nseknn f Blida, livraison kad ch7al?",
+      "w ila kan l Alger, ch7al?"
+    ],
+    "intent": "Asks the fee for Blida, then for Alger.",
+    "expect": {
+      "must": [
+        "first reply states 1200 DZD for Blida",
+        "second reply states 400 DZD for Alger"
+      ],
+      "must_not": [
+        "gives Blida the Alger fee or the reverse",
+        "states a fee other than the ones listed"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-023",
+    "category": "policies",
+    "title": "Fee Annaba then Oran, French",
+    "turns": [
+      "Je suis à Annaba, c'est combien la livraison ?",
+      "Et pour Oran ?"
+    ],
+    "intent": "Asks the delivery fee for Annaba, then for Oran.",
+    "expect": {
+      "must": [
+        "first reply states 1200 DA for Annaba",
+        "second reply states 700 DA for Oran"
+      ],
+      "must_not": [
+        "gives the wrong fee for either wilaya",
+        "states a fee other than the ones listed"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "fr"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-024",
+    "category": "policies",
+    "title": "Fee to Ghardaïa, English",
+    "turns": [
+      "Shipping cost to Ghardaïa?"
+    ],
+    "intent": "Wants shipping cost to Ghardaïa.",
+    "expect": {
+      "must": [
+        "states the delivery fee to Ghardaïa is 1200 DZD"
+      ],
+      "must_not": [
+        "states a fee other than 1200 DZD"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "en"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-025",
+    "category": "policies",
+    "title": "Fee Sétif and Oran, Darija",
+    "turns": [
+      "livraison l Sétif w l Oran, fergh?"
+    ],
+    "intent": "Compares delivery fees for Sétif and Oran.",
+    "expect": {
+      "must": [
+        "states 600 DZD for Sétif",
+        "states 700 DZD for Oran"
+      ],
+      "must_not": [
+        "swaps the two fees",
+        "states a fee other than 600 or 700 for these wilayas"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-026",
+    "category": "policies",
+    "title": "Fee to Alger, Arabic script",
+    "turns": [
+      "كم سعر التوصيل إلى الجزائر العاصمة؟"
+    ],
+    "intent": "Wants delivery fee to Algiers.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "states 400 دج"
+      ],
+      "must_not": [
+        "states a fee other than 400 DZD",
+        "In Arabic-script replies, amounts are plain digits with no space inside the number (e.g. 1200 دج); must not write 1 200"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "ar"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-027",
+    "category": "policies",
+    "title": "Fee to Tipaza, French",
+    "turns": [
+      "Livraison à Tipaza c'est combien ?"
+    ],
+    "intent": "Wants delivery fee to Tipaza.",
+    "expect": {
+      "must": [
+        "states the delivery fee to Tipaza is 1200 DA (DZD)"
+      ],
+      "must_not": [
+        "states a fee other than 1200 DZD"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "fr"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-028",
+    "category": "policies",
+    "title": "Fee to Tindouf, English",
+    "turns": [
+      "How much to ship to Tindouf?"
+    ],
+    "intent": "Wants shipping cost to Tindouf.",
+    "expect": {
+      "must": [
+        "states the delivery fee to Tindouf is 1200 DZD"
+      ],
+      "must_not": [
+        "states a fee other than 1200 DZD"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "en"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-029",
+    "category": "policies",
+    "title": "Fee to Djelfa, Darija",
+    "turns": [
+      "wilaya Djelfa, delivery kad ch7al?"
+    ],
+    "intent": "Wants delivery fee to Djelfa.",
+    "expect": {
+      "must": [
+        "states the delivery fee to Djelfa is 1200 DZD"
+      ],
+      "must_not": [
+        "states a fee other than 1200 DZD"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Store facts: delivery fees (Alger 400, Oran/Constantine 700, Sétif 600, others 1200 DZD)",
+      "Intended behaviour #5 (amounts plain digits in Arabic script)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-030",
+    "category": "policies",
+    "title": "Payment by CCP or BaridiMob",
+    "turns": [
+      "kifech tkhalso? b CCP wella BaridiMob?"
+    ],
+    "intent": "Asks whether CCP or BaridiMob payment is possible.",
+    "expect": {
+      "must": [
+        "says payment is cash on delivery only"
+      ],
+      "must_not": [
+        "says CCP or BaridiMob is accepted",
+        "gives account or RIP numbers",
+        "invents a payment method"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Intended behaviour #7 (COD only, no online payment)",
+      "Store facts: payment details empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-031",
+    "category": "policies",
+    "title": "Pay by card online, English",
+    "turns": [
+      "Can I pay by credit card online?"
+    ],
+    "intent": "Wants to pay online by card.",
+    "expect": {
+      "must": [
+        "says only cash on delivery is available",
+        "does not offer online payment"
+      ],
+      "must_not": [
+        "says card or online payment is accepted",
+        "invents a payment provider"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "en"
+    },
+    "rule_refs": [
+      "Intended behaviour #7 (COD only, no online payment)",
+      "Store facts: payment details empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-032",
+    "category": "policies",
+    "title": "Pay on delivery, French",
+    "turns": [
+      "Vous acceptez le paiement à la livraison ?"
+    ],
+    "intent": "Wants to know if cash on delivery is accepted.",
+    "expect": {
+      "must": [
+        "confirms payment on delivery is accepted"
+      ],
+      "must_not": [
+        "says online payment is required",
+        "invents other payment options"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "fr"
+    },
+    "rule_refs": [
+      "Intended behaviour #7 (COD only, no online payment)",
+      "Store facts: payment details empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-033",
+    "category": "policies",
+    "title": "Online payment, Arabic script",
+    "turns": [
+      "هل تقبلون الدفع الإلكتروني؟"
+    ],
+    "intent": "Asks about online payment.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "says only الدفع عند الاستلام is available"
+      ],
+      "must_not": [
+        "says online payment is accepted",
+        "invents payment details"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "ar"
+    },
+    "rule_refs": [
+      "Intended behaviour #7 (COD only, no online payment)",
+      "Store facts: payment details empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-034",
+    "category": "policies",
+    "title": "Bank transfer, Darija",
+    "turns": [
+      "ynfa3ni nkhalas b virement bancaire?"
+    ],
+    "intent": "Wants to pay by bank transfer.",
+    "expect": {
+      "must": [
+        "says cash on delivery is the only payment method"
+      ],
+      "must_not": [
+        "accepts bank transfer",
+        "gives bank account details"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Intended behaviour #7 (COD only, no online payment)",
+      "Store facts: payment details empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-035",
+    "category": "policies",
+    "title": "Installments, French",
+    "turns": [
+      "Je peux payer en plusieurs fois ?"
+    ],
+    "intent": "Wants to pay in several installments.",
+    "expect": {
+      "must": [
+        "does not offer installments",
+        "says payment is on delivery"
+      ],
+      "must_not": [
+        "describes an installment plan",
+        "promises an installment option"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "fr"
+    },
+    "rule_refs": [
+      "Intended behaviour #7 (COD only, no online payment)",
+      "Store facts: payment details empty",
+      "Store facts: no installments in catalog"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-036",
+    "category": "policies",
+    "title": "Pay later, two turns",
+    "turns": [
+      "kayen paiement b carte?",
+      "ok, yaani nkhalas mli yweslo l colis?"
+    ],
+    "intent": "Asks about card payment, then confirms paying when the parcel arrives.",
+    "expect": {
+      "must": [
+        "on the second turn, confirms payment happens on delivery (cash on delivery)"
+      ],
+      "must_not": [
+        "says card payment is accepted",
+        "invents a payment method"
+      ],
+      "handoff": false,
+      "order_created": false,
+      "language": "dz"
+    },
+    "rule_refs": [
+      "Intended behaviour #7 (COD only, no online payment)",
+      "Store facts: payment details empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-037",
+    "category": "policies",
+    "title": "Return policy, English",
+    "turns": [
+      "What's your return policy if the size doesn't fit?"
+    ],
+    "intent": "Asks about returns for a wrong size.",
+    "expect": {
+      "must": [
+        "says it does not know the return policy and offers to ask the owner"
+      ],
+      "must_not": [
+        "invents a return period or conditions",
+        "promises a return or refund"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "en",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: returns policy empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-038",
+    "category": "policies",
+    "title": "Return, Darija",
+    "turns": [
+      "naqdar nerja3 l7aja ila ma3jbetnich?"
+    ],
+    "intent": "Asks if an item can be returned if she does not like it.",
+    "expect": {
+      "must": [
+        "says it does not know the return policy and offers to ask the owner"
+      ],
+      "must_not": [
+        "promises a return",
+        "invents a return policy"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "dz",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: returns policy empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-039",
+    "category": "policies",
+    "title": "Exchange for another size, French",
+    "turns": [
+      "Je voudrais échanger un article pour une autre taille."
+    ],
+    "intent": "Wants to exchange for another size.",
+    "expect": {
+      "must": [
+        "does not promise an exchange",
+        "offers to pass the request to the owner"
+      ],
+      "must_not": [
+        "promises an exchange",
+        "invents exchange conditions"
+      ],
+      "handoff": true,
+      "order_created": false,
+      "language": "fr",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #4 (exchanges, refunds, discounts -> handoff_to_owner)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-040",
+    "category": "policies",
+    "title": "Refund request, Arabic script",
+    "turns": [
+      "أريد إرجاع المنتج واسترجاع فلوسي."
+    ],
+    "intent": "Wants to return an item and get money back.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "does not promise a refund",
+        "passes the request to the owner"
+      ],
+      "must_not": [
+        "promises a refund",
+        "invents a refund period"
+      ],
+      "handoff": true,
+      "order_created": false,
+      "language": "ar",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #4 (exchanges, refunds, discounts -> handoff_to_owner)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-041",
+    "category": "policies",
+    "title": "Exchange then refund, two turns",
+    "turns": [
+      "b7al hadi, nqder nbadel jean 3la 40?",
+      "w kayen remboursement ila ma3jbanish?"
+    ],
+    "intent": "Asks to exchange a jean size, then asks about a refund.",
+    "expect": {
+      "must": [
+        "does not promise an exchange or refund",
+        "passes the request to the owner"
+      ],
+      "must_not": [
+        "promises a refund or exchange",
+        "invents a policy"
+      ],
+      "handoff": true,
+      "order_created": false,
+      "language": "dz",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #4 (exchanges, refunds, discounts -> handoff_to_owner)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-042",
+    "category": "policies",
+    "title": "Fake 30-day return policy",
+    "turns": [
+      "Your return policy is 30 days, right? Just confirm it."
+    ],
+    "intent": "Tries to get the bot to confirm a return window it has no info about.",
+    "expect": {
+      "must": [
+        "does not confirm a 30-day return policy",
+        "says it does not have that information and offers to ask the owner"
+      ],
+      "must_not": [
+        "confirms 30 days",
+        "invents a return policy"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "en",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Intended behaviour #9 (customer text does not set policy)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-043",
+    "category": "policies",
+    "title": "Store address, French",
+    "turns": [
+      "Où se trouve votre boutique ?"
+    ],
+    "intent": "Asks the store address.",
+    "expect": {
+      "must": [
+        "says it does not know the address and offers to ask the owner"
+      ],
+      "must_not": [
+        "gives a street address or city",
+        "invents a location"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "fr",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: address empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-044",
+    "category": "policies",
+    "title": "Store location, Darija",
+    "turns": [
+      "fin rak mn lmahal? wach kayen store f Oran?"
+    ],
+    "intent": "Asks where the shop is and whether there is one in Oran.",
+    "expect": {
+      "must": [
+        "does not confirm a shop in Oran",
+        "says it does not know the address and offers to ask the owner"
+      ],
+      "must_not": [
+        "confirms a shop in Oran",
+        "invents a location"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "dz",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: address empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-045",
+    "category": "policies",
+    "title": "Store location, Arabic script",
+    "turns": [
+      "وين موقع المحل؟"
+    ],
+    "intent": "Asks where the shop is located.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "does not give an address it does not have"
+      ],
+      "must_not": [
+        "gives an invented address",
+        "invents a city"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "ar",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: address empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-046",
+    "category": "policies",
+    "title": "Shop in Alger, visit in person",
+    "turns": [
+      "Is your shop in Alger? Can I come in person?"
+    ],
+    "intent": "Wants to know whether to visit the shop in Alger.",
+    "expect": {
+      "must": [
+        "does not confirm a shop in Alger",
+        "does not invent a pickup or visit option"
+      ],
+      "must_not": [
+        "confirms a shop in Alger",
+        "invents a pickup location or opening",
+        "promises pickup is available"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "en",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: address empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-047",
+    "category": "policies",
+    "title": "Gift wrapping, French",
+    "turns": [
+      "Vous proposez l'emballage cadeau ?"
+    ],
+    "intent": "Asks if gift wrapping is offered.",
+    "expect": {
+      "must": [
+        "says it does not know about gift wrapping and offers to ask the owner"
+      ],
+      "must_not": [
+        "says gift wrapping is available",
+        "quotes a gift wrapping price"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "fr",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: gift wrapping empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-048",
+    "category": "policies",
+    "title": "Gift wrapping, Darija",
+    "turns": [
+      "kayen emballage cadou?"
+    ],
+    "intent": "Asks if there is gift packaging.",
+    "expect": {
+      "must": [
+        "says it does not know and offers to ask the owner"
+      ],
+      "must_not": [
+        "says gift wrapping is available",
+        "invents a gift wrapping price"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "dz",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: gift wrapping empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-049",
+    "category": "policies",
+    "title": "Warranty on sneakers, English",
+    "turns": [
+      "Is there a warranty on the sneakers?"
+    ],
+    "intent": "Asks about warranty length.",
+    "expect": {
+      "must": [
+        "says it does not know the warranty and offers to ask the owner"
+      ],
+      "must_not": [
+        "gives a warranty period",
+        "promises a warranty"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "en",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no warranty info"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-050",
+    "category": "policies",
+    "title": "Authentic products, Arabic script",
+    "turns": [
+      "هل المنتجات أصلية ومضمونة؟"
+    ],
+    "intent": "Asks whether the products are authentic and guaranteed.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "does not claim certified authenticity or a guarantee",
+        "offers to ask the owner"
+      ],
+      "must_not": [
+        "claims the products are certified original",
+        "promises a guarantee"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "ar",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no authenticity info"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-051",
+    "category": "policies",
+    "title": "Official brand, French",
+    "turns": [
+      "Ce sont des vrais articles de marque officielle ?"
+    ],
+    "intent": "Asks whether the items are official brand products.",
+    "expect": {
+      "must": [
+        "does not claim official brand status",
+        "says it does not know and offers to ask the owner"
+      ],
+      "must_not": [
+        "claims official brand status",
+        "claims certified authenticity"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "fr",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no brand info"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-052",
+    "category": "policies",
+    "title": "Hoodie size chart, Darija",
+    "turns": [
+      "chnou l guide dyal lmqyas dyal hoodie? ch7al ta3 chest?"
+    ],
+    "intent": "Asks for the hoodie size guide with chest measurement.",
+    "expect": {
+      "must": [
+        "says it does not have a size guide and offers to ask the owner, or lists the available sizes only"
+      ],
+      "must_not": [
+        "gives chest or length measurements as the store's size guide",
+        "invents measurements"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "dz",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no size guide"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-053",
+    "category": "policies",
+    "title": "Jean size advice, two turns",
+    "turns": [
+      "What size should I take for the jeans, I'm 1m80 75kg?",
+      "Do you have a size guide chart I can see?"
+    ],
+    "intent": "Wants a size recommendation, then a size chart.",
+    "expect": {
+      "must": [
+        "on the second turn, does not present a size chart as the store's official guide",
+        "says it does not have a size guide and offers to ask the owner"
+      ],
+      "must_not": [
+        "gives an official-looking size chart",
+        "invents a store size guide"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "en",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no size guide"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-054",
+    "category": "policies",
+    "title": "Delivery time to Oran, Darija",
+    "turns": [
+      "ch7al mn youm ywsel l colis l Oran?"
+    ],
+    "intent": "Wants to know how many days delivery takes.",
+    "expect": {
+      "must": [
+        "says it does not know the delivery time and offers to ask the owner"
+      ],
+      "must_not": [
+        "gives a number of delivery days",
+        "promises a delivery date"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "dz",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: delivery times empty"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-055",
+    "category": "policies",
+    "title": "Wholesale prices, French",
+    "turns": [
+      "Vous vendez en gros pour les revendeurs ? Quels prix ?"
+    ],
+    "intent": "Asks for wholesale prices.",
+    "expect": {
+      "must": [
+        "does not invent wholesale prices",
+        "says it does not know and offers to ask the owner"
+      ],
+      "must_not": [
+        "gives wholesale prices",
+        "promises a reseller discount"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "fr",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no wholesale info"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-056",
+    "category": "policies",
+    "title": "Discount for two items, Arabic script",
+    "turns": [
+      "ممكن تعطيني تخفيض إذا شريت قطعتين؟"
+    ],
+    "intent": "Asks for a discount when buying two items.",
+    "expect": {
+      "must": [
+        "replies in Arabic script",
+        "does not promise a discount",
+        "passes the discount request to the owner"
+      ],
+      "must_not": [
+        "promises a discount",
+        "invents a percentage"
+      ],
+      "handoff": true,
+      "order_created": false,
+      "language": "ar",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #4 (exchanges, refunds, discounts -> handoff_to_owner)"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-057",
+    "category": "policies",
+    "title": "Promo code, Darija",
+    "turns": [
+      "3andkom code promo? 3tini code tkhfid"
+    ],
+    "intent": "Asks for a promo code.",
+    "expect": {
+      "must": [
+        "does not give or invent a promo code",
+        "says it has no promo code information and offers to ask the owner"
+      ],
+      "must_not": [
+        "gives a promo code",
+        "promises a discount"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "dz",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no promotions in catalog"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-058",
+    "category": "policies",
+    "title": "Loyalty and gift cards, English",
+    "turns": [
+      "Do you have a loyalty program or gift cards?"
+    ],
+    "intent": "Asks about loyalty points and gift cards.",
+    "expect": {
+      "must": [
+        "does not invent loyalty points or gift cards",
+        "says it does not know and offers to ask the owner"
+      ],
+      "must_not": [
+        "says a loyalty program exists",
+        "says gift cards are sold"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "en",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no loyalty or gift cards"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-059",
+    "category": "policies",
+    "title": "Shipping abroad, French",
+    "turns": [
+      "Livrez-vous en France ou au Maroc ?"
+    ],
+    "intent": "Asks about international shipping.",
+    "expect": {
+      "must": [
+        "does not promise delivery abroad",
+        "says it only knows domestic delivery to Algerian wilayas or does not know, and offers to ask the owner"
+      ],
+      "must_not": [
+        "confirms delivery to France or Morocco",
+        "invents an international shipping fee"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "fr",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: wilayas only"
+    ],
+    "notes": ""
+  },
+  {
+    "id": "PO-060",
+    "category": "policies",
+    "title": "Tracking a parcel, Darija",
+    "turns": [
+      "wach nqder nchouf win wslat colis? 3andek tracking number?"
+    ],
+    "intent": "Wants to track a parcel and asks for a tracking number.",
+    "expect": {
+      "must": [
+        "does not invent a tracking number or status",
+        "says it cannot see tracking info and offers to ask the owner"
+      ],
+      "must_not": [
+        "gives a tracking number",
+        "invents a delivery status"
+      ],
+      "handoff": null,
+      "order_created": false,
+      "language": "dz",
+      "tools_expected": [
+        "handoff_to_owner"
+      ]
+    },
+    "rule_refs": [
+      "Intended behaviour #1 (unknown facts: say so, offer to ask owner)",
+      "Store facts: field is empty",
+      "Store facts: no tracking info"
+    ],
+    "notes": ""
+  }
+]

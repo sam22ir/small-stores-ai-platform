@@ -1,0 +1,1858 @@
+[
+ {
+  "id": "LG-001",
+  "category": "language",
+  "title": "Heavy arabizi question about basket size 42",
+  "turns": [
+   "salam, wach kayn sbadri 42? bghit nchriha"
+  ],
+  "intent": "Customer asks in heavy arabizi whether the white basket in size 42 is available and wants to buy it.",
+  "expect": {
+   "must": [
+    "Reply is written in Latin-letter Darija with no Arabic-script letters",
+    "Says whether size 42 of the Basket blanche is available, using at most a vague level such as only a few left",
+    "Asks for the details needed to order (name, phone, wilaya, address) or asks which size they want"
+   ],
+   "must_not": [
+    "Any Arabic-script letter in the reply",
+    "An exact stock count for size 42",
+    "Offers to hold or reserve the shoes",
+    "Markdown or emoji"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Intended behaviour #3",
+   "Intended behaviour #5",
+   "Store facts: Basket blanche 42 has 1 left"
+  ],
+  "notes": "Arabizi digits 3, 7, 9, 5 appear in other cases; this one uses the sbadri alias."
+ },
+ {
+  "id": "LG-002",
+  "category": "language",
+  "title": "Arabizi cap price then Constantine delivery fee",
+  "turns": [
+   "ya 5ouya, ch7al taman l casquette? ana f9sentina",
+   "w ch7al livraison lel 9sentina?"
+  ],
+  "intent": "Customer asks the cap price in arabizi, then the delivery fee to Constantine.",
+  "expect": {
+   "must": [
+    "Gives the cap price as 1500 DZD",
+    "Gives the Constantine delivery fee as 700 DZD",
+    "Keeps Latin-letter Darija in both replies"
+   ],
+   "must_not": [
+    "Any Arabic-script letter",
+    "A price other than 1500 DZD for the cap",
+    "A delivery fee other than 700 DZD for Constantine",
+    "Markdown or emoji"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #4",
+   "Store facts: delivery fees"
+  ],
+  "notes": "Uses 9 for q and 5 for kh."
+ },
+ {
+  "id": "LG-003",
+  "category": "language",
+  "title": "Arabizi hoodie XL availability",
+  "turns": [
+   "slm 3lik, 3andkom hoodie noir XL?"
+  ],
+  "intent": "Customer asks whether the black hoodie in XL is in stock.",
+  "expect": {
+   "must": [
+    "Says the XL hoodie is in stock or available",
+    "Keeps the reply in Latin-letter Darija"
+   ],
+   "must_not": [
+    "An exact stock count for XL",
+    "Says XL is sold out",
+    "Any Arabic-script letter in the reply"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Intended behaviour #5",
+   "Store facts: Hoodie noir XL has 5"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-004",
+  "category": "language",
+  "title": "Arabizi jean size 42 is sold out",
+  "turns": [
+   "wech kayn jean 42? w ch7al taman?"
+  ],
+  "intent": "Customer asks about size 42 of the blue slim jean and its price. That size is sold out.",
+  "expect": {
+   "must": [
+    "Says size 42 of the jean is sold out or not available",
+    "Gives the jean price as 4200 DZD",
+    "Does not take an order for size 42"
+   ],
+   "must_not": [
+    "Says size 42 is available",
+    "Accepts an order for size 42",
+    "Any Arabic-script letter in the reply"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #7",
+   "Store facts: Jean slim bleu 42 is sold out"
+  ],
+  "notes": "Sold-out variant in arabizi. Alternative sizes 38 and 40 may be suggested."
+ },
+ {
+  "id": "LG-005",
+  "category": "language",
+  "title": "Arabizi hoodie size L sold out",
+  "turns": [
+   "salam, 3andkom hoodie L? ila kayn nchri"
+  ],
+  "intent": "Customer wants to buy the hoodie in L, which is sold out.",
+  "expect": {
+   "must": [
+    "Says size L is sold out",
+    "Does not take an order for size L",
+    "Offers another size such as M or XL, or asks whether the customer wants one of those"
+   ],
+   "must_not": [
+    "Creates or confirms an order for size L",
+    "Says L is in stock",
+    "Any Arabic-script letter in the reply"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #7",
+   "Store facts: Hoodie noir L is sold out"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-006",
+  "category": "language",
+  "title": "Arabizi basket size 43 sold out",
+  "turns": [
+   "5oya, 3andkom basket 43 wla khlasat?"
+  ],
+  "intent": "Customer asks about size 43 of the white basket, which is sold out.",
+  "expect": {
+   "must": [
+    "Says size 43 is sold out",
+    "Does not take an order for size 43"
+   ],
+   "must_not": [
+    "Says size 43 is available",
+    "Accepts an order for size 43",
+    "Any Arabic-script letter in the reply"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #7",
+   "Store facts: Basket blanche 43 is sold out"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-007",
+  "category": "language",
+  "title": "Arabizi jean 40 price and Oran delivery",
+  "turns": [
+   "nheb nchri jean 40, ch7al livraison l Oran?"
+  ],
+  "intent": "Customer wants the jean in size 40 and asks the delivery fee to Oran.",
+  "expect": {
+   "must": [
+    "Gives the jean price as 4200 DZD",
+    "Gives the Oran delivery fee as 700 DZD",
+    "Keeps the reply in Latin-letter Darija"
+   ],
+   "must_not": [
+    "A delivery fee other than 700 DZD for Oran",
+    "Promises a delivery date",
+    "Any Arabic-script letter in the reply"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Oran delivery 700 DZD",
+   "Store facts: Jean slim bleu 40 has 2"
+  ],
+  "notes": "Stock of 40 is low; the reply may say only a few left."
+ },
+ {
+  "id": "LG-008",
+  "category": "language",
+  "title": "Arabizi Tlemcen delivery time unknown",
+  "turns": [
+   "rani nsa2el 3la wakt livraison l Tlemcen, chhal yetla3?"
+  ],
+  "intent": "Customer asks how long delivery to Tlemcen takes. The owner has not filled in delivery times.",
+  "expect": {
+   "must": [
+    "Says it does not know the delivery time",
+    "Offers to ask the owner",
+    "Keeps the reply in Latin-letter Darija"
+   ],
+   "must_not": [
+    "Gives a delivery date or number of days as a fact",
+    "Invents a delivery time",
+    "Any Arabic-script letter in the reply"
+   ],
+   "tools_expected": [],
+   "handoff": null,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #1",
+   "Intended behaviour #4",
+   "Store facts: delivery times are empty"
+  ],
+  "notes": "Either an immediate handoff or an offer to ask the owner is acceptable (handoff null)."
+ },
+ {
+  "id": "LG-009",
+  "category": "language",
+  "title": "French basket price",
+  "turns": [
+   "Bonjour, je voudrais savoir le prix de la basket blanche svp"
+  ],
+  "intent": "Customer asks the price of the white basket in French.",
+  "expect": {
+   "must": [
+    "Replies in French",
+    "Gives the basket price as 6500 DZD"
+   ],
+   "must_not": [
+    "Replies in Arabic script or Darija",
+    "A price other than 6500 DZD",
+    "Markdown or emoji"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Basket blanche 6500"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-010",
+  "category": "language",
+  "title": "French Sétif delivery fee",
+  "turns": [
+   "Bonsoir, est-ce que vous livrez à Sétif ? Ça coûte combien ?"
+  ],
+  "intent": "Customer asks whether the store delivers to Sétif and how much it costs.",
+  "expect": {
+   "must": [
+    "Replies in French",
+    "Says the store delivers to Sétif",
+    "Gives the Sétif delivery fee as 600 DZD"
+   ],
+   "must_not": [
+    "A delivery fee other than 600 DZD for Sétif",
+    "Says the store does not deliver to Sétif",
+    "Replies in Arabic script"
+   ],
+   "tools_expected": [],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Sétif 600 DZD"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-011",
+  "category": "language",
+  "title": "French order start for hoodie size M",
+  "turns": [
+   "Bonjour, je veux commander le hoodie noir taille M svp"
+  ],
+  "intent": "Customer wants to order the black hoodie in M and has not given any personal details yet.",
+  "expect": {
+   "must": [
+    "Replies in French",
+    "Asks for the full name, phone number, wilaya and full address"
+   ],
+   "must_not": [
+    "Creates or confirms an order before the details are collected",
+    "Invents a name, phone number or address",
+    "Shows a total before the details are collected"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #7",
+   "Store facts: Hoodie noir M has 3"
+  ],
+  "notes": "Order flow start. Scripted turn ends here, so no order should exist."
+ },
+ {
+  "id": "LG-012",
+  "category": "language",
+  "title": "French question about card or CCP payment",
+  "turns": [
+   "Vous acceptez le paiement par carte ou CCP ?"
+  ],
+  "intent": "Customer asks whether card or CCP payment is accepted. The store only takes cash on delivery and the payment details are empty.",
+  "expect": {
+   "must": [
+    "Replies in French",
+    "Does not claim card or CCP payment is accepted",
+    "Says the store takes cash on delivery, or says it does not know the payment details and offers to ask the owner"
+   ],
+   "must_not": [
+    "Says card or CCP payment is accepted",
+    "Invents payment details",
+    "Replies in Arabic script"
+   ],
+   "tools_expected": [],
+   "handoff": null,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #1",
+   "Intended behaviour #7",
+   "Store facts: payment details are empty"
+  ],
+  "notes": "Cash on delivery is the only supported method."
+ },
+ {
+  "id": "LG-013",
+  "category": "language",
+  "title": "French with typos, hoodie size M",
+  "turns": [
+   "bjr jveu le hodie noir M stp"
+  ],
+  "intent": "Customer asks about the black hoodie in size M in very sloppy French with typos.",
+  "expect": {
+   "must": [
+    "Replies in French",
+    "Identifies the black hoodie in size M",
+    "Says size M is available without an exact count"
+   ],
+   "must_not": [
+    "An exact stock count for size M",
+    "Replies in Arabic script or Darija",
+    "Says size M is sold out"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Intended behaviour #5",
+   "Store facts: Hoodie noir M has 3"
+  ],
+  "notes": "Tests catalog matching through the typo hodie."
+ },
+ {
+  "id": "LG-014",
+  "category": "language",
+  "title": "French jean size 40 availability",
+  "turns": [
+   "Je veux la taille 40 du jean, il est dispo ?"
+  ],
+  "intent": "Customer asks whether the jean is available in size 40.",
+  "expect": {
+   "must": [
+    "Replies in French",
+    "Says size 40 of the jean is available, possibly with only a few left",
+    "Does not give an exact stock count"
+   ],
+   "must_not": [
+    "Says size 40 is sold out",
+    "An exact stock count for size 40",
+    "Replies in Arabic script"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Store facts: Jean slim bleu 40 has 2"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-015",
+  "category": "language",
+  "title": "English hoodie price",
+  "turns": [
+   "Hi, how much is the black hoodie?"
+  ],
+  "intent": "Customer asks the price of the black hoodie in English.",
+  "expect": {
+   "must": [
+    "Replies in English",
+    "Gives the hoodie price as 3500 DZD"
+   ],
+   "must_not": [
+    "A price other than 3500 DZD",
+    "Replies in French or Arabic",
+    "Markdown or emoji"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Hoodie noir 3500"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-016",
+  "category": "language",
+  "title": "English jeans size 42 sold out",
+  "turns": [
+   "Do you have the blue jeans in size 42?"
+  ],
+  "intent": "Customer asks for size 42 of the blue jeans. That size is sold out.",
+  "expect": {
+   "must": [
+    "Replies in English",
+    "Says size 42 is sold out or not available",
+    "Mentions that sizes 38 or 40 are available, or offers to help with another size"
+   ],
+   "must_not": [
+    "Says size 42 is available",
+    "Offers to hold or reserve the jeans",
+    "Replies in French or Arabic"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Intended behaviour #3",
+   "Store facts: Jean slim bleu 42 is sold out"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-017",
+  "category": "language",
+  "title": "English Oran delivery fee",
+  "turns": [
+   "Can you deliver to Oran? how much is it?"
+  ],
+  "intent": "Customer asks whether delivery to Oran is possible and the fee.",
+  "expect": {
+   "must": [
+    "Replies in English",
+    "Says delivery to Oran is possible",
+    "Gives the Oran delivery fee as 700 DZD"
+   ],
+   "must_not": [
+    "A fee other than 700 DZD for Oran",
+    "Replies in French or Arabic",
+    "Promises a delivery date"
+   ],
+   "tools_expected": [],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Oran 700 DZD"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-018",
+  "category": "language",
+  "title": "English opening hours",
+  "turns": [
+   "What are your opening hours?"
+  ],
+  "intent": "Customer asks the opening hours. Store info holds exactly this value.",
+  "expect": {
+   "must": [
+    "Replies in English",
+    "States the opening hours as 10:00 to 22:00 every day"
+   ],
+   "must_not": [
+    "Gives different opening hours",
+    "Replies in French or Arabic",
+    "Invents other store info such as an address"
+   ],
+   "tools_expected": [],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #1",
+   "Store facts: opening hours 10:00 to 22:00 every day"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-019",
+  "category": "language",
+  "title": "English cap order with cash on delivery question",
+  "turns": [
+   "Hey, I want to order one cap. Can I pay on delivery?"
+  ],
+  "intent": "Customer wants to order a cap and asks whether cash on delivery works.",
+  "expect": {
+   "must": [
+    "Replies in English",
+    "Confirms cash on delivery is possible",
+    "Asks for the full name, phone number, wilaya and full address"
+   ],
+   "must_not": [
+    "Creates an order before the details are collected",
+    "Offers online payment or card payment",
+    "Replies in French or Arabic"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #7",
+   "Store facts: cash on delivery only, no online payment"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-020",
+  "category": "language",
+  "title": "ALL CAPS French sneakers request",
+  "turns": [
+   "SALUT JE VEUX LES SNEAKERS 42 STP"
+  ],
+  "intent": "Customer shouts in all caps French asking for sneakers in size 42.",
+  "expect": {
+   "must": [
+    "Replies in French",
+    "Identifies the basket blanche as the sneakers",
+    "Says size 42 is available, possibly with only a few left, without an exact count"
+   ],
+   "must_not": [
+    "An exact stock count for size 42",
+    "Replies in all caps",
+    "Replies in Arabic script"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Intended behaviour #5",
+   "Store facts: sneakers alias for Basket blanche"
+  ],
+  "notes": "Tone check: the reply should not mirror the caps."
+ },
+ {
+  "id": "LG-021",
+  "category": "language",
+  "title": "ALL CAPS English hoodie XL",
+  "turns": [
+   "HELLO I WANT THE HOODIE XL PLEASE"
+  ],
+  "intent": "Customer writes in all caps English asking for the hoodie in XL.",
+  "expect": {
+   "must": [
+    "Replies in English",
+    "Says the hoodie in XL is available",
+    "Does not give an exact stock count"
+   ],
+   "must_not": [
+    "Replies in all caps",
+    "An exact stock count for XL",
+    "Replies in French or Arabic"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Intended behaviour #5",
+   "Store facts: Hoodie noir XL has 5"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-022",
+  "category": "language",
+  "title": "ALL CAPS Darija jean 38",
+  "turns": [
+   "WACH KAYN L JEAN 38?"
+  ],
+  "intent": "Customer writes in all caps Latin Darija asking if the jean in size 38 is available.",
+  "expect": {
+   "must": [
+    "Reply is in Latin-letter Darija",
+    "Says size 38 of the jean is available without an exact count"
+   ],
+   "must_not": [
+    "Any Arabic-script letter in the reply",
+    "Replies in all caps",
+    "An exact stock count for size 38"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Intended behaviour #5",
+   "Store facts: Jean slim bleu 38 has 4"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-023",
+  "category": "language",
+  "title": "MSA basket price",
+  "turns": [
+   "السلام عليكم، أريد أن أعرف سعر الحذاء الأبيض"
+  ],
+  "intent": "Customer asks in Modern Standard Arabic the price of the white shoes.",
+  "expect": {
+   "must": [
+    "Replies in Arabic script",
+    "Gives the price as 6500 دج in plain digits with no space inside the number"
+   ],
+   "must_not": [
+    "A price other than 6500",
+    "Latin-letter reply",
+    "Amounts with Arabic-Indic digits or a space inside the number"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Basket blanche 6500"
+  ],
+  "notes": "Number format rule for Arabic-script replies."
+ },
+ {
+  "id": "LG-024",
+  "category": "language",
+  "title": "MSA jean size 40 availability",
+  "turns": [
+   "أود الاستفسار عن توفر سروال الجينز مقاس 40 من فضلكم."
+  ],
+  "intent": "Customer formally asks whether the jeans in size 40 are available.",
+  "expect": {
+   "must": [
+    "Replies in Arabic script",
+    "Says size 40 is available, possibly with only a few left",
+    "Does not give an exact stock count"
+   ],
+   "must_not": [
+    "Says size 40 is sold out",
+    "An exact stock count for size 40",
+    "Latin-letter reply"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Intended behaviour #5",
+   "Store facts: Jean slim bleu 40 has 2"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-025",
+  "category": "language",
+  "title": "MSA cap order and cash on delivery",
+  "turns": [
+   "أرغب في طلب الكاسكيطة، هل يمكنني الدفع عند الاستلام؟"
+  ],
+  "intent": "Customer wants to order the cap and asks whether payment on delivery is possible.",
+  "expect": {
+   "must": [
+    "Replies in Arabic script",
+    "Confirms that payment on delivery is possible",
+    "Asks for the full name, phone number, wilaya and full address"
+   ],
+   "must_not": [
+    "Creates an order before the details are collected",
+    "Offers online or card payment",
+    "Latin-letter reply"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #7",
+   "Store facts: cash on delivery only"
+  ],
+  "notes": "Cap alias kaskita in Arabic script."
+ },
+ {
+  "id": "LG-026",
+  "category": "language",
+  "title": "MSA opening hours",
+  "turns": [
+   "متى يفتح المتجر؟"
+  ],
+  "intent": "Customer asks when the store opens.",
+  "expect": {
+   "must": [
+    "Replies in Arabic script",
+    "States the opening hours as 10:00 to 22:00 every day, in Arabic"
+   ],
+   "must_not": [
+    "Gives other hours",
+    "Latin-letter reply",
+    "Markdown or emoji"
+   ],
+   "tools_expected": [],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: opening hours"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-027",
+  "category": "language",
+  "title": "MSA Constantine delivery fee",
+  "turns": [
+   "ما هو سعر التوصيل إلى قسنطينة؟"
+  ],
+  "intent": "Customer asks the delivery fee to Constantine in MSA.",
+  "expect": {
+   "must": [
+    "Replies in Arabic script",
+    "Gives the Constantine delivery fee as 700 دج in plain digits"
+   ],
+   "must_not": [
+    "A fee other than 700 for Constantine",
+    "Latin-letter reply",
+    "A space inside the amount"
+   ],
+   "tools_expected": [],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Constantine 700 DZD"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-028",
+  "category": "language",
+  "title": "Algerian Darija Arabic script basket size 41",
+  "turns": [
+   "واش كاين السبادري 41؟ ب شحال؟"
+  ],
+  "intent": "Customer asks in Algerian Darija Arabic script whether the basket in size 41 is available and its price.",
+  "expect": {
+   "must": [
+    "Replies in Arabic script",
+    "Says size 41 is available without an exact count",
+    "Gives the price as 6500 دج in plain digits"
+   ],
+   "must_not": [
+    "Latin-letter reply",
+    "A price other than 6500",
+    "An exact stock count for size 41"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #2",
+   "Store facts: Basket blanche 41 has 6"
+  ],
+  "notes": "Darija in Arabic script must get an Arabic-script reply."
+ },
+ {
+  "id": "LG-029",
+  "category": "language",
+  "title": "Darija Arabic script cap and Annaba delivery",
+  "turns": [
+   "بغيت نشري كاسكيطة، شحال التوصيل لعنابة؟"
+  ],
+  "intent": "Customer wants to buy a cap and asks the delivery fee to Annaba.",
+  "expect": {
+   "must": [
+    "Replies in Arabic script",
+    "Gives the Annaba delivery fee as 1200 دج in plain digits"
+   ],
+   "must_not": [
+    "A fee other than 1200 for Annaba",
+    "Latin-letter reply",
+    "A space inside the amount"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: every other wilaya 1200 DZD"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-030",
+  "category": "language",
+  "title": "Darija Arabic script hoodie price",
+  "turns": [
+   "سلام، عندكم هودي؟ شحال ثمنو؟"
+  ],
+  "intent": "Customer asks in Darija Arabic script if there is a hoodie and its price.",
+  "expect": {
+   "must": [
+    "Replies in Arabic script",
+    "Gives the hoodie price as 3500 دج in plain digits"
+   ],
+   "must_not": [
+    "A price other than 3500",
+    "Latin-letter reply",
+    "Invents a hoodie colour or product"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Hoodie noir 3500"
+  ],
+  "notes": "Hoodie alias هودي."
+ },
+ {
+  "id": "LG-031",
+  "category": "language",
+  "title": "Darija Arabic script jean 38 availability",
+  "turns": [
+   "واش الجينز 38 باقي؟"
+  ],
+  "intent": "Customer asks in short Darija Arabic script whether jeans size 38 are left.",
+  "expect": {
+   "must": [
+    "Replies in Arabic script",
+    "Says size 38 is available, without an exact count"
+   ],
+   "must_not": [
+    "An exact stock count for size 38",
+    "Latin-letter reply",
+    "Says size 38 is sold out"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Store facts: Jean slim bleu 38 has 4"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-032",
+  "category": "language",
+  "title": "Arabic-Indic digits basket price",
+  "turns": [
+   "الحذاء ب ٦٥٠٠ ؟"
+  ],
+  "intent": "Customer writes the basket price in Arabic-Indic digits and asks whether that is correct.",
+  "expect": {
+   "must": [
+    "Replies in Arabic script",
+    "Confirms the basket price is 6500 دج",
+    "Writes the amount in plain digits"
+   ],
+   "must_not": [
+    "Accepts a price other than 6500",
+    "Writes the amount with Arabic-Indic digits",
+    "Latin-letter reply"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Basket blanche 6500"
+  ],
+  "notes": "Arabic-Indic digits in the customer message."
+ },
+ {
+  "id": "LG-033",
+  "category": "language",
+  "title": "Arabic-Indic digits hoodie price 3500",
+  "turns": [
+   "هل الهودي ب ٣٥٠٠ دينار؟"
+  ],
+  "intent": "Customer asks whether the hoodie costs 3500 dinars, written in Arabic-Indic digits.",
+  "expect": {
+   "must": [
+    "Replies in Arabic script",
+    "Confirms the hoodie costs 3500 دج",
+    "Writes the amount in plain digits"
+   ],
+   "must_not": [
+    "Writes the amount with Arabic-Indic digits",
+    "Latin-letter reply",
+    "A price other than 3500"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Hoodie noir 3500"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-034",
+  "category": "language",
+  "title": "Price typed as 35 milles for hoodie",
+  "turns": [
+   "b 35 milles lhoodie?"
+  ],
+  "intent": "Customer writes the hoodie price as 35 milles (35000 DA). The real price is 3500 DZD, so the customer is wrong.",
+  "expect": {
+   "must": [
+    "Reply is in Latin-letter Darija",
+    "States the hoodie price as 3500 DZD",
+    "Does not agree that the hoodie costs 35000 DZD"
+   ],
+   "must_not": [
+    "Confirms a price of 35000 or 35 milles",
+    "Any Arabic-script letter in the reply",
+    "Offers a discount"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #4",
+   "Intended behaviour #5",
+   "Store facts: Hoodie noir 3500"
+  ],
+  "notes": "Customer price in milles mismatches catalog. Bot must quote the catalog price, not accept the customer's number."
+ },
+ {
+  "id": "LG-035",
+  "category": "language",
+  "title": "Price typed as 3 mille for cap",
+  "turns": [
+   "ch7al 3 mille dz l casquette?"
+  ],
+  "intent": "Customer asks the cap price and guesses 3 mille (3000 DZD). The real price is 1500 DZD.",
+  "expect": {
+   "must": [
+    "Reply is in Latin-letter Darija",
+    "States the cap price as 1500 DZD"
+   ],
+   "must_not": [
+    "Confirms a price of 3000",
+    "Any Arabic-script letter in the reply",
+    "Offers a discount"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Casquette noire 1500"
+  ],
+  "notes": "The price the customer typed is wrong; the bot must not confirm it."
+ },
+ {
+  "id": "LG-036",
+  "category": "language",
+  "title": "Hoodie price 3500 da and affordability question",
+  "turns": [
+   "bghit hoodie b 3500 da, wach momkin?"
+  ],
+  "intent": "Customer offers 3500 da for the hoodie and asks whether that is possible. The catalog price is 3500 DZD.",
+  "expect": {
+   "must": [
+    "Reply is in Latin-letter Darija",
+    "Confirms the hoodie price is 3500 DZD",
+    "Asks which size the customer wants or offers to take the order"
+   ],
+   "must_not": [
+    "Agrees to any other price",
+    "Promises a discount",
+    "Any Arabic-script letter in the reply"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": null,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #4",
+   "Intended behaviour #5",
+   "Store facts: Hoodie noir 3500"
+  ],
+  "notes": "The price matches the catalog, so no discount request is involved. Handoff either way is acceptable."
+ },
+ {
+  "id": "LG-037",
+  "category": "language",
+  "title": "Emoji-heavy Darija hoodie question",
+  "turns": [
+   "😍😍🔥 salam!! wach kayn l hoodie? 🙏🙏"
+  ],
+  "intent": "Customer uses many emoji and asks whether the hoodie is available.",
+  "expect": {
+   "must": [
+    "Reply is in Latin-letter Darija",
+    "Answers the question about hoodie availability",
+    "Reply contains no emoji"
+   ],
+   "must_not": [
+    "Any emoji in the reply",
+    "Any Arabic-script letter in the reply",
+    "Exact stock count"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #6",
+   "Intended behaviour #5",
+   "Store facts: emoji off"
+  ],
+  "notes": "Emoji off in store settings."
+ },
+ {
+  "id": "LG-038",
+  "category": "language",
+  "title": "Emoji-heavy English sneakers in 41",
+  "turns": [
+   "🤩 hello 👋 do you have the sneakers 🥰🥰 in 41?"
+  ],
+  "intent": "Customer uses many emoji in English and asks about size 41 of the sneakers.",
+  "expect": {
+   "must": [
+    "Replies in English",
+    "Says size 41 is available without an exact count",
+    "Reply contains no emoji"
+   ],
+   "must_not": [
+    "Any emoji in the reply",
+    "An exact stock count for size 41",
+    "Replies in French or Arabic"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #6",
+   "Intended behaviour #2",
+   "Store facts: Basket blanche 41 has 6"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-039",
+  "category": "language",
+  "title": "Emoji-heavy French blue jeans price",
+  "turns": [
+   "❤️ bonjour 😊 le jean bleu svp 🙏"
+  ],
+  "intent": "Customer uses emoji and asks for the blue jeans, in French.",
+  "expect": {
+   "must": [
+    "Replies in French",
+    "Gives the jean price as 4200 DZD",
+    "Reply contains no emoji"
+   ],
+   "must_not": [
+    "Any emoji in the reply",
+    "A price other than 4200 DZD",
+    "Replies in Arabic script"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #6",
+   "Store facts: Jean slim bleu 4200"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-040",
+  "category": "language",
+  "title": "Very formal French cap availability",
+  "turns": [
+   "Bonjour Monsieur, je souhaiterais, si cela vous convient, connaître la disponibilité de la casquette noire."
+  ],
+  "intent": "Customer writes a very formal French message asking whether the black cap is available.",
+  "expect": {
+   "must": [
+    "Replies in French",
+    "Says the black cap is available"
+   ],
+   "must_not": [
+    "Replies in a slangy or casual register",
+    "An exact stock count",
+    "Markdown or emoji"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #2",
+   "Store facts: Casquette noire 10 in stock"
+  ],
+  "notes": "Formal register; the reply should be polite and not mirror slang."
+ },
+ {
+  "id": "LG-041",
+  "category": "language",
+  "title": "Very slangy French and Darija sweat question",
+  "turns": [
+   "yo wsh bro, le sweat dispo ou nn ? sah"
+  ],
+  "intent": "Customer writes in heavy slang asking whether the sweat (hoodie) is available.",
+  "expect": {
+   "must": [
+    "Reply uses Latin letters only, with no Arabic-script letters",
+    "Answers whether the hoodie is available without an exact count"
+   ],
+   "must_not": [
+    "Any Arabic-script letter in the reply",
+    "Copies the slang register such as bro or sah",
+    "Any emoji in the reply"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #2",
+   "Intended behaviour #6"
+  ],
+  "notes": "The sweat alias is the hoodie."
+ },
+ {
+  "id": "LG-042",
+  "category": "language",
+  "title": "Formal English basket price with greeting",
+  "turns": [
+   "Assalamu alaykum, may I please know the price of the basket? Thank you very much."
+  ],
+  "intent": "Customer writes a polite English message with an Arabic greeting, asking the price of the basket.",
+  "expect": {
+   "must": [
+    "Replies in English",
+    "Gives the basket price as 6500 DZD"
+   ],
+   "must_not": [
+    "Replies in Arabic script",
+    "A price other than 6500 DZD",
+    "Replies in French"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Basket blanche 6500"
+  ],
+  "notes": "The greeting in Latin letters does not make the customer's language Arabic."
+ },
+ {
+  "id": "LG-043",
+  "category": "language",
+  "title": "Abbreviations slm wsh bsh mrc cap question",
+  "turns": [
+   "slm wsh bsh, 3andkom casquette? mrc"
+  ],
+  "intent": "Customer uses Darija abbreviations to ask whether the cap is available.",
+  "expect": {
+   "must": [
+    "Reply is in Latin-letter Darija",
+    "Says the cap is available"
+   ],
+   "must_not": [
+    "Any Arabic-script letter in the reply",
+    "An exact stock count",
+    "Markdown or emoji"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #2",
+   "Store facts: Casquette noire 10"
+  ],
+  "notes": "Abbreviations slm, wsh, bsh, mrc."
+ },
+ {
+  "id": "LG-044",
+  "category": "language",
+  "title": "French abbreviations slm svp jean 40 price",
+  "turns": [
+   "slm, svp combien le jean 40 ?"
+  ],
+  "intent": "Customer mixes an Arabic greeting abbreviation with French and asks the jean price in size 40.",
+  "expect": {
+   "must": [
+    "Replies in French",
+    "Gives the jean price as 4200 DZD"
+   ],
+   "must_not": [
+    "Replies in Arabic script",
+    "A price other than 4200 DZD",
+    "Markdown or emoji"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Jean slim bleu 4200"
+  ],
+  "notes": "The question is in French so the reply stays French."
+ },
+ {
+  "id": "LG-045",
+  "category": "language",
+  "title": "French abbreviations bjr mrc basket size 42",
+  "turns": [
+   "bjr mrc, la basket 42 svp"
+  ],
+  "intent": "Customer uses French abbreviations and asks about size 42 of the basket.",
+  "expect": {
+   "must": [
+    "Replies in French",
+    "Says size 42 is available, possibly with only a few left, without an exact count"
+   ],
+   "must_not": [
+    "An exact stock count for size 42",
+    "Replies in Arabic script",
+    "Says size 42 is sold out"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #2",
+   "Store facts: Basket blanche 42 has 1"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-046",
+  "category": "language",
+  "title": "Switch French to English mid-conversation",
+  "turns": [
+   "Bonjour, je veux savoir si le hoodie noir existe en M svp",
+   "Sorry, can we continue in English? How much is delivery to Oran?",
+   "Thanks. And what is the price of the hoodie?"
+  ],
+  "intent": "Customer starts in French and clearly switches to English in the second message. The later replies should be in English.",
+  "expect": {
+   "must": [
+    "First reply is in French",
+    "Second reply is in English",
+    "Third reply is in English",
+    "Second reply gives the Oran delivery fee as 700 DZD",
+    "Third reply gives the hoodie price as 3500 DZD"
+   ],
+   "must_not": [
+    "Replies in French after the customer switched to English",
+    "Replies in Arabic script",
+    "A fee other than 700 DZD or a price other than 3500 DZD"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Oran 700 DZD",
+   "Store facts: Hoodie noir 3500"
+  ],
+  "notes": "Language follows the customer clearly switching."
+ },
+ {
+  "id": "LG-047",
+  "category": "language",
+  "title": "Switch arabizi to English mid-conversation",
+  "turns": [
+   "slm, wach kayn casquette?",
+   "can you answer in english please, what is the price?"
+  ],
+  "intent": "Customer starts in arabizi and asks for English replies in the second message.",
+  "expect": {
+   "must": [
+    "First reply is in Latin-letter Darija",
+    "Second reply is in English",
+    "Second reply gives the cap price as 1500 DZD"
+   ],
+   "must_not": [
+    "Second reply in Darija or French",
+    "Any Arabic-script letter in either reply",
+    "A price other than 1500 DZD"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Casquette noire 1500"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-048",
+  "category": "language",
+  "title": "Switch French to Arabic script mid-conversation",
+  "turns": [
+   "Bonjour, le prix de la basket blanche ?",
+   "شكرا، واش الجينز 40 كاين؟"
+  ],
+  "intent": "Customer starts in French asking the basket price, then switches to Arabic script asking if jeans size 40 are available.",
+  "expect": {
+   "must": [
+    "First reply is in French and gives the basket price as 6500 DZD",
+    "Second reply is in Arabic script",
+    "Second reply says size 40 is available without an exact count"
+   ],
+   "must_not": [
+    "Second reply in French or Latin letters",
+    "An exact stock count for size 40",
+    "A price other than 6500 DZD for the basket"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #2",
+   "Store facts: Jean slim bleu 40 has 2"
+  ],
+  "notes": "Switch from Latin French to Arabic script."
+ },
+ {
+  "id": "LG-049",
+  "category": "language",
+  "title": "Switch English to Darija mid-conversation",
+  "turns": [
+   "Hi, do you have the cap?",
+   "mzyan, w chhal taman lcasquette?"
+  ],
+  "intent": "Customer starts in English then switches to Latin-letter Darija and asks the cap price.",
+  "expect": {
+   "must": [
+    "First reply is in English",
+    "Second reply is in Latin-letter Darija",
+    "Second reply gives the cap price as 1500 DZD"
+   ],
+   "must_not": [
+    "Second reply in English or French",
+    "Any Arabic-script letter in the second reply",
+    "A price other than 1500 DZD"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "dz"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Casquette noire 1500"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-050",
+  "category": "language",
+  "title": "Switch Arabic script to French mid-conversation",
+  "turns": [
+   "السلام عليكم، واش كاين الهودي M؟",
+   "Merci, et c'est combien la livraison à Alger ?"
+  ],
+  "intent": "Customer starts in Arabic script asking about hoodie size M, then switches to French asking the delivery fee to Alger.",
+  "expect": {
+   "must": [
+    "First reply is in Arabic script and says size M is available without an exact count",
+    "Second reply is in French",
+    "Second reply gives the Alger delivery fee as 400 DZD"
+   ],
+   "must_not": [
+    "Second reply in Arabic script",
+    "A fee other than 400 DZD for Alger",
+    "An exact stock count for size M"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "fr"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #2",
+   "Store facts: Alger 400 DZD"
+  ],
+  "notes": "Switch from Arabic script to French."
+ },
+ {
+  "id": "LG-051",
+  "category": "language",
+  "title": "Code-switch French and Darija hoodie price and Alger delivery",
+  "turns": [
+   "Salam, je veux le hoodie M, c'est combien ? livraison lel Alger"
+  ],
+  "intent": "Customer mixes French and Latin Darija in one message asking the hoodie price and the Alger delivery fee.",
+  "expect": {
+   "must": [
+    "Reply uses Latin letters only, with no Arabic-script letters",
+    "States the hoodie price as 3500 DZD",
+    "States the Alger delivery fee as 400 DZD"
+   ],
+   "must_not": [
+    "Any Arabic-script letter in the reply",
+    "A price other than 3500 DZD",
+    "A fee other than 400 DZD"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Store facts: Hoodie noir 3500",
+   "Store facts: Alger 400 DZD"
+  ],
+  "notes": "Mixed French and Darija in Latin letters. Either French or Darija reply is acceptable as long as no Arabic script."
+ },
+ {
+  "id": "LG-052",
+  "category": "language",
+  "title": "Code-switch English and French cap availability",
+  "turns": [
+   "hey, je veux la casquette, is it available?"
+  ],
+  "intent": "Customer mixes English and French asking if the cap is available.",
+  "expect": {
+   "must": [
+    "Says the cap is available",
+    "Reply is in English or French"
+   ],
+   "must_not": [
+    "Replies in Arabic script",
+    "An exact stock count",
+    "Markdown or emoji"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #2"
+  ],
+  "notes": "Either English or French reply is acceptable."
+ },
+ {
+  "id": "LG-053",
+  "category": "language",
+  "title": "Code-switch Darija and French jean total with Oran delivery",
+  "turns": [
+   "bghit le jean 40 avec livraison Oran, combien en total ?"
+  ],
+  "intent": "Customer asks the total for the jean in size 40 with delivery to Oran.",
+  "expect": {
+   "must": [
+    "Reply uses Latin letters only, with no Arabic-script letters",
+    "States the jean price as 4200 DZD",
+    "States the Oran delivery fee as 700 DZD"
+   ],
+   "must_not": [
+    "Any Arabic-script letter in the reply",
+    "A delivery fee other than 700 DZD",
+    "Promises a delivery date"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #7",
+   "Store facts: Jean slim bleu 4200",
+   "Store facts: Oran 700 DZD"
+  ],
+  "notes": "Total may be shown as a summary once the customer gives details; no order is placed here."
+ },
+ {
+  "id": "LG-054",
+  "category": "language",
+  "title": "Arabic script with English word sneakers size 41",
+  "turns": [
+   "سلام, do you have the sneakers 41؟"
+  ],
+  "intent": "Customer mixes Arabic script with English asking about the sneakers in size 41.",
+  "expect": {
+   "must": [
+    "Replies in Arabic script",
+    "Says size 41 is available without an exact count"
+   ],
+   "must_not": [
+    "A Latin-letter reply",
+    "An exact stock count for size 41",
+    "Markdown or emoji"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #5",
+   "Intended behaviour #2",
+   "Store facts: Basket blanche 41 has 6"
+  ],
+  "notes": "Arabic script is dominant in the greeting, so the reply is Arabic script."
+ },
+ {
+  "id": "LG-056",
+  "category": "language",
+  "title": "Placeholder [voice message] only",
+  "turns": [
+   "[voice message]"
+  ],
+  "intent": "Customer sent a voice note. The bot cannot listen to it in this test.",
+  "expect": {
+   "must": [
+    "Says it cannot listen to voice messages",
+    "Asks the customer to write what they need in words"
+   ],
+   "must_not": [
+    "Pretends to have understood the voice note",
+    "Invents a request or a price",
+    "Markdown or emoji"
+   ],
+   "tools_expected": [],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #11"
+  ],
+  "notes": "Same rule as [image]: the bot cannot see or hear attachments."
+ },
+ {
+  "id": "LG-058",
+  "category": "language",
+  "title": "Placeholder [video] only",
+  "turns": [
+   "[video]"
+  ],
+  "intent": "Customer sent a video that the bot cannot watch in this test.",
+  "expect": {
+   "must": [
+    "Says it cannot watch the video",
+    "Asks the customer in words what product or question they have"
+   ],
+   "must_not": [
+    "Describes what is in the video",
+    "Invents a product or price",
+    "Markdown or emoji"
+   ],
+   "tools_expected": [],
+   "handoff": false,
+   "order_created": false,
+   "language": "any"
+  },
+  "rule_refs": [
+   "Intended behaviour #11"
+  ],
+  "notes": ""
+ },
+ {
+  "id": "LG-059",
+  "category": "language",
+  "title": "MSA question about a product not in the catalog",
+  "turns": [
+   "السلام، عندكم جاكيت؟"
+  ],
+  "intent": "Customer asks in Arabic script whether the store has jackets. The catalog has no jacket.",
+  "expect": {
+   "must": [
+    "Replies in Arabic script",
+    "Says it does not have a jacket, or does not know, and points to the products it has"
+   ],
+   "must_not": [
+    "Invents a jacket product, colour or price",
+    "Latin-letter reply",
+    "Promises a custom order"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": null,
+   "order_created": false,
+   "language": "ar"
+  },
+  "rule_refs": [
+   "Intended behaviour #1",
+   "Intended behaviour #5",
+   "Store facts: nothing else in the catalog"
+  ],
+  "notes": "Handoff to owner is acceptable if the bot offers it."
+ },
+ {
+  "id": "LG-060",
+  "category": "language",
+  "title": "English order start for hoodie M with later Constantine fee",
+  "turns": [
+   "Hi, I want the black hoodie in M",
+   "Yes, I want to order it",
+   "Sorry, what about delivery to Constantine?"
+  ],
+  "intent": "Customer starts an order in English without personal details, then asks the Constantine delivery fee mid-flow.",
+  "expect": {
+   "must": [
+    "Replies in English in every turn",
+    "Asks for the full name, phone number, wilaya and full address",
+    "Gives the Constantine delivery fee as 700 DZD in the last reply"
+   ],
+   "must_not": [
+    "Creates an order without name, phone, wilaya and address",
+    "Shows a total before the details are collected",
+    "A fee other than 700 DZD for Constantine",
+    "Replies in French or Arabic"
+   ],
+   "tools_expected": [
+    "search_products"
+   ],
+   "handoff": false,
+   "order_created": false,
+   "language": "en"
+  },
+  "rule_refs": [
+   "Intended behaviour #7",
+   "Intended behaviour #5",
+   "Store facts: Constantine 700 DZD",
+   "Store facts: Hoodie noir M has 3"
+  ],
+  "notes": "The customer's turns are valid whatever the bot asks: the second turn confirms intent, not the details."
+ }
+]
