@@ -37,7 +37,7 @@ Implementation notes (`supabase/functions/_shared/agent/`):
 
 - The agent loop is manual (`run.ts`), capped at 5 tool rounds, replies capped at 950 UTF-8 bytes (Instagram's text limit).
 - A refusal, cut-off answer or exhausted loop never reaches the customer: the conversation is handed to the owner with a short holding reply.
-- Stock is reported as `in_stock` / `low_stock` / `out_of_stock`. Exact counts are only exposed at 5 or fewer, so competitors can't read inventory by asking.
+- Stock is reported to the model as a level computed in code: "in stock" (more than 3), "few left" (1 to 3) or "out of stock" (0). Counts are never exposed, so competitors can't read inventory by asking.
 - Default model is `claude-sonnet-5-5` (`AGENT_MODEL` overrides) with low effort and the server-side refusal fallback enabled.
 - Model providers can be chained (`providers.ts`): primary first, optional fallback on any error, with a short per-isolate circuit breaker. Falling back only protects uptime; whichever provider is primary still sees every message.
 - `assistant-chat` (dashboard test chat with the owner's JWT, plus a dev-secret mode) and `meta-webhook` are entry points to the same pipeline in `_shared/pipeline.ts` (a barrel over `_shared/pipeline/`: `inbound.ts`, `reply.ts`, `alerts.ts`, `ports.ts`, `usage.ts`, `types.ts`). Delivery to Instagram is in `_shared/meta/` (`deliver.ts`, `instagram.ts`).
