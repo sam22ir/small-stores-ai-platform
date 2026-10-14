@@ -38,7 +38,12 @@ function setup() {
   };
 }
 
-function ctxFor(t) {
+// The customer has read the total (basket at the database price + the fee for this wilaya) in the last
+// assistant message, so create_order's confirmation guard lets the order through.
+async function ctxFor(t, wilaya = "Tébessa") {
+  const basket = await t.orders.priceBasket(t.storeId, [{ variant_id: t.variantId, quantity: 1 }]);
+  const quote = await t.orders.quoteDelivery(t.storeId, wilaya);
+  const fee = quote.fee_cents ?? 0;
   return {
     store: { id: t.storeId, currency: "DZD", orders_enabled: true },
     catalog: t.catalog,
@@ -46,6 +51,9 @@ function ctxFor(t) {
     conversationId: CONV,
     customerId: CUST,
     now: new Date("2026-10-13T10:00:00Z"),
+    lastAssistantText: `• Basket blanche taille 41: ${basket / 100} DZD\n• Total: ${(basket + fee) / 100} DZD`,
+    // The quote the customer got in an earlier turn, as a lookup fact.
+    lookups: [`Delivery to ${quote.canonical}: ${fee / 100} DZD`],
   };
 }
 
@@ -65,7 +73,7 @@ for (const typed of ["Tbessa", "تبسة", "Tebesaa"]) {
     assert.equal(quote.canonical, "Tébessa");
     assert.equal(quote.fee_cents, UNIQUE_FEE);
 
-    const r = await executeTool("create_order", order(t, typed), ctxFor(t));
+    const r = await executeTool("create_order", order(t, typed), await ctxFor(t, typed));
     assert.equal(r.isError, undefined, r.content);
     assert.match(r.content, /"order_placed":true/);
     const [placed] = t.state.tables.orders;
@@ -76,7 +84,7 @@ for (const typed of ["Tbessa", "تبسة", "Tebesaa"]) {
 
 test("quote_delivery with a typo returns the canonical name and the correction note", async () => {
   const t = setup();
-  const r = await executeTool("quote_delivery", { wilaya: "Tbessa", phone: "0661234567" }, ctxFor(t));
+  const r = await executeTool("quote_delivery", { wilaya: "Tbessa", phone: "0661234567" }, await ctxFor(t));
   const body = JSON.parse(r.content);
   assert.equal(body.wilaya, "Tébessa");
   assert.equal(body.corrected_from, "Tbessa");
@@ -105,7 +113,7 @@ test("get_store_info summary from the fixture's own fee rows, with orders off: o
 test("an ambiguous typo is refused by create_order, and nothing is written", async () => {
   const t = setup();
   // "Sila" is one edit from both Msila and Mila; the fixture serves neither under that spelling.
-  const r = await executeTool("create_order", order(t, "Sila"), ctxFor(t));
+  const r = await executeTool("create_order", order(t, "Sila"), await ctxFor(t, "Sila"));
   assert.equal(r.isError, true);
   assert.equal(t.state.tables.orders.length, 0);
 });

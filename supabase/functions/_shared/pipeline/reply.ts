@@ -5,6 +5,8 @@ import {
   conversationLang,
   conversationSignal,
   holdingReply,
+  languageCorrection,
+  languageMismatch,
   limitReply,
   scriptCorrection,
   scriptProblem,
@@ -61,15 +63,22 @@ export async function replyWithScriptCheck(
   call: (turns: ChatMessage[]) => Promise<AgentResult>,
 ): Promise<AgentResult> {
   const first = await call(history);
-  const problem = scriptProblem(first.reply, conversationSignal(history));
-  const wroteOrQueued = first.toolCalls.some((t) => t.name === "create_order" || t.name === "send_product_photo");
-  if (!problem || wroteOrQueued) return first;
+  const lang = conversationSignal(history);
+  const problem = scriptProblem(first.reply, lang);
+  // Script first; then a reply that is confidently in another language than the conversation.
+  const wrongLang = !problem && lang ? languageMismatch(first.reply, lang) : null;
+  // Only a successful create_order changed the store; a refused one did not.
+  const wroteOrQueued = first.toolCalls.some((t) =>
+    (t.name === "create_order" && !t.is_error) || t.name === "send_product_photo"
+  );
+  if ((!problem && !wrongLang) || wroteOrQueued) return first;
+  const note = problem ? scriptCorrection(problem) : languageCorrection(lang!);
   let retry: AgentResult;
   try {
     retry = await call([
       ...history,
       { role: "assistant", text: first.reply },
-      { role: "user", text: scriptCorrection(problem) },
+      { role: "user", text: note },
     ]);
   } catch (err) {
     console.warn(JSON.stringify({ event: "reply_script_retry_failed", error_kind: errorKind(err) }));

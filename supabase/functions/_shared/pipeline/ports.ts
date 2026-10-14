@@ -240,6 +240,31 @@ export function supabaseOrders(client: SupabaseClient, dryRun: boolean): OrderPo
       return { served: false, fee_cents: null, reason: "unknown", options: names };
     },
 
+    async priceBasket(storeId, items): Promise<number | null> {
+      const { data: variants, error: vErr } = await client
+        .from("product_variants")
+        .select("id,price_cents,product_id")
+        .eq("store_id", storeId)
+        .in("id", items.map((i) => i.variant_id));
+      if (vErr) throw vErr;
+      const productIds = [...new Set((variants ?? []).map((v) => v.product_id as string))];
+      if (productIds.length === 0) return null;
+      const { data: products, error: pErr } = await client
+        .from("products")
+        .select("id,price_cents")
+        .eq("store_id", storeId)
+        .in("id", productIds);
+      if (pErr) throw pErr;
+      let subtotal = 0;
+      for (const item of items) {
+        const v = (variants ?? []).find((x) => x.id === item.variant_id);
+        const p = v ? (products ?? []).find((x) => x.id === v.product_id) : undefined;
+        if (!v || !p) return null;
+        subtotal += (v.price_cents ?? p.price_cents) * item.quantity;
+      }
+      return subtotal;
+    },
+
     async placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult> {
       // Send the store's own spelling of the wilaya so the RPC's fee lookup matches.
       const { data: fees } = await client

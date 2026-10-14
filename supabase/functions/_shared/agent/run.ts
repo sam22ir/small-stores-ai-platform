@@ -2,6 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { conversationLang, conversationSignal, hasArabicScript, holdingReply } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import { capLookupOutputs, errorText, executeTool, lookupOutput, toolsForStore } from "./tools.ts";
+import { assistantBeforeCurrentTurn, type RunState } from "./tools/order-guard.ts";
 import type {
   AgentResult,
   Catalog,
@@ -185,6 +186,8 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
 
   const toolCalls: ToolCallLog[] = [];
   const sentPhotos: ProductPhoto[] = []; // queued by send_product_photo, sent after the reply
+  const runState: RunState = { quoteRequested: false };
+  const lastAssistantText = assistantBeforeCurrentTurn(opts.history);
   const usage = { input_tokens: 0, output_tokens: 0 };
   let handoffReason: string | null = null;
   let handoffSummary: string | null = null;
@@ -246,6 +249,8 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
 
     // Echo the assistant turn back unchanged (thinking blocks included).
     messages.push({ role: "assistant", content: response.content });
+    // Before any tool runs: a quote and a create_order in the same round must see the quote as requested.
+    if (toolUses.some((u) => u.name === "quote_delivery")) runState.quoteRequested = true;
 
     const results: ToolResultParam[] = await Promise.all(
       toolUses.map(async (use): Promise<ToolResultParam> => {
@@ -261,6 +266,9 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
             storageBase: opts.storageBase,
             photos: opts.photos,
             sentPhotos,
+            lastAssistantText,
+            lookups: opts.lookups ?? [],
+            run: runState,
           });
           if (outcome.handoffReason) {
             handoffReason = outcome.handoffReason;

@@ -41,6 +41,8 @@ function fakeOrders(result: PlaceOrderResult, calls: PlaceOrderInput[] = []): Or
       calls.push(input);
       return Promise.resolve(result);
     },
+    // Every test variant costs 4500 cents (see catalog above).
+    priceBasket: (_s, items) => Promise.resolve(items.reduce((sum, i) => sum + 4500 * i.quantity, 0)),
   };
 }
 
@@ -61,7 +63,8 @@ const goodOrder = {
   items: [{ variant_id: VARIANT, quantity: 2 }],
 };
 
-function ctx(orders_enabled: boolean, orders?: OrderPort) {
+// The default summary the customer read: goodOrder (2 x 4500 cents) to Oran (600 DZD fee) = 690 DZD.
+function ctx(orders_enabled: boolean, orders?: OrderPort, shown = "• Total: 690 DZD. Confirm?") {
   return {
     store: store(orders_enabled),
     catalog,
@@ -69,6 +72,9 @@ function ctx(orders_enabled: boolean, orders?: OrderPort) {
     conversationId: "c1",
     customerId: "u1",
     now: new Date("2026-10-04T10:00:00Z"),
+    lastAssistantText: shown,
+    // The Oran quote the customer got in an earlier turn (the guard needs it, see order.ts).
+    lookups: ["Delivery to Oran: 600 DZD"],
   };
 }
 
@@ -190,8 +196,9 @@ test("quote_delivery refuses an invalid phone before any summary, asking for a c
   for (const phone of ["0312345678", "0661234", "", "٠٣١٢٣٤٥٦٧٨"]) {
     const r = await executeTool("quote_delivery", { wilaya: "Oran", phone }, c);
     assert.equal(r.isError, true, phone);
-    assert.match(r.content, /ask the customer for a corrected mobile number/, phone);
-    assert.match(r.content, /before you show any summary/, phone);
+    assert.match(r.content, /ask the customer for a valid mobile number/, phone);
+    assert.match(r.content, /before any summary/, phone);
+    assert.match(r.content, /This is not a reason to hand off/, phone);
   }
   assert.equal(quotes, 0);
   const good = await executeTool("quote_delivery", { wilaya: "Oran", phone: "٠٥٥٥١٢٣٤٥٦" }, c);
@@ -207,6 +214,7 @@ test("quote_delivery tells the model to ask, not hand off, for an ambiguous or u
           ? { served: false, fee_cents: null, reason: "ambiguous", suggestions: ["Msila", "Mila"] }
           : { served: false, fee_cents: null, reason: "unknown", options: ["Alger", "Oran"] },
       ),
+    priceBasket: () => Promise.resolve(9000),
     placeOrder: () => Promise.resolve(OK),
   };
   const c = ctx(true, orders);
@@ -215,12 +223,12 @@ test("quote_delivery tells the model to ask, not hand off, for an ambiguous or u
   );
   assert.deepEqual(amb.did_you_mean, ["Msila", "Mila"]);
   assert.match(amb.note, /did you mean/);
-  assert.match(amb.note, /Don't hand off/);
+  assert.match(amb.note, /This is not a reason to hand off/);
   const unk = JSON.parse(
     (await executeTool("quote_delivery", { wilaya: "Narnia", phone: "0555123456" }, c)).content,
   );
   assert.equal(unk.delivers, null);
-  assert.match(unk.note, /Don't hand off/);
+  assert.match(unk.note, /This is not a reason to hand off/);
 });
 
 test("quote_delivery and create_order both use the canonical name for a typo or Arabic spelling", async () => {
@@ -235,12 +243,14 @@ test("quote_delivery and create_order both use the canonical name for a typo or 
           : { served: true, fee_cents: null },
       );
     },
+    priceBasket: (_s, items) => Promise.resolve(items.reduce((sum, i) => sum + 4500 * i.quantity, 0)),
     placeOrder: (input) => {
       calls.push(input);
       return Promise.resolve(OK);
     },
   };
-  const c = ctx(true, orders);
+  // 2 x 4500 cents + the Tébessa fee of 1200 DZD = 1290 DZD, shown to the customer before the order.
+  const c = { ...ctx(true, orders, "• Total: 1290 DZD"), lookups: ["Delivery to Tébessa: 1200 DZD"] };
   const quote = JSON.parse((await executeTool("quote_delivery", { wilaya: "Tbessa", phone: "0555123456" }, c)).content);
   assert.equal(quote.wilaya, "Tébessa");
   assert.match(quote.delivery_fee, /1,200/);
@@ -256,6 +266,7 @@ test("create_order refuses an ambiguous wilaya without placing the order", async
   const orders: OrderPort = {
     quoteDelivery: () =>
       Promise.resolve({ served: false, fee_cents: null, reason: "ambiguous", suggestions: ["Msila", "Mila"] }),
+    priceBasket: () => Promise.resolve(9000),
     placeOrder: (input) => {
       calls.push(input);
       return Promise.resolve(OK);
@@ -271,6 +282,7 @@ test("a typo at a store with no fee set keeps both notes: the correction and don
   const orders: OrderPort = {
     quoteDelivery: () =>
       Promise.resolve({ served: true, fee_cents: null, canonical: "Tébessa", corrected_from: "Tbessa" }),
+    priceBasket: () => Promise.resolve(9000),
     placeOrder: () => Promise.resolve(OK),
   };
   const r = JSON.parse(
@@ -352,8 +364,9 @@ const SHOP: Catalog = {
   getProduct: () => Promise.resolve(null),
 };
 
-function shopCtx(catalog: Catalog, calls: PlaceOrderInput[] = []) {
-  return { ...ctx(true, fakeOrders(OK, calls)), catalog };
+// One 4500-cent item to Oran (600 DZD fee) = 645 DZD by default.
+function shopCtx(catalog: Catalog, calls: PlaceOrderInput[] = [], shown = "• Total: 645 DZD") {
+  return { ...ctx(true, fakeOrders(OK, calls), shown), catalog };
 }
 
 test("an invented variant_id is recovered from product_name and variant_label", async () => {
@@ -372,7 +385,7 @@ test("product aliases and label case or spacing resolve too", async () => {
   const r = await executeTool(
     "create_order",
     { ...goodOrder, items: [{ variant_id: "hoodie-black-m", quantity: 2, product_name: " hoodie NOIR ", variant_label: "m" }] },
-    shopCtx(SHOP, calls),
+    shopCtx(SHOP, calls, "• Total: 690 DZD"),
   );
   assert.ok(!r.isError, r.content);
   assert.deepEqual(calls[0].items, [{ variant_id: VARIANT, quantity: 2 }]);

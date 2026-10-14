@@ -94,6 +94,9 @@ export interface DeliveryFeesPort {
 export interface OrderPort {
   quoteDelivery(storeId: string, wilaya: string): Promise<DeliveryQuote>;
   placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult>;
+  // Subtotal in cents of the basket at today's prices (variant price, else product price, as place_order
+  // charges it). null when a variant id is unknown. Used only by the create_order confirmation guard.
+  priceBasket(storeId: string, items: OrderLineInput[]): Promise<number | null>;
 }
 
 // Product photos the agent queued for the customer in one run. The URL must be in this store's folder

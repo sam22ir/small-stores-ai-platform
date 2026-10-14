@@ -75,6 +75,15 @@ const ENGLISH_WORDS = new Set([
   "the", "you", "do", "have", "is", "are", "what", "how", "much", "hello", "hi", "thanks", "thank",
   "please", "i", "want", "black", "white", "size", "order", "price", "and", "with", "can",
   "to", "shipping", "cost", "fee", "deliver", "your", "my", "for", "where", "when", "u", "any",
+  // Grown from the stress-test case PS-036 ("jean slim 42 in stock?").
+  "in", "stock", "available",
+]);
+
+// French words that show up in a French reply but are not in FRENCH_WORDS (shop words are left out).
+// Used only to judge a model reply (languageMismatch), never to detect the customer's language.
+const FRENCH_REPLY_EXTRA = new Set([
+  "voulez", "autre", "actuellement", "vérifier", "verifier", "pouvez", "souhaitez", "désolé", "désolée",
+  "moment", "aussi", "très", "votre", "vos", "notre", "nos",
 ]);
 
 const isStrongDarija = (w: string) => DARIJA_WORDS.has(w) || DARIJA_DIGIT_WORD.test(w);
@@ -165,6 +174,41 @@ export function scriptCorrection(problem: "arabic_letters" | "cyrillic_letters")
     ? "Your last reply used Arabic-script letters, but the customer writes Latin-letter Algerian Darija. Rewrite the reply using only Latin letters, with no Arabic script at all."
     : "Your last reply contained Cyrillic letters, which are never allowed. Rewrite the reply in the customer's language and script, using no Cyrillic letters.";
   return `${CORRECTION_MARK} ${what} Keep the same facts and the same tool results, and change nothing else.`;
+}
+
+// A reply that is confidently in another language than the conversation: at least 3 words from the
+// other language's list and none from the conversation's own list. Darija replies that mix French
+// product words ("Basket blanche taille 41", "commune, rue") have Darija words, so they never count.
+// Returns the language the reply is actually in, or null.
+export function languageMismatch(reply: string, expected: Lang | null): Lang | null {
+  if (!expected || !reply.trim()) return null;
+  const counts: Record<Lang, number> = { ar: 0, fr: 0, en: 0, dz: 0 };
+  const ws = words(stripWilayas(reply));
+  for (const w of ws) {
+    if (isDarijaWord(w)) counts.dz++;
+    if (FRENCH_WORDS.has(w) || FRENCH_REPLY_EXTRA.has(w)) counts.fr++;
+    if (ENGLISH_WORDS.has(w)) counts.en++;
+  }
+  const own: Record<Lang, number> = {
+    ar: hasArabicScript(reply) ? 1 : 0,
+    fr: counts.fr,
+    en: counts.en,
+    dz: counts.dz,
+  };
+  if (own[expected] > 0) return null;
+  // An Arabic-script conversation: any Latin-letter reply with 3 or more words of another language.
+  if (expected === "ar") {
+    if (hasArabicScript(reply)) return null;
+    const best = (["fr", "en", "dz"] as const).find((l) => counts[l] >= 3);
+    return best ?? null;
+  }
+  const other = (["fr", "en", "dz"] as const).find((l) => l !== expected && counts[l] >= 3 && !(expected === "dz" && hasArabicScript(reply)));
+  return other ?? null;
+}
+
+// The user-side note that asks for one reply in the expected language.
+export function languageCorrection(expected: Lang): string {
+  return `${CORRECTION_MARK} Your last reply was not in the customer's language. Rewrite the reply in ${LANG_NAME[expected]}, as the customer wrote it. Keep the same facts and the same tool results, and change nothing else.`;
 }
 
 const HOLDING: Record<Lang, string> = {

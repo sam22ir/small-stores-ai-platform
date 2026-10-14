@@ -39,15 +39,22 @@ export function lookupOutput(name: string, input: unknown, content: string): str
   return text.length > LOOKUP_CALL_MAX ? `${text.slice(0, LOOKUP_CALL_MAX - 1)}…` : text;
 }
 
-// Keeps the lookup outputs of one run within LOOKUP_RUN_MAX characters, first come first kept.
+// Keeps the lookup outputs of one run within LOOKUP_RUN_MAX characters. Delivery quotes are kept first
+// (the order guard needs them in later turns, see order.ts); the other lookups fill what is left, first come first kept.
 export function capLookupOutputs(calls: ToolCallLog[]): ToolCallLog[] {
+  const kept = new Set<ToolCallLog>();
   let used = 0;
-  return calls.map((c) => {
-    if (c.output === undefined) return c;
-    if (used + c.output.length <= LOOKUP_RUN_MAX) {
-      used += c.output.length;
-      return c;
+  for (const pass of [(c: ToolCallLog) => c.name === "quote_delivery", (c: ToolCallLog) => c.name !== "quote_delivery"]) {
+    for (const c of calls) {
+      if (c.output === undefined || kept.has(c) || !pass(c)) continue;
+      if (used + c.output.length <= LOOKUP_RUN_MAX) {
+        used += c.output.length;
+        kept.add(c);
+      }
     }
+  }
+  return calls.map((c) => {
+    if (c.output === undefined || kept.has(c)) return c;
     const { output: _dropped, ...rest } = c;
     return rest;
   });

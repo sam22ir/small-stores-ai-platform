@@ -842,7 +842,7 @@ test("the order rules are in the prompt when orders are on", async () => {
   await handleInbound(input("je veux commander", "customer", { orders_enabled: true }));
   const system = bodies[0].messages[0].content as string;
   assert.match(system, /Collecting the order details is YOUR job, not the owner's/);
-  assert.match(system, /Never hand off just to collect details/);
+  assert.match(system, /Never hand off because details are missing, partial or invalid: ask for them/);
 });
 
 const dzMessages = () => [{ id: "m1", conversation_id: "c1", direction: "inbound", body: "wach kayen hoodie noir taille M?", _seq: 0 }];
@@ -874,7 +874,8 @@ test("when the Latin rewrite still has Arabic script, the script check retries o
 });
 
 test("a clean Darija reply needs no rewrite, and a non-Darija reply is never rewritten", async () => {
-  const { input } = setup();
+  // The stored history ends with the customer's Darija message, as it does in production.
+  const { input } = setup({ messages: dzMessages() });
   const clean = stubSequence([{ content: "Hoodie noir 3500 DA, kayna. Bghiti tcommandi?" }]);
   await handleInbound(input("wach kayen hoodie noir taille M?"));
   assert.equal(clean.length, 1); // no rewrite request: the clean reply is sent as it is

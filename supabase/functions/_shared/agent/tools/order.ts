@@ -1,6 +1,7 @@
 import { normalizeDzPhone, orderIdempotencyKey } from "../orders.ts";
 import type { OrderLineInput } from "../types.ts";
 import { isSoldOut } from "./catalog.ts";
+import { amountShown, NOT_CONFIRMED_PREFIX } from "./order-guard.ts";
 import { asRecord, money, UUID } from "./shared.ts";
 import type { ToolContext, ToolOutcome } from "./shared.ts";
 
@@ -141,6 +142,26 @@ export async function createOrder(
     return { content: ORDER_ERRORS.wilaya_not_served, isError: true };
   }
   const storeWilaya = quote.canonical ?? wilaya;
+
+  // Confirmation guard: the customer must have read this total in the assistant message before their
+  // current message. A quote made in this same turn (or a summary never shown) fails the check.
+  const subtotal = await ctx.orders.priceBasket(store.id, items);
+  if (subtotal === null) {
+    return { content: ORDER_ERRORS.unknown_variant, isError: true };
+  }
+  const total = subtotal + (quote.fee_cents ?? 0);
+  // Both are needed: the total in the last message the customer read (a unit price alone can match a
+  // total when the fee is unset) and a delivery quote for this wilaya from an earlier turn.
+  const quotedEarlier = (ctx.lookups ?? []).some((l) => l.startsWith(`Delivery to ${storeWilaya}:`));
+  if (!quotedEarlier || !amountShown(ctx.lastAssistantText ?? "", total)) {
+    const sameTurn = ctx.run?.quoteRequested
+      ? " You quoted delivery in this same turn, so the customer has not seen the summary yet."
+      : "";
+    return {
+      content: `${NOT_CONFIRMED_PREFIX}${sameTurn} The total is ${money(total, store.currency)}. Do not call create_order again in this turn. Reply to the customer with the order summary (items, delivery fee, total) and wait for their explicit confirmation in their next message. This is not a failure and not a reason to hand off.`,
+      isError: true,
+    };
+  }
 
   const result = await ctx.orders.placeOrder({
     storeId: store.id,

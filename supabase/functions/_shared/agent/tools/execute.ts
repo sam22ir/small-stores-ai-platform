@@ -8,7 +8,7 @@ import { asRecord, money, UUID } from "./shared.ts";
 import type { ToolContext, ToolOutcome } from "./shared.ts";
 
 const PHONE_FIRST =
-  "The phone number is missing or not a valid Algerian mobile number (05, 06 or 07 + 8 digits). quote_delivery is for an order summary: ask the customer for a corrected mobile number in one short message before you show any summary. For a price-only question, answer from delivery_fees in get_store_info instead.";
+  "The phone number is missing or not a valid Algerian mobile number (05, 06 or 07 + 8 digits). quote_delivery is for an order summary: This is not a reason to hand off: ask the customer for a valid mobile number (05, 06 or 07 + 8 digits) in one short message, before any summary. For a price-only question, answer from delivery_fees in get_store_info instead.";
 
 // Instruction wording the model sometimes copies from the tool or prompt into the owner's summary
 // ("No need to include their phone", "do not include a phone number"). Drops those clauses only.
@@ -112,10 +112,14 @@ export async function executeTool(
         return { content: "Ordering is not available.", isError: true };
       }
       // Phone first: the summary must not be shown before the number is valid.
+      if (ctx.run) ctx.run.quoteRequested = true;
       const phone = typeof args.phone === "string" ? normalizeDzPhone(args.phone) : null;
       if (!phone) return { content: PHONE_FIRST, isError: true };
       if (typeof args.wilaya !== "string" || !args.wilaya.trim()) {
-        return { content: "wilaya must be a non-empty string", isError: true };
+        return {
+          content: "wilaya is missing. This is not a reason to hand off: ask the customer which wilaya they are in, in one short message.",
+          isError: true,
+        };
       }
       const wilaya = args.wilaya.trim().slice(0, 60);
       const q = await ctx.orders.quoteDelivery(store.id, wilaya);
@@ -125,7 +129,7 @@ export async function executeTool(
             content: JSON.stringify({
               delivers: null,
               did_you_mean: q.suggestions ?? [],
-              note: `"${wilaya}" could be more than one wilaya. Ask the customer in one short message which one they mean ("did you mean X or Y?"). Don't hand off. Call quote_delivery again with the name they confirm.`,
+              note: `"${wilaya}" could be more than one wilaya. Ask the customer in one short message which one they mean ("did you mean X or Y?"). This is not a reason to hand off. Call quote_delivery again with the name they confirm.`,
             }),
           };
         }
@@ -134,7 +138,7 @@ export async function executeTool(
             content: JSON.stringify({
               delivers: null,
               wilayas_served: q.options,
-              note: `"${wilaya}" is not a wilaya name the store recognises. Ask the customer to write their wilaya again, one short message. Don't hand off.`,
+              note: `"${wilaya}" is not a wilaya name the store recognises. This is not a reason to hand off: ask the customer to write their wilaya again, in one short message.`,
             }),
           };
         }

@@ -9,6 +9,7 @@ import type { HandleInboundInput, OwnerAlert } from "./types.ts";
 export function announceOrders(port: OrderPort, alerts: OwnerAlert[]): OrderPort {
   return {
     quoteDelivery: (storeId, wilaya) => port.quoteDelivery(storeId, wilaya),
+    priceBasket: (storeId, items) => port.priceBasket(storeId, items),
     async placeOrder(orderInput) {
       const result = await port.placeOrder(orderInput);
       if (result.ok && !result.duplicate) {

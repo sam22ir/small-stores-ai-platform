@@ -91,7 +91,7 @@ export const orderToolDefinitions: AgentTool[] = [
   {
     name: "quote_delivery",
     description:
-      "Order flow only: get the delivery fee for the customer's wilaya, to show in the order summary. Call it after you have a valid mobile phone number (05, 06 or 07 + 8 digits); if the phone is missing or invalid the tool returns an error, so ask for a corrected number first. Spellings and small typos are matched. If the result says did_you_mean, ask the customer which wilaya they mean and don't hand off; if it says not served, tell the customer the store doesn't deliver there. For a price-only question, use delivery_fees from get_store_info instead.",
+      "Order flow only: get the delivery fee for the customer's wilaya, to show in the order summary. Do not call it before the customer's phone number is known: call it only after you have a valid mobile phone number (05, 06 or 07 + 8 digits). If the phone is missing or invalid the tool returns an error; ask the customer for a valid number in one short message (not a reason to hand off). Spellings and small typos are matched. If the result says did_you_mean, ask the customer which wilaya they mean and don't hand off; if it says not served, tell the customer the store doesn't deliver there. For a price-only question, use delivery_fees from get_store_info instead.",
     strict: true,
     input_schema: {
       type: "object",
@@ -106,7 +106,7 @@ export const orderToolDefinitions: AgentTool[] = [
   {
     name: "create_order",
     description:
-      "Place a cash-on-delivery order. Call it ONLY after the customer has seen the summary (items, delivery fee, total) and clearly confirmed it, and you have their real full name, phone number, wilaya and full address. Use variant_id values from search_products or check_stock.",
+      "Place a cash-on-delivery order. Call it ONLY in a turn after the one where you showed the summary (items, delivery fee, total), and only after the customer clearly confirmed it in their own next message, and you have their real full name, phone number, wilaya and full address. The tool refuses if the customer has not seen the total; a refusal starting with '[order not created' is not a failure: do not retry it in the same turn, show the summary and wait. Use variant_id values from search_products or check_stock.",
     strict: true,
     input_schema: {
       type: "object",

@@ -9,6 +9,7 @@ import {
   type Turn,
 } from "./run.ts";
 import { capLookupOutputs, errorText, executeTool, lookupOutput, toolsForStore } from "./tools.ts";
+import { assistantBeforeCurrentTurn, type RunState } from "./tools/order-guard.ts";
 import type {
   AgentResult,
   Catalog,
@@ -150,6 +151,8 @@ export async function runAgentChatCompletions(
   const tools = openAITools(store);
   const toolCalls: ToolCallLog[] = [];
   const sentPhotos: ProductPhoto[] = []; // queued by send_product_photo, sent after the reply
+  const runState: RunState = { quoteRequested: false };
+  const lastAssistantText = assistantBeforeCurrentTurn(opts.history);
   const usage = { input_tokens: 0, output_tokens: 0 };
   let handoffReason: string | null = null;
   let handoffSummary: string | null = null;
@@ -225,6 +228,7 @@ export async function runAgentChatCompletions(
       tool_calls: calls,
     });
 
+    if (calls.some((c) => c.function.name === "quote_delivery")) runState.quoteRequested = true;
     for (const call of calls) {
       let result: { content: string; is_error: boolean };
       let input: unknown = {};
@@ -253,6 +257,9 @@ export async function runAgentChatCompletions(
           storageBase: opts.storageBase,
           photos: opts.photos,
           sentPhotos,
+          lastAssistantText,
+          lookups: opts.lookups ?? [],
+          run: runState,
         });
         if (outcome.handoffReason) {
           handoffReason = outcome.handoffReason;

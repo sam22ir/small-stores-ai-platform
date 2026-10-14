@@ -8,6 +8,8 @@ import type {
   StoreContext,
 } from "../types.ts";
 
+import type { RunState } from "./order-guard.ts";
+
 // PostgREST errors are plain objects with a `message`, not Error instances.
 export function errorText(err: unknown): string {
   const msg = err && typeof err === "object" && "message" in err
@@ -32,6 +34,13 @@ export interface ToolContext {
   // Photos queued earlier in this run. The run loop owns the array; the photo tool pushes into it
   // synchronously, so parallel calls in one round still respect the per-run limit.
   sentPhotos?: ProductPhoto[];
+  // The assistant text the customer read before this turn (see order-guard.ts). create_order needs it.
+  lastAssistantText?: string;
+  // Facts from earlier turns (the full list, not the prompt's trimmed one). A delivery quote from an
+  // earlier turn is "Delivery to <wilaya>: ..." (see lookup-output.ts).
+  lookups?: string[];
+  // Per-run order state, owned by the run loop.
+  run?: RunState;
 }
 
 export interface ToolOutcome {

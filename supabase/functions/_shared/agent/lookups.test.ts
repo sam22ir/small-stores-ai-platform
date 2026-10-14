@@ -25,9 +25,9 @@ const store = { name: "Demo Boutique", orders_enabled: true } as unknown as Stor
 test("order rules: collecting details is the assistant's job; handoff only in the listed cases", () => {
   const p = buildSystemPrompt(store);
   assert.match(p, /Collecting the order details is YOUR job, not the owner's/);
-  assert.match(p, /Never hand off just to collect details/);
+  assert.match(p, /Never hand off because details are missing, partial or invalid: ask for them/);
   assert.match(p, /accept Algerian formats with spaces, dots or a \+213 prefix/);
-  assert.match(p, /Use handoff_to_owner for orders only when create_order fails twice, the wilaya isn't served, or the customer asks for a discount, an exchange or a custom order/);
+  assert.match(p, /Use handoff_to_owner for orders only when create_order fails twice for a real reason, the wilaya isn't served, or the customer asks for a discount, an exchange or a custom order/);
   assert.match(p, /call quote_delivery for the wilaya, then write the order summary as a short list/);
 });
 
