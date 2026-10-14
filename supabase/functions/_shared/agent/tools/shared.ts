@@ -1,4 +1,12 @@
-import type { Catalog, FaqPort, OrderPort, PhotoPort, ProductPhoto, StoreContext } from "../types.ts";
+import type {
+  Catalog,
+  DeliveryFeesPort,
+  FaqPort,
+  OrderPort,
+  PhotoPort,
+  ProductPhoto,
+  StoreContext,
+} from "../types.ts";
 
 // PostgREST errors are plain objects with a `message`, not Error instances.
 export function errorText(err: unknown): string {
@@ -13,6 +21,8 @@ export interface ToolContext {
   catalog: Catalog;
   orders?: OrderPort;
   faq?: FaqPort;
+  // The owner's delivery fees, for get_store_info (available even when ordering is off).
+  fees?: DeliveryFeesPort;
   conversationId?: string;
   customerId?: string;
   now?: Date;

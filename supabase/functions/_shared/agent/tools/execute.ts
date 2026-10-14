@@ -2,8 +2,13 @@ import { productView } from "./catalog.ts";
 import { formatFaq } from "./faq.ts";
 import { sendProductPhoto } from "./photo.ts";
 import { createOrder } from "./order.ts";
+import { normalizeDzPhone } from "../orders.ts";
+import { deliveryFeeSummary } from "./store-info.ts";
 import { asRecord, money, UUID } from "./shared.ts";
 import type { ToolContext, ToolOutcome } from "./shared.ts";
+
+const PHONE_FIRST =
+  "The phone number is missing or not a valid Algerian mobile number (05, 06 or 07 + 8 digits). quote_delivery is for an order summary: ask the customer for a corrected mobile number in one short message before you show any summary. For a price-only question, answer from delivery_fees in get_store_info instead.";
 
 export async function executeTool(
   name: string,
@@ -63,12 +68,14 @@ export async function executeTool(
 
     case "get_store_info": {
       const faq = ctx.faq ? await ctx.faq.list(store.id) : [];
+      const fees = ctx.fees ? await ctx.fees.list(store.id) : undefined;
       return {
         content: JSON.stringify({
           store_name: store.name,
           currency: store.currency,
           owner_notes: store.business_info ??
             "The owner hasn't written any extra store information.",
+          ...(fees ? { delivery_fees: deliveryFeeSummary(fees, store.currency) } : {}),
           ...(faq.length ? { owner_faq: formatFaq(faq) } : {}),
         }),
       };
@@ -91,33 +98,59 @@ export async function executeTool(
       if (!store.orders_enabled || !ctx.orders) {
         return { content: "Ordering is not available.", isError: true };
       }
+      // Phone first: the summary must not be shown before the number is valid.
+      const phone = typeof args.phone === "string" ? normalizeDzPhone(args.phone) : null;
+      if (!phone) return { content: PHONE_FIRST, isError: true };
       if (typeof args.wilaya !== "string" || !args.wilaya.trim()) {
         return { content: "wilaya must be a non-empty string", isError: true };
       }
-      const q = await ctx.orders.quoteDelivery(store.id, args.wilaya.trim().slice(0, 60));
+      const wilaya = args.wilaya.trim().slice(0, 60);
+      const q = await ctx.orders.quoteDelivery(store.id, wilaya);
       if (!q.served) {
+        if (q.reason === "ambiguous") {
+          return {
+            content: JSON.stringify({
+              delivers: null,
+              did_you_mean: q.suggestions ?? [],
+              note: `"${wilaya}" could be more than one wilaya. Ask the customer in one short message which one they mean ("did you mean X or Y?"). Don't hand off. Call quote_delivery again with the name they confirm.`,
+            }),
+          };
+        }
+        if (q.reason === "unknown") {
+          return {
+            content: JSON.stringify({
+              delivers: null,
+              wilayas_served: q.options,
+              note: `"${wilaya}" is not a wilaya name the store recognises. Ask the customer to write their wilaya again, one short message. Don't hand off.`,
+            }),
+          };
+        }
         return {
           content: JSON.stringify({
             delivers: false,
             wilayas_served: q.options,
-            note: "No match. If the customer's wilaya is one of wilayas_served under another spelling, call quote_delivery again with that exact name. Otherwise tell the customer the store doesn't deliver there and offer to ask the owner (handoff_to_owner).",
+            note: "The store doesn't deliver to this wilaya. If the customer meant one of wilayas_served, call quote_delivery with that exact name. Otherwise tell the customer the store doesn't deliver there and offer to ask the owner (handoff_to_owner).",
           }),
         };
       }
+      const notes: string[] = [];
+      if (q.corrected_from) {
+        notes.push(
+          `The customer wrote "${q.corrected_from}"; it was read as ${q.canonical}. In the order summary write the wilaya as ${q.canonical} and ask the customer to confirm it.`,
+        );
+      }
+      const corrected = q.corrected_from ? { corrected_from: q.corrected_from } : {};
+      if (q.fee_cents === null) {
+        notes.push("The owner hasn't set a delivery fee. Say the owner will confirm it, and don't invent a number.");
+      }
       return {
-        content: JSON.stringify(
-          q.fee_cents === null
-            ? {
-              delivers: true,
-              delivery_fee: "not set",
-              note: "The owner hasn't set a delivery fee. Say the owner will confirm it, and don't invent a number.",
-            }
-            : {
-              delivers: true,
-              wilaya: q.canonical,
-              delivery_fee: money(q.fee_cents, store.currency),
-            },
-        ),
+        content: JSON.stringify({
+          delivers: true,
+          wilaya: q.canonical,
+          delivery_fee: q.fee_cents === null ? "not set" : money(q.fee_cents, store.currency),
+          ...corrected,
+          ...(notes.length ? { note: notes.join(" ") } : {}),
+        }),
       };
     }
 

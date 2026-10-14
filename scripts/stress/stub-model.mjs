@@ -120,7 +120,7 @@ export function stubCompletion(body, fixture) {
   if (last === "handoff_to_owner") return text("Le propriétaire va vous répondre personnellement.");
   if (last === "search_products" && intent.order) {
     if (!intent.wilaya) return text("Dans quelle wilaya êtes-vous ?");
-    return toolCall("quote_delivery", { wilaya: intent.wilaya });
+    return toolCall("quote_delivery", { wilaya: intent.wilaya, phone: intent.phone ?? "" });
   }
   if (last === "quote_delivery" && intent.order) {
     const searchMsg = inRun.find((m) => m.role === "tool" && names.get(m.tool_call_id) === "search_products");

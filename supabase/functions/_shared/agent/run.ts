@@ -6,6 +6,7 @@ import type {
   AgentResult,
   Catalog,
   ChatMessage,
+  DeliveryFeesPort,
   FaqPort,
   OrderPort,
   PhotoPort,
@@ -33,6 +34,7 @@ export interface RunAgentOptions {
   history: ChatMessage[]; // oldest first; the last entry is the customer's new message
   model?: string;
   orders?: OrderPort;
+  fees?: DeliveryFeesPort;
   faq?: FaqPort;
   conversationId?: string;
   customerId?: string;
@@ -200,6 +202,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
             store,
             catalog,
             orders: opts.orders,
+            fees: opts.fees,
             faq: opts.faq,
             conversationId: opts.conversationId,
             customerId: opts.customerId,
