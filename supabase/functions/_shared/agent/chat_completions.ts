@@ -1,4 +1,4 @@
-import { conversationLang, holdingReply } from "./language.ts";
+import { conversationLang, conversationSignal, holdingReply } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import {
   MAX_REPLY_BYTES,
@@ -134,7 +134,7 @@ export async function runAgentChatCompletions(
     throw new Error("history must end with a customer message");
   }
   const messages: Message[] = [
-    { role: "system", content: buildSystemPrompt(store, conversationLang(opts.history), opts.lookups) },
+    { role: "system", content: buildSystemPrompt(store, conversationSignal(opts.history), opts.lookups) },
     ...turns.map((t): Message =>
       t.role === "user"
         ? { role: "user", content: userContent(t) }

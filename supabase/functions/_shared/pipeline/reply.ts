@@ -1,6 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { fastPathReply } from "../agent/fastpath.ts";
-import { detectLang, holdingReply, limitReply } from "../agent/language.ts";
+import {
+  type Lang,
+  conversationLang,
+  conversationSignal,
+  holdingReply,
+  limitReply,
+  scriptCorrection,
+  scriptProblem,
+} from "../agent/language.ts";
 import { runAgentChatCompletions } from "../agent/chat_completions.ts";
 import {
   AllProvidersFailed,
@@ -38,6 +46,65 @@ export function photoHistoryNotes(attachments: unknown): string[] {
     return [`[sent a photo of ${caption}]`];
   });
 }
+
+const addUsage = (a: AgentResult["usage"], b: AgentResult["usage"]) => ({
+  input_tokens: a.input_tokens + b.input_tokens,
+  output_tokens: a.output_tokens + b.output_tokens,
+});
+
+// Runs the model once. If the reply uses the wrong script for the conversation (Arabic letters in a
+// Latin-letter Darija chat, or Cyrillic anywhere), runs it once more with a user-side note naming the
+// problem, and counts both calls' tokens. The second reply is sent even if it is still wrong. No retry
+// after an order was created or a photo was queued, because the first run already changed the store.
+export async function replyWithScriptCheck(
+  history: ChatMessage[],
+  call: (turns: ChatMessage[]) => Promise<AgentResult>,
+): Promise<AgentResult> {
+  const first = await call(history);
+  const problem = scriptProblem(first.reply, conversationSignal(history));
+  const wroteOrQueued = first.toolCalls.some((t) => t.name === "create_order" || t.name === "send_product_photo");
+  if (!problem || wroteOrQueued) return first;
+  let retry: AgentResult;
+  try {
+    retry = await call([
+      ...history,
+      { role: "assistant", text: first.reply },
+      { role: "user", text: scriptCorrection(problem) },
+    ]);
+  } catch (err) {
+    console.warn(JSON.stringify({ event: "reply_script_retry_failed", error_kind: errorKind(err) }));
+    return first;
+  }
+  const usage = addUsage(first.usage, retry.usage);
+  if (!retry.reply.trim()) return { ...first, usage };
+  // A handoff the first run made stays: the retry may not repeat the tool call.
+  return {
+    ...retry,
+    usage,
+    toolCalls: [...first.toolCalls, ...retry.toolCalls],
+    handoffReason: retry.handoffReason ?? first.handoffReason,
+    handoffSummary: retry.handoffSummary ?? first.handoffSummary,
+  };
+}
+
+// The language of the conversation (stored history plus the current message), read from the database.
+// Used on paths that return before the history is loaded, and for fast-path replies after a match.
+// Null when neither the messages nor the current text give a signal.
+async function cannedSignal(db: HandleInboundInput["db"], conversationId: string, text: string): Promise<Lang | null> {
+  const { data } = await db.from("messages")
+    .select("direction,body")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(HISTORY_LIMIT);
+  const stored = (data ?? []).slice().reverse().flatMap((m): { role: string; text: string }[] =>
+    m.body ? [{ role: m.direction === "inbound" ? "user" : "assistant", text: m.body as string }] : []
+  );
+  return conversationSignal([...stored, { role: "user", text }]);
+}
+
+// For the server's fixed replies: the conversation language, English only when there is no signal.
+const cannedLang = async (db: HandleInboundInput["db"], conversationId: string, text: string): Promise<Lang> =>
+  (await cannedSignal(db, conversationId, text)) ?? "en";
 
 export async function processLocked(input: HandleInboundInput, alerts: OwnerAlert[]): Promise<HandleInboundResult> {
   const { db, store, conversation, source } = input;
@@ -110,8 +177,10 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
     if (runErr) throw runErr;
   };
 
-  // 1. Zero-cost replies.
-  const fast = fastPathReply(input.text, store.name);
+  // 1. Zero-cost replies. The conversation's language is read only when a greeting or thanks matched.
+  const fast = fastPathReply(input.text, store.name)
+    ? fastPathReply(input.text, store.name, await cannedSignal(db, conversation.id, input.text))
+    : null;
   if (fast) {
     await record({ reply: fast, model: "fast-path", provider: "fast-path" }, {
       fast_path: true,
@@ -134,7 +203,7 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
     const billing = billingState(store, input.now ?? new Date());
     if (billing.blocked && billing.lapsedAt) {
       const reason = "Subscription expired";
-      const reply = holdingReply(detectLang(input.text));
+      const reply = holdingReply(await cannedLang(db, conversation.id, input.text));
       await record({ reply, model: "billing", provider: "none" }, { fast_path: true, error: null });
       await db.from("conversations")
         .update({ status: "human", handoff_reason: reason, handoff_summary: null })
@@ -149,7 +218,7 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
   // Hands the chat to the owner because the monthly reply allowance is spent.
   const limitHandoff = async (): Promise<HandleInboundResult> => {
     const reason = "Monthly AI reply limit reached";
-    const reply = limitReply(detectLang(input.text));
+    const reply = limitReply(await cannedLang(db, conversation.id, input.text));
     await record({ reply, model: "limit", provider: "none" }, {
       fast_path: true,
       error: null,
@@ -189,7 +258,7 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
     // alerted once per month, and only when a Telegram alert can be sent.
     if (usage.tokens.exceeded) {
       const reason = "Monthly AI token cap reached";
-      const reply = limitReply(detectLang(input.text));
+      const reply = limitReply(await cannedLang(db, conversation.id, input.text));
       await record({ reply, model: "token-cap", provider: "none" }, { fast_path: true, error: null });
       await db.from("conversations")
         .update({ status: "human", handoff_reason: reason, handoff_summary: null })
@@ -259,8 +328,8 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       if (images.length && lastCustomer >= 0) history[lastCustomer] = { ...history[lastCustomer], images };
     }
   }
-  // The same history without photos, for providers that can't see them.
-  const textOnlyHistory = history.map((m) => ({ role: m.role, text: m.text }));
+  // The same turns without photos, for providers that can't see them.
+  const textOnly = (turns: ChatMessage[]) => turns.map((m) => ({ role: m.role, text: m.text }));
 
   const lookups = await loadLookups(db, conversation.id);
 
@@ -296,7 +365,6 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
     const common = {
       catalog,
       store,
-      history,
       lookups,
       orders,
       faq: supabaseFaq(db),
@@ -306,36 +374,39 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       photos: supabasePhotos(db),
     };
 
-    let result: AgentResult;
-    if (useOpenAICompatible) {
-      const r = await runWithFallback({
-        providers: fallback ? [primary!, fallback] : [primary!],
-        breaker,
-        run: (p, limits) =>
-          runAgentChatCompletions({
-            ...common,
-            history: p.vision ? history : textOnlyHistory,
-            baseUrl: p.baseUrl,
-            apiKey: p.apiKey,
-            model: p.model,
-            tokenParam: p.tokenParam,
-            reasoningEffort: p.reasoningEffort,
-            temperature: p.temperature,
-            timeoutMs: limits.timeoutMs,
-            maxAttempts: limits.maxAttempts,
-          }),
-      });
-      meta.provider = r.provider.name;
-      meta.attempts = r.attempts;
-      result = r.result;
-    } else {
-      result = await runAgent({
+    // One model call (with provider fallback) on the given turns.
+    const callModel = async (turns: ChatMessage[]): Promise<AgentResult> => {
+      if (useOpenAICompatible) {
+        const r = await runWithFallback({
+          providers: fallback ? [primary!, fallback] : [primary!],
+          breaker,
+          run: (p, limits) =>
+            runAgentChatCompletions({
+              ...common,
+              history: p.vision ? turns : textOnly(turns),
+              baseUrl: p.baseUrl,
+              apiKey: p.apiKey,
+              model: p.model,
+              tokenParam: p.tokenParam,
+              reasoningEffort: p.reasoningEffort,
+              temperature: p.temperature,
+              timeoutMs: limits.timeoutMs,
+              maxAttempts: limits.maxAttempts,
+            }),
+        });
+        meta.provider = r.provider.name;
+        meta.attempts.push(...r.attempts);
+        return r.result;
+      }
+      meta.provider = "anthropic";
+      return runAgent({
         ...common,
+        history: turns,
         client: new Anthropic({ apiKey: anthropicKey }),
         model,
       });
-      meta.provider = "anthropic";
-    }
+    };
+    const result = await replyWithScriptCheck(history, callModel);
 
     await record({ reply: result.reply, model: result.model, provider: meta.provider, photos: result.photos }, {
       tool_calls: result.toolCalls,
@@ -393,7 +464,7 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
     // A real customer must never be left hanging: say the owner will reply and put the chat in
     // the owner's "Needs you" list. Test chats show the failure instead, so outages are visible.
     if (source === "customer") {
-      const reply = holdingReply(detectLang(input.text));
+      const reply = holdingReply(conversationLang([...history, { role: "user", text: input.text }]));
       const reason = "The assistant couldn't answer (AI service unavailable). Please reply yourself.";
       await db.from("messages").insert({
         store_id: store.id,

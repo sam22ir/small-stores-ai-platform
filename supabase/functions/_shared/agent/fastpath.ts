@@ -4,6 +4,8 @@
 // Deliberately NOT handled: "ok", "yes", "d'accord", "ماشي"... After an order summary those
 // mean "I confirm", and only the agent (with the conversation) can tell.
 
+import { hasArabicScript } from "./language.ts";
+
 type Kind = "greeting" | "thanks";
 type Lang = "ar" | "fr" | "en" | "dz";
 
@@ -164,10 +166,14 @@ const phrases: Phrase[] = [
   ),
 ].sort((a, b) => b.text.length - a.text.length);
 
-const hasArabic = (t: string) => /[؀-ۿ]/.test(t);
+// Arabic letters only: Arabic-Indic digits in a Latin-letter message do not make it Arabic.
+const hasArabic = hasArabicScript;
 
 // Returns the reply, or null when the message needs the agent.
-export function fastPathReply(text: string, storeName: string): string | null {
+// signal: the language of the conversation (see conversationSignal), or null when there is none. When it
+// is known it wins over the phrase's own language: "merci" in a Darija chat gets the Darija thanks. Arabic
+// script in the message itself still gives Arabic. Without a signal the phrase's language is used.
+export function fastPathReply(text: string, storeName: string, signal: Lang | null = null): string | null {
   if (text.length > 60) return null;
   let rest = ` ${normalize(text)} `;
   if (rest.trim() === "") return null;
@@ -184,6 +190,6 @@ export function fastPathReply(text: string, storeName: string): string | null {
 
   // Thanks wins over a greeting: "salam merci" is closing the chat, not opening it.
   const first = matched.find((p) => p.kind === "thanks") ?? matched[0];
-  const lang: Lang = hasArabic(text) ? "ar" : first.lang;
+  const lang: Lang = hasArabic(text) ? "ar" : (signal ?? first.lang);
   return REPLIES[first.kind][lang](storeName);
 }

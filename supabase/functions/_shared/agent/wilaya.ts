@@ -128,3 +128,8 @@ export const WILAYA_CODES = WILAYAS.map((w) => w.code);
 export function wilayaName(code: number): string | null {
   return WILAYAS.find((w) => w.code === String(code).padStart(2, "0"))?.names[0] ?? null;
 }
+
+// Every Latin-script spelling in the table (used by language.ts to ignore place names).
+export function wilayaLatinNames(): string[] {
+  return WILAYAS.flatMap((w) => w.names).filter((n) => !/[؀-ۿ]/u.test(n));
+}

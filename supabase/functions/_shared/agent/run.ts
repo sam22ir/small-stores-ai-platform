@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { conversationLang, hasArabicScript, holdingReply } from "./language.ts";
+import { conversationLang, conversationSignal, hasArabicScript, holdingReply } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import { capLookupOutputs, errorText, executeTool, lookupOutput, toolsForStore } from "./tools.ts";
 import type {
@@ -138,7 +138,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
   let reply = "";
 
   const frontier = isFrontierModel(model);
-  const system = buildSystemPrompt(store, conversationLang(opts.history), opts.lookups);
+  const system = buildSystemPrompt(store, conversationSignal(opts.history), opts.lookups);
   const tools = toolsForStore(store);
 
   for (let round = 0; ; round++) {

@@ -3,12 +3,32 @@
 //
 // "dz" is Algerian Darija written in Latin letters (arabizi: "salam", "wach", "bghit", "b9addeh").
 // It must never fall back to French: customers who write that way expect Darija back.
+//
+// Fallback order: the language of this message, then the language of the conversation (earlier
+// customer turns). Only the server's fixed replies fall back to English. The model's hint never names
+// English without a signal: it says "same language and script as the customer's last message".
+
+import { wilayaLatinNames } from "./wilaya.ts";
 
 export type Lang = "ar" | "fr" | "en" | "dz";
 
-const ARABIC_SCRIPT = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/u;
-export const hasArabicScript = (text: string) => ARABIC_SCRIPT.test(text);
+// Arabic letters only. Digits (Arabic-Indic U+0660-0669 and U+06F0-06F9) and punctuation such as "؟"
+// are not letters, so "٣٥٠٠" or "؟" inside a Latin-letter Darija message is not Arabic script.
+const ARABIC_LETTER = /(?![٠-٩۰-۹])(?=\p{Script=Arabic})\p{L}/u;
+export const hasArabicScript = (text: string) => ARABIC_LETTER.test(text);
+const CYRILLIC = /\p{Script=Cyrillic}/u;
 const FRENCH_ACCENT = /[éèêëàâçùûîïôœ]/iu;
+
+// Latin spellings of the 58 wilayas ("Béjaïa", "El Oued"), longest first. They are removed before the
+// accent and word checks, so a place name does not make an English or Darija message French or Darija.
+const WILAYA_PATTERN = new RegExp(
+  wilayaLatinNames()
+    .sort((a, b) => b.length - a.length)
+    .map((n) => `(?<!\\p{L})${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\p{L})`)
+    .join("|"),
+  "giu",
+);
+const stripWilayas = (text: string) => text.replace(WILAYA_PATTERN, " ");
 
 // Words that only appear in French (not in Darija or English).
 const FRENCH_WORDS = new Set([
@@ -17,11 +37,18 @@ const FRENCH_WORDS = new Set([
   "voudrais", "veux", "svp", "je",
   "il", "elle", "le", "la", "les", "des", "du", "pour", "avec", "coûte", "coute", "quel", "quelle",
   "nous", "oui", "non", "j'ai", "s'il", "bien", "pas", "bonne", "jour",
+  // Grown from the stress-test cases (AD-003, AD-033, AD-051, AD-018, AD-012, PS-072 is left neutral).
+  "affiche", "developpeur", "systeme", "regles", "sans", "tu", "et", "ce", "dit", "fais",
+  "texte", "qu'il", "que", "es", "un", "vendeur", "qui", "peut", "tout", "joue", "offre", "moi",
+  "gratuit",
 ]);
 
-// Words and spellings typical of Algerian Darija in Latin letters.
+// Confirmation words. "oui je confirme" in a Darija chat does not switch the chat to French.
+const CONFIRM_WORDS = new Set(["oui", "je", "confirme", "confirmé", "confirmi"]);
+
+// Words and spellings typical of Algerian Darija in Latin letters. Each one is strong evidence.
 const DARIJA_WORDS = new Set([
-  "salam", "slm", "salem", "wach", "wesh", "kayen", "kayn", "kayna", "kaynin", "bghit", "bghiti",
+  "wach", "wesh", "kayen", "kayn", "kayna", "kaynin", "bghit", "bghiti",
   "bghina", "bghitch", "mabghitch", "chhal", "ch7al", "chnou", "chno", "kifach", "kifech", "kifesh",
   "smiti", "smitek", "smitha", "nchri", "nkhalas", "ntcommandi", "tcommandi", "tqdar", "ydir",
   "ydirou", "dyal", "daba", "rani", "rak", "nta", "nti", "howa", "hia", "ana", "hna", "bzaf",
@@ -30,16 +57,28 @@ const DARIJA_WORDS = new Set([
   "saha", "sahit", "choukran", "chokran", "shukran", "lbas", "ndir", "ghadi", "ghaydir", "wla",
   "walakin", "dork", "tawa", "yak", "khdemt", "tani", "nkhdem", "bslama", "ndirlek", "rahi",
   "rahom", "ya3tik", "yaatik", "barak", "allah", "allahou", "fik", "hadi", "hadak",
+  // Grown from the stress-test cases (AD-015, AD-018, AD-051, LG-062, NZ-063, OR-003, PO-005, PS-008, PS-029, PS-078).
+  "wrini", "warini", "nchouf", "tswira", "ouvrin", "lfajr", "kaskita", "kapuchon", "sbadri",
+  "tarjem", "nfadh", "li", "3tak", "kteb", "hom", "lia", "kamlin", "tn9ssch",
+  "chi", "lclient", "kolo", "dir", "tlefon", "iyeh", "bt", "f", "nheb", "ytsalmo", "ghedwa", "3la",
 ]);
 
-// Latin-letter words with an Arabic-derived digit: 3 for ع, 7 for ح, 9 for ق (b9addeh, n3awnek).
+// Greetings that carry no language on their own: "salam, do you have..." is English, while a
+// message that is only "salam" still reads as Darija.
+const WEAK_DARIJA_WORDS = new Set(["salam", "slm", "salem"]);
+
+// Latin-letter word with an Arabic-derived digit: 3 for ع, 7 for ح, 9 for ق (b9addeh, n3awnek).
 const DARIJA_DIGIT_WORD = /^(?=.*[a-z])[a-z]*[379][a-z]*$/u;
 
 // Words that only appear in English here.
 const ENGLISH_WORDS = new Set([
   "the", "you", "do", "have", "is", "are", "what", "how", "much", "hello", "hi", "thanks", "thank",
   "please", "i", "want", "black", "white", "size", "order", "price", "and", "with", "can",
+  "to", "shipping", "cost", "fee", "deliver", "your", "my", "for", "where", "when", "u", "any",
 ]);
+
+const isStrongDarija = (w: string) => DARIJA_WORDS.has(w) || DARIJA_DIGIT_WORD.test(w);
+const isDarijaWord = (w: string) => isStrongDarija(w) || WEAK_DARIJA_WORDS.has(w);
 
 function words(text: string): string[] {
   return text
@@ -51,19 +90,23 @@ function words(text: string): string[] {
 
 // The language of one message, or null when it gives no clear signal ("ok", "11", a name).
 export function detectLangStrict(text: string): Lang | null {
-  if (ARABIC_SCRIPT.test(text)) return "ar";
-  let darija = 0;
+  if (hasArabicScript(text)) return "ar";
+  const plain = stripWilayas(text);
+  let strong = 0;
+  let weak = 0;
   let french = 0;
   let english = 0;
-  for (const w of words(text)) {
-    if (DARIJA_WORDS.has(w) || DARIJA_DIGIT_WORD.test(w)) darija++;
+  for (const w of words(plain)) {
+    if (isStrongDarija(w)) strong++;
+    else if (WEAK_DARIJA_WORDS.has(w)) weak++;
     else if (FRENCH_WORDS.has(w)) french++;
     else if (ENGLISH_WORDS.has(w)) english++;
   }
   // Darija wins unless the message is clearly French ("salam, le jean il coûte combien ?" is French).
-  if (darija > 0) return french > darija ? "fr" : "dz";
-  if (french > 0 || FRENCH_ACCENT.test(text)) return "fr";
+  if (strong > 0) return french > strong ? "fr" : "dz";
+  if (french > 0 || FRENCH_ACCENT.test(plain)) return "fr";
   if (english > 0) return "en";
+  if (weak > 0) return "dz";
   return null;
 }
 
@@ -78,25 +121,50 @@ export function lastCustomerText(history: { role: string; text: string }[]): str
   return "";
 }
 
-// The language to reply in for this turn, read oldest first. Neutral messages ("ok", a name, an
-// address) keep the current language. A Darija conversation turns French only on strong evidence:
-// 2+ French words and no Darija word, so an accent such as "cité" alone doesn't switch it.
-// Falls back to English.
-export function conversationLang(history: { role: string; text: string }[]): Lang {
+// Marks a user turn that the server adds for a retry (see scriptCorrection). It is not the customer's
+// text, so it never changes the language.
+export const CORRECTION_MARK = "[Wakil correction]";
+
+// The language of the conversation, read oldest first, or null when no customer message gave a
+// signal. Neutral messages ("ok", a name, an address, "iyeh confirmi") keep the current language. A
+// Darija conversation turns French only on strong evidence: 2+ French words (confirmation words
+// excluded) and no Darija word, so an accent such as "cité" alone doesn't switch it.
+export function conversationSignal(history: { role: string; text: string }[]): Lang | null {
   let lang: Lang | null = null;
   for (const m of history) {
-    if (m.role !== "user") continue;
+    if (m.role !== "user" || m.text.startsWith(CORRECTION_MARK)) continue;
     const signal = detectLangStrict(m.text);
     if (!signal) continue;
     if (lang === "dz" && signal !== "ar") {
-      const ws = words(m.text);
-      const darija = ws.some((w) => DARIJA_WORDS.has(w) || DARIJA_DIGIT_WORD.test(w));
-      const french = ws.filter((w) => FRENCH_WORDS.has(w)).length;
+      const ws = words(stripWilayas(m.text));
+      const darija = ws.some(isDarijaWord);
+      const french = ws.filter((w) => FRENCH_WORDS.has(w) && !CONFIRM_WORDS.has(w)).length;
       if (darija || french < 2) continue;
     }
     lang = signal;
   }
-  return lang ?? "en";
+  return lang;
+}
+
+// For the server's own fixed replies, which must be in some language: English when there is no signal.
+export function conversationLang(history: { role: string; text: string }[]): Lang {
+  return conversationSignal(history) ?? "en";
+}
+
+// Script check of a model reply: what is wrong with it, or null. Latin-letter Darija replies have no
+// Arabic letters; Cyrillic letters are never right.
+export function scriptProblem(reply: string, lang: Lang | null): "arabic_letters" | "cyrillic_letters" | null {
+  if (lang === "dz" && hasArabicScript(reply)) return "arabic_letters";
+  if (CYRILLIC.test(reply)) return "cyrillic_letters";
+  return null;
+}
+
+// The user-side note that asks the model for one corrected reply.
+export function scriptCorrection(problem: "arabic_letters" | "cyrillic_letters"): string {
+  const what = problem === "arabic_letters"
+    ? "Your last reply used Arabic-script letters, but the customer writes Latin-letter Algerian Darija. Rewrite the reply using only Latin letters, with no Arabic script at all."
+    : "Your last reply contained Cyrillic letters, which are never allowed. Rewrite the reply in the customer's language and script, using no Cyrillic letters.";
+  return `${CORRECTION_MARK} ${what} Keep the same facts and the same tool results, and change nothing else.`;
 }
 
 const HOLDING: Record<Lang, string> = {

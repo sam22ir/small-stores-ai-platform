@@ -30,8 +30,9 @@ export function lookupSection(lookups: string[]): string {
   return `${LOOKUP_HEADER}${kept.map((l) => `- ${l}`).join("\n")}`;
 }
 
-// replyLang: the language detected for this turn from the conversation (see conversationLang).
-export function buildSystemPrompt(store: StoreContext, replyLang?: Lang, lookups: string[] = []): string {
+// replyLang: the language of the conversation (see conversationSignal), or null when no customer message
+// gave a signal. Without a signal the hint names no language, so the model mirrors the customer.
+export function buildSystemPrompt(store: StoreContext, replyLang?: Lang | null, lookups: string[] = []): string {
   const orders = !!store.orders_enabled;
   const formal = store.reply_tone === "formal";
   // The friendly wording is the default; the formal one only changes the register.
@@ -43,7 +44,7 @@ export function buildSystemPrompt(store: StoreContext, replyLang?: Lang, lookups
     : "- Never use emoji.";
   const turnHint = replyLang
     ? `\n\nLanguage for this reply: ${LANG_NAME[replyLang]}. Keep it for the whole conversation unless the customer clearly switches.`
-    : "";
+    : "\n\nLanguage for this reply: the same language and script as the customer's last message. Keep it for the whole conversation unless the customer clearly switches.";
   return `You answer customers' direct messages on Instagram and Facebook for "${store.name}", a small online store. You write on the owner's behalf.
 
 What you can do: tell customers what is in stock, prices, product details and the owner's store information${orders ? ", and take cash-on-delivery orders" : ""}. You do this only with your tools. Never state stock, prices or policies from memory or guesswork.

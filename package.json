@@ -4,11 +4,11 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test supabase/functions/_shared/agent/*.test.ts supabase/functions/_shared/*.test.ts supabase/functions/_shared/meta/*.test.ts supabase/functions/_shared/carriers/*.test.ts scripts/stress/*.test.mjs",
+    "test": "node --test supabase/functions/_shared/agent/*.test.ts supabase/functions/_shared/pipeline/*.test.ts supabase/functions/_shared/*.test.ts supabase/functions/_shared/meta/*.test.ts supabase/functions/_shared/carriers/*.test.ts scripts/stress/*.test.mjs",
     "eval": "node scripts/eval-agent.mjs",
     "stress": "node scripts/stress-agent.mjs",
     "lint": "eslint .",
-    "test:coverage": "node --test --experimental-test-coverage supabase/functions/_shared/agent/*.test.ts supabase/functions/_shared/*.test.ts supabase/functions/_shared/meta/*.test.ts supabase/functions/_shared/carriers/*.test.ts scripts/stress/*.test.mjs"
+    "test:coverage": "node --test --experimental-test-coverage supabase/functions/_shared/agent/*.test.ts supabase/functions/_shared/pipeline/*.test.ts supabase/functions/_shared/*.test.ts supabase/functions/_shared/meta/*.test.ts supabase/functions/_shared/carriers/*.test.ts scripts/stress/*.test.mjs"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

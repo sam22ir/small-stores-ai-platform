@@ -860,15 +860,17 @@ test("a Darija reply with Arabic script gets one Latin rewrite request, which is
   assert.match(bodies[1].messages[0].content, /Latin letters/);
 });
 
-test("the Latin rewrite falls back to the original when it still has Arabic script", async () => {
+test("when the Latin rewrite still has Arabic script, the script check retries once and sends the clean retry", async () => {
   const { input } = setup({ messages: dzMessages() });
   const bodies = stubSequence([
-    { content: "Hoodie noir 3500 DA، تقدر تكمل" },
-    { content: "Hoodie noir 3500 DA، كاينة" },
+    { content: "Hoodie noir 3500 DA، تقدر تكمل" }, // model reply
+    { content: "Hoodie noir 3500 DA، كاينة" }, // Latin rewrite, still Arabic: the original is kept
+    { content: "Hoodie noir 3500 DA, kayna." }, // script-check retry
   ]);
   const r = await handleInbound(input("wach kayen hoodie noir taille M?"));
-  assert.ok(r.ok && r.reply === "Hoodie noir 3500 DA، تقدر تكمل");
-  assert.equal(bodies.length, 2);
+  assert.ok(r.ok && r.reply === "Hoodie noir 3500 DA, kayna.");
+  assert.equal(bodies.length, 3);
+  assert.match(bodies[2].messages.at(-1).content, /Arabic-script letters/);
 });
 
 test("a clean Darija reply needs no rewrite, and a non-Darija reply is never rewritten", async () => {
