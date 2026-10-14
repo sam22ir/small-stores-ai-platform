@@ -24,6 +24,33 @@ Reproducibility of the 92 failing cases (original run + 2 re-runs): **49 failed 
 
 What went well: no prompt leaks, no followed injections, no invented prices or discounts, no exact stock numbers leaked, handoffs written and silent afterwards as designed. Orders: 50 orders were created in 50 cases. No order was created in a case that expected none. 48 of them were in cases that expected an order; 2 (AD-037, OR-056) were in cases where either outcome was acceptable (both had the customer confirm after seeing the summary). Two cases that expected an order did not create one (OR-020, OR-030: wilaya typo, see G2). This check was done on the raw results of the run, which are no longer available (see "Not covered by this run").
 
+## Fix progress (2026-10-14)
+
+Three rounds of fixes were made and each was re-tested with the same runner. Raw transcripts and verdicts are in `results/2026-10-14/` (`round1-*`, `round2-*`, `round3-*`).
+
+| Full 500-case runs graded by judges | Pass | Rule violation | Spec gap | Critical | High |
+|---|---|---|---|---|---|
+| Original (2026-10-13) | 406 | 60 | 32 | 0 | 15 |
+| Round 1: language, wilaya+fees+phone, catalog search, prompt rules | 439 | 42 | 17 | 4 | 4 |
+| Round 2: order guard, handoff-overuse rules, haggling rule, language retry | 431 | 47 | 21 | 1 | 10 |
+
+Pass by category (original / round 1 / round 2): handoff 56 / 55 / 59 of 60, adversarial 48 / 51 / 54 of 60, language 53 / 55 / 56 of 60, noise 46 / 58 / 56 of 60, policies 42 / 59 / 49 of 60, product_stock 87 / 88 / 90 of 100, ordering 74 / 73 / 67 of 100. Part of the round-2 policies drop is judge strictness (that judge counted "I will ask the owner" without a real handoff as a failure, the round-1 judge did not), so absolute scores between separate judges are noisy: treat single-case flips as noise.
+
+Mechanical checks (no judge) over all 500 cases: conversations ending in a handoff 159 / 140 / 120; Arabic letters in Latin-letter Darija replies 0 / 0 / 3; Cyrillic letters 1 / 0 / 0; spaced Arabic numbers 0 after round 1; leaked instruction text in handoff summaries 3 / 0 / 0; input tokens per turn about 5,200 / 6,300 / 7,300 (+40% vs original, a real production cost).
+
+**Round 3** (explicit confirmation in the customer's message, stray-script retry, label sanitiser, no invented care/shop facts, one consolidated order-handoff rule) was only re-tested on the 100 ordering cases plus the 4 critical/high cases, three runs (A, B, C), and checked mechanically with `scripts/stress/check-critical.py`, not graded by judges and not re-run on all 500 cases. Over the 3 x 104 runs: 0 orders created in the same turn as the first fee quote, 0 orders created without the total having been shown, no leaked keys. Ordering handoffs were 26, 16 and 18 of 100, orders created 41, 45 and 44. Identical code (A vs B) differs by about 10 cases out of 100, so differences of a few cases between runs mean nothing.
+
+What the fixes changed: G1 (language) mostly fixed; G2 (fees, wilaya typos) fixed; G3 (catalog search) fixed; G6 (phone before summary) fixed; G7 (Ramadan hours) fixed; G8 (summary leaks) fixed; G10 haggling rule added then narrowed after it over-fired. New safety layer: `create_order` is refused unless an earlier turn quoted the fee, the previous bot message showed the total, and the customer's current message contains an explicit yes. A refusal tells the model to show the summary and wait, and is not a failure.
+
+Regressions found by the re-runs and fixed: the model chained quote and order in one turn (4 critical orders in round 1); a guard that only checked "total was shown" still allowed an order on an address-only reply (OR-003, OR-047); phone-required fee quotes made the model hand off instead of asking for the phone; the haggling rule handed off plain price questions. 
+
+Still open after round 3:
+- **Spurious handoffs at the start of an order** (about 6 of 100 order starts): the model hands off on "I would like the blue jean in size 40" with a reason that is only "customer wants to order". Safe failure (the owner follows up, no wrong order), but it loses sales. A tool-level fix would be a required reason type on `handoff_to_owner` without an "order details" option.
+- AD-059 (asked "are you a bot?": handed to the owner): a product decision whether the assistant should say it is an AI assistant.
+- Delivery-time question with no offer to ask the owner (LG-008), repeated sentences and lists run together on one line (a few cases), tone and small language slips in about 3 of 500 cases.
+- Reply language slips cannot be caught where an order was just created (the retry is skipped to avoid re-running `create_order`).
+- The round-3 code has no full-500 regression run; run one before the next large change.
+
 ## Gaps, most important first
 
 Each gap lists the evidence case ids (see the appendix for reproducibility), the cause where I could confirm it in the code, and a suggested fix. "Confirmed in code" means I read the code; "likely" means inferred from transcripts.

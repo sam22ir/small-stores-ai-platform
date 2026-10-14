@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { buildSystemPrompt } from "./prompt.ts";
 import { executeTool, toolsForStore } from "./tools.ts";
+import { NOT_CONFIRMED_PREFIX } from "./tools/order-guard.ts";
 import type {
   Catalog,
   OrderPort,
@@ -41,6 +42,8 @@ function fakeOrders(result: PlaceOrderResult, calls: PlaceOrderInput[] = []): Or
       calls.push(input);
       return Promise.resolve(result);
     },
+    // Every test variant costs 4500 cents (see catalog above).
+    priceBasket: (_s, items) => Promise.resolve(items.reduce((sum, i) => sum + 4500 * i.quantity, 0)),
   };
 }
 
@@ -61,7 +64,8 @@ const goodOrder = {
   items: [{ variant_id: VARIANT, quantity: 2 }],
 };
 
-function ctx(orders_enabled: boolean, orders?: OrderPort) {
+// The default summary the customer read: goodOrder (2 x 4500 cents) to Oran (600 DZD fee) = 690 DZD.
+function ctx(orders_enabled: boolean, orders?: OrderPort, shown = "• Total: 690 DZD. Confirm?") {
   return {
     store: store(orders_enabled),
     catalog,
@@ -69,6 +73,11 @@ function ctx(orders_enabled: boolean, orders?: OrderPort) {
     conversationId: "c1",
     customerId: "u1",
     now: new Date("2026-10-04T10:00:00Z"),
+    lastAssistantText: shown,
+    // The customer's current message is a yes, so the confirmation guard passes (see order-guard.ts).
+    customerText: "oui je confirme",
+    // The Oran quote the customer got in an earlier turn (the guard needs it, see order.ts).
+    lookups: ["Delivery to Oran: 600 DZD"],
   };
 }
 
@@ -162,16 +171,144 @@ test("a duplicate order is reported, not created twice", async () => {
 
 test("quote_delivery handles fee, unset fee and unserved wilaya", async () => {
   const c = ctx(true, fakeOrders(OK));
-  const oran = JSON.parse((await executeTool("quote_delivery", { wilaya: "Oran" }, c)).content);
+  const oran = JSON.parse((await executeTool("quote_delivery", { wilaya: "Oran", phone: "0555123456" }, c)).content);
   assert.match(oran.delivery_fee, /600/);
-  const unset = JSON.parse((await executeTool("quote_delivery", { wilaya: "Alger" }, c)).content);
+  const unset = JSON.parse((await executeTool("quote_delivery", { wilaya: "Alger", phone: "0555123456" }, c)).content);
   assert.equal(unset.delivery_fee, "not set");
-  const far = JSON.parse((await executeTool("quote_delivery", { wilaya: "Tamanrasset" }, c)).content);
+  const far = JSON.parse(
+    (await executeTool("quote_delivery", { wilaya: "Tamanrasset", phone: "0555123456" }, c)).content,
+  );
   assert.equal(far.delivers, false);
   assert.deepEqual(far.wilayas_served, ["Alger", "Oran"]);
   assert.equal(oran.wilaya, "Oran");
-  const off = await executeTool("quote_delivery", { wilaya: "Oran" }, ctx(false));
+  const off = await executeTool("quote_delivery", { wilaya: "Oran", phone: "0555123456" }, ctx(false));
   assert.equal(off.isError, true);
+});
+
+// Customer texts from the stress cases OR-060 ("0312345678", Arabic script) and OR-061 ("0661234").
+test("quote_delivery refuses an invalid phone before any summary, asking for a corrected number", async () => {
+  let quotes = 0;
+  const orders: OrderPort = {
+    ...fakeOrders(OK),
+    quoteDelivery: (s, w) => {
+      quotes++;
+      return fakeOrders(OK).quoteDelivery(s, w);
+    },
+  };
+  const c = ctx(true, orders);
+  for (const phone of ["0312345678", "0661234", "", "٠٣١٢٣٤٥٦٧٨"]) {
+    const r = await executeTool("quote_delivery", { wilaya: "Oran", phone }, c);
+    assert.equal(r.isError, true, phone);
+    assert.match(r.content, /ask the customer for a valid mobile number/, phone);
+    assert.match(r.content, /before any summary/, phone);
+    assert.match(r.content, /This is not a reason to hand off/, phone);
+  }
+  assert.equal(quotes, 0);
+  const good = await executeTool("quote_delivery", { wilaya: "Oran", phone: "٠٥٥٥١٢٣٤٥٦" }, c);
+  assert.ok(!good.isError);
+  assert.equal(quotes, 1);
+});
+
+test("quote_delivery tells the model to ask, not hand off, for an ambiguous or unknown wilaya", async () => {
+  const orders: OrderPort = {
+    quoteDelivery: (_s, wilaya) =>
+      Promise.resolve(
+        wilaya === "Sila"
+          ? { served: false, fee_cents: null, reason: "ambiguous", suggestions: ["Msila", "Mila"] }
+          : { served: false, fee_cents: null, reason: "unknown", options: ["Alger", "Oran"] },
+      ),
+    priceBasket: () => Promise.resolve(9000),
+    placeOrder: () => Promise.resolve(OK),
+  };
+  const c = ctx(true, orders);
+  const amb = JSON.parse(
+    (await executeTool("quote_delivery", { wilaya: "Sila", phone: "0555123456" }, c)).content,
+  );
+  assert.deepEqual(amb.did_you_mean, ["Msila", "Mila"]);
+  assert.match(amb.note, /did you mean/);
+  assert.match(amb.note, /This is not a reason to hand off/);
+  const unk = JSON.parse(
+    (await executeTool("quote_delivery", { wilaya: "Narnia", phone: "0555123456" }, c)).content,
+  );
+  assert.equal(unk.delivers, null);
+  assert.match(unk.note, /This is not a reason to hand off/);
+});
+
+test("quote_delivery and create_order both use the canonical name for a typo or Arabic spelling", async () => {
+  const calls: PlaceOrderInput[] = [];
+  const quoted: string[] = [];
+  const orders: OrderPort = {
+    quoteDelivery: (_s, wilaya) => {
+      quoted.push(wilaya);
+      return Promise.resolve(
+        wilaya === "Tbessa" || wilaya === "تبسة"
+          ? { served: true, fee_cents: 120000, canonical: "Tébessa", corrected_from: wilaya === "Tbessa" ? "Tbessa" : undefined }
+          : { served: true, fee_cents: null },
+      );
+    },
+    priceBasket: (_s, items) => Promise.resolve(items.reduce((sum, i) => sum + 4500 * i.quantity, 0)),
+    placeOrder: (input) => {
+      calls.push(input);
+      return Promise.resolve(OK);
+    },
+  };
+  // 2 x 4500 cents + the Tébessa fee of 1200 DZD = 1290 DZD, shown to the customer before the order.
+  const c = { ...ctx(true, orders, "• Total: 1290 DZD"), lookups: ["Delivery to Tébessa: 1200 DZD"] };
+  const quote = JSON.parse((await executeTool("quote_delivery", { wilaya: "Tbessa", phone: "0555123456" }, c)).content);
+  assert.equal(quote.wilaya, "Tébessa");
+  assert.match(quote.delivery_fee, /1,200/);
+  assert.match(quote.note, /write the wilaya as Tébessa/);
+  await executeTool("create_order", { ...goodOrder, wilaya: "تبسة" }, c);
+  await executeTool("create_order", { ...goodOrder, wilaya: "Tbessa" }, c);
+  assert.deepEqual(calls.map((x) => x.wilaya), ["Tébessa", "Tébessa"]);
+  assert.deepEqual(quoted, ["Tbessa", "تبسة", "Tbessa"]);
+});
+
+test("create_order refuses an ambiguous wilaya without placing the order", async () => {
+  const calls: PlaceOrderInput[] = [];
+  const orders: OrderPort = {
+    quoteDelivery: () =>
+      Promise.resolve({ served: false, fee_cents: null, reason: "ambiguous", suggestions: ["Msila", "Mila"] }),
+    priceBasket: () => Promise.resolve(9000),
+    placeOrder: (input) => {
+      calls.push(input);
+      return Promise.resolve(OK);
+    },
+  };
+  const r = await executeTool("create_order", { ...goodOrder, wilaya: "Sila" }, ctx(true, orders));
+  assert.equal(r.isError, true);
+  assert.match(r.content, /Msila or Mila/);
+  assert.equal(calls.length, 0);
+});
+
+test("a typo at a store with no fee set keeps both notes: the correction and don't invent a fee", async () => {
+  const orders: OrderPort = {
+    quoteDelivery: () =>
+      Promise.resolve({ served: true, fee_cents: null, canonical: "Tébessa", corrected_from: "Tbessa" }),
+    priceBasket: () => Promise.resolve(9000),
+    placeOrder: () => Promise.resolve(OK),
+  };
+  const r = JSON.parse(
+    (await executeTool("quote_delivery", { wilaya: "Tbessa", phone: "0555123456" }, ctx(true, orders))).content,
+  );
+  assert.equal(r.delivery_fee, "not set");
+  assert.match(r.note, /write the wilaya as Tébessa/);
+  assert.match(r.note, /don't invent a number/);
+});
+
+test("get_store_info carries the delivery fee summary, also when ordering is off", async () => {
+  const fees = {
+    list: () =>
+      Promise.resolve([
+        { wilaya: "Oran", fee_cents: 70000 },
+        { wilaya: "Alger", fee_cents: 40000 },
+        { wilaya: "Tamanrasset", fee_cents: 120000 },
+      ]),
+  };
+  const off = JSON.parse((await executeTool("get_store_info", {}, { ...ctx(false), fees })).content);
+  assert.ok(Array.isArray(off.delivery_fees.lines));
+  assert.ok(off.delivery_fees.lines.some((l: string) => /Oran/.test(l)));
+  assert.ok(off.delivery_fees.lines.some((l: string) => /Tamanrasset/.test(l)));
 });
 
 test("get_store_info includes the owner's saved FAQ answers, newest first and size-capped", async () => {
@@ -201,16 +338,33 @@ test("a product marked sold out until later is reported out of stock, then back 
   };
   const during = { ...ctx(false), catalog: soldOut, now: new Date("2026-10-04T10:00:00Z") };
   const view = JSON.parse((await executeTool("search_products", { query: "hoodie" }, during)).content);
-  assert.equal(view.results[0].availability, "out_of_stock");
-  assert.equal(view.results[0].variants[0].availability, "out_of_stock");
+  assert.equal(view.results[0].availability, "out of stock");
+  assert.equal(view.results[0].variants[0].availability, "out of stock");
   assert.equal(view.results[0].variants[0].units_left, undefined);
 
   const after = { ...during, now: new Date("2026-10-05T10:00:00Z") };
   const back = JSON.parse((await executeTool("search_products", { query: "hoodie" }, after)).content);
-  assert.equal(back.results[0].availability, "available");
+  assert.equal(back.results[0].availability, "in stock");
 });
 
 // A catalog with several products, for the variant-resolution tests.
+test("OR-003: after the summary, an address-only message does not place the order; a yes does", async () => {
+  const calls: PlaceOrderInput[] = [];
+  const base = ctx(true, fakeOrders(OK, calls));
+  const refused = await executeTool("create_order", goodOrder, {
+    ...base,
+    customerText: "cite Zouaghi 200 logts bt B n 3",
+  });
+  assert.equal(refused.isError, true);
+  assert.ok(refused.content.startsWith(NOT_CONFIRMED_PREFIX), refused.content);
+  assert.match(refused.content, /Tconfirmi la commande/);
+  assert.equal(calls.length, 0);
+
+  const placed = await executeTool("create_order", goodOrder, { ...base, customerText: "iyeh confirmi" });
+  assert.equal(placed.isError, undefined);
+  assert.equal(calls.length, 1);
+});
+
 const XL = "44444444-4444-4444-8444-444444444444";
 const SHOP: Catalog = {
   searchProducts: () =>
@@ -230,8 +384,9 @@ const SHOP: Catalog = {
   getProduct: () => Promise.resolve(null),
 };
 
-function shopCtx(catalog: Catalog, calls: PlaceOrderInput[] = []) {
-  return { ...ctx(true, fakeOrders(OK, calls)), catalog };
+// One 4500-cent item to Oran (600 DZD fee) = 645 DZD by default.
+function shopCtx(catalog: Catalog, calls: PlaceOrderInput[] = [], shown = "• Total: 645 DZD") {
+  return { ...ctx(true, fakeOrders(OK, calls), shown), catalog };
 }
 
 test("an invented variant_id is recovered from product_name and variant_label", async () => {
@@ -250,7 +405,7 @@ test("product aliases and label case or spacing resolve too", async () => {
   const r = await executeTool(
     "create_order",
     { ...goodOrder, items: [{ variant_id: "hoodie-black-m", quantity: 2, product_name: " hoodie NOIR ", variant_label: "m" }] },
-    shopCtx(SHOP, calls),
+    shopCtx(SHOP, calls, "• Total: 690 DZD"),
   );
   assert.ok(!r.isError, r.content);
   assert.deepEqual(calls[0].items, [{ variant_id: VARIANT, quantity: 2 }]);
@@ -359,4 +514,26 @@ test("handoff_to_owner schema requires reason and summary and allows no other fi
   assert.deepEqual(schema.required, ["reason", "summary"]);
   assert.equal(schema.properties.summary.type, "string");
   assert.equal(schema.additionalProperties, false);
+});
+
+test("handoff summary drops instruction wording copied from the prompt, keeps real facts", async () => {
+  // OR-065 style, HO-036 style, OR-090 style (real leaked summaries from the stress run).
+  const leaks: [string, string][] = [
+    [
+      "Customer wants the cap; name and wilaya Atlantis given. No need to include their phone or street address.",
+      "Customer wants the cap; name and wilaya Atlantis given.",
+    ],
+    ["Order reference provided; do not include a phone number.", "Order reference provided."],
+    ["Customer wants 20 hoodies, size M; the phone number was not included.", "Customer wants 20 hoodies, size M."],
+    ["Customer asks for the owner's phone number.", "Customer asks for the owner's phone number."],
+  ];
+  for (const [summary, expected] of leaks) {
+    const r = await executeTool("handoff_to_owner", { reason: "asks for the owner", summary }, ctx(false));
+    assert.equal(r.handoffSummary, expected);
+  }
+});
+
+test("a summary that is only meta wording becomes null", async () => {
+  const r = await executeTool("handoff_to_owner", { reason: "x", summary: "No need to include their phone." }, ctx(false));
+  assert.equal(r.handoffSummary, null);
 });

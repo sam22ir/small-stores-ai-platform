@@ -54,7 +54,7 @@ export const toolDefinitions: AgentTool[] = [
   {
     name: "get_store_info",
     description:
-      "Get the owner's information about the store: hours, shipping, returns, payment, answers to questions they have already answered, and anything else they wrote down.",
+      "Get the owner's information about the store: hours, shipping, returns, payment, answers to questions they have already answered, the delivery fees (delivery_fees: fee per wilaya, with one line for all other wilayas), and anything else they wrote down. For a question about the delivery price to a wilaya, answer from delivery_fees here; you don't need quote_delivery for that.",
     strict: true,
     input_schema: {
       type: "object",
@@ -78,7 +78,7 @@ export const toolDefinitions: AgentTool[] = [
         summary: {
           type: "string",
           description:
-            "1-2 short sentences for the owner: what the customer wants and the key facts (product, size/variant, wilaya, quantity). Do NOT include phone numbers or street addresses.",
+            "1-2 short sentences for the owner: what the customer wants and the key facts (product, size/variant, wilaya, quantity), in the customer's own words for the request.",
         },
       },
       required: ["reason", "summary"],
@@ -91,28 +91,29 @@ export const orderToolDefinitions: AgentTool[] = [
   {
     name: "quote_delivery",
     description:
-      "Get the delivery fee for a wilaya (Algerian province). Call it before summarizing an order so the customer sees the total.",
+      "Order flow only: get the delivery fee for the customer's wilaya, to show in the order summary. Do not call it before the customer's phone number is known: call it only after you have a valid mobile phone number (05, 06 or 07 + 8 digits). If the phone is missing or invalid the tool returns an error; ask the customer for a valid number in one short message (not a reason to hand off). Spellings and small typos are matched. If the result says did_you_mean, ask the customer which wilaya they mean and don't hand off; if it says not served, tell the customer the store doesn't deliver there. For a price-only question, use delivery_fees from get_store_info instead.",
     strict: true,
     input_schema: {
       type: "object",
       properties: {
-        wilaya: { type: "string", description: "Wilaya name as the customer wrote it, or as listed in wilayas_served" },
+        wilaya: { type: "string", description: "Wilaya name as the customer wrote it (spelling and typos are matched)" },
+        phone: { type: "string", description: "The customer's mobile number as they wrote it (must be a valid 05/06/07 number)" },
       },
-      required: ["wilaya"],
+      required: ["wilaya", "phone"],
       additionalProperties: false,
     },
   },
   {
     name: "create_order",
     description:
-      "Place a cash-on-delivery order. Call it ONLY after the customer has seen the summary (items, delivery fee, total) and clearly confirmed it, and you have their real full name, phone number, wilaya and full address. Use variant_id values from search_products or check_stock.",
+      "Place a cash-on-delivery order. Call it ONLY in a turn after the one where you showed the summary (items, delivery fee, total), and only after the customer clearly confirmed it in their own next message, and you have their real full name, phone number, wilaya and full address. The tool refuses if the customer has not seen the total; a refusal starting with '[order not created' is not a failure: do not retry it in the same turn, show the summary and wait. Use variant_id values from search_products or check_stock.",
     strict: true,
     input_schema: {
       type: "object",
       properties: {
         customer_name: { type: "string", description: "Customer's full name" },
         phone: { type: "string", description: "Customer's mobile number" },
-        wilaya: { type: "string", description: "Delivery wilaya, spelled as quote_delivery returned it" },
+        wilaya: { type: "string", description: "Delivery wilaya as the customer wrote it or as quote_delivery returned it; spelling is matched. If the customer's wilaya is unclear, ask first." },
         address: { type: "string", description: "Full delivery address (commune, street, details)" },
         items: {
           type: "array",

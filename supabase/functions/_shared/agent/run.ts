@@ -1,11 +1,13 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { conversationLang, hasArabicScript, holdingReply } from "./language.ts";
+import { conversationLang, conversationSignal, hasArabicScript, holdingReply } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import { capLookupOutputs, errorText, executeTool, lookupOutput, toolsForStore } from "./tools.ts";
+import { assistantBeforeCurrentTurn, currentCustomerText, type RunState } from "./tools/order-guard.ts";
 import type {
   AgentResult,
   Catalog,
   ChatMessage,
+  DeliveryFeesPort,
   FaqPort,
   OrderPort,
   PhotoPort,
@@ -33,6 +35,7 @@ export interface RunAgentOptions {
   history: ChatMessage[]; // oldest first; the last entry is the customer's new message
   model?: string;
   orders?: OrderPort;
+  fees?: DeliveryFeesPort;
   faq?: FaqPort;
   conversationId?: string;
   customerId?: string;
@@ -70,6 +73,57 @@ export function mergeTurns(history: ChatMessage[]): Turn[] {
   }
   while (out.length && out[0].role !== "user") out.shift();
   return out;
+}
+
+// The model sometimes writes the same text twice in one reply (a whole reply twice, or a sentence
+// twice, with or without a space between). Removes only exact repeats; kept text is copied as written.
+const REPEAT_MIN_CHARS = 12; // shorter pieces ("Oui.") may repeat legitimately
+const SENTENCE_PIECE = /[^.!?؟…]*[.!?؟…]+|[^.!?؟…]+$/g;
+
+// "X X" or "XX" where both halves are the same text: returns X.
+function wholeReplyTwice(text: string): string | null {
+  const t = text.trim();
+  const mid = Math.floor(t.length / 2);
+  for (let cut = mid - 3; cut <= mid + 3; cut++) {
+    if (cut <= 0 || cut >= t.length) continue;
+    const left = t.slice(0, cut).trim();
+    if (left.length >= REPEAT_MIN_CHARS && left === t.slice(cut).trim()) return left;
+  }
+  return null;
+}
+
+export function dedupeRepeatedText(text: string): string {
+  const source = wholeReplyTwice(text) ?? text;
+  const seen = new Set<string>();
+  const kept: string[] = [];
+  for (const line of source.split("\n")) {
+    const pieces = line.match(SENTENCE_PIECE);
+    if (!pieces) {
+      kept.push(line);
+      continue;
+    }
+    const out: string[] = [];
+    let dropped = false;
+    for (const piece of pieces) {
+      const key = piece.replace(/\s+/g, " ").trim();
+      if (key.length >= REPEAT_MIN_CHARS) {
+        if (seen.has(key)) {
+          dropped = true;
+          continue;
+        }
+        seen.add(key);
+      }
+      out.push(piece);
+    }
+    if (!dropped) {
+      kept.push(line);
+      continue;
+    }
+    const rebuilt = out.join("").trim();
+    if (rebuilt) kept.push(rebuilt);
+  }
+  const result = kept.join("\n");
+  return result === text ? text : result.trim();
 }
 
 // Splits a data URL from meta/media.ts into the media type and base64 data Anthropic expects.
@@ -132,13 +186,16 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
 
   const toolCalls: ToolCallLog[] = [];
   const sentPhotos: ProductPhoto[] = []; // queued by send_product_photo, sent after the reply
+  const runState: RunState = { quoteRequested: false };
+  const lastAssistantText = assistantBeforeCurrentTurn(opts.history);
+  const customerText = currentCustomerText(opts.history);
   const usage = { input_tokens: 0, output_tokens: 0 };
   let handoffReason: string | null = null;
   let handoffSummary: string | null = null;
   let reply = "";
 
   const frontier = isFrontierModel(model);
-  const system = buildSystemPrompt(store, conversationLang(opts.history), opts.lookups);
+  const system = buildSystemPrompt(store, conversationSignal(opts.history), opts.lookups);
   const tools = toolsForStore(store);
 
   for (let round = 0; ; round++) {
@@ -180,18 +237,21 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
     );
 
     if (response.stop_reason !== "tool_use" || toolUses.length === 0) {
-      reply = response.content
-        .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock =>
-          b.type === "text"
-        )
-        .map((b) => b.text)
-        .join("\n")
-        .trim();
+      reply = dedupeRepeatedText(
+        response.content
+          .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock =>
+            b.type === "text"
+          )
+          .map((b) => b.text)
+          .join("\n"),
+      ).trim();
       break;
     }
 
     // Echo the assistant turn back unchanged (thinking blocks included).
     messages.push({ role: "assistant", content: response.content });
+    // Before any tool runs: a quote and a create_order in the same round must see the quote as requested.
+    if (toolUses.some((u) => u.name === "quote_delivery")) runState.quoteRequested = true;
 
     const results: ToolResultParam[] = await Promise.all(
       toolUses.map(async (use): Promise<ToolResultParam> => {
@@ -200,12 +260,17 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentResult> {
             store,
             catalog,
             orders: opts.orders,
+            fees: opts.fees,
             faq: opts.faq,
             conversationId: opts.conversationId,
             customerId: opts.customerId,
             storageBase: opts.storageBase,
             photos: opts.photos,
             sentPhotos,
+            lastAssistantText,
+            customerText,
+            lookups: opts.lookups ?? [],
+            run: runState,
           });
           if (outcome.handoffReason) {
             handoffReason = outcome.handoffReason;

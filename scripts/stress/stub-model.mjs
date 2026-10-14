@@ -1,13 +1,21 @@
 // Deterministic stand-in for the OpenAI-compatible model, used by --stub. No network, no key.
 // It is not a model and says nothing about answer quality. It only walks the same tool path a
-// model would: search_products, then quote_delivery, then create_order (with the variant_id it
-// read from the search result), or handoff_to_owner. Every reply ends with "(stub)".
+// model would: search_products, then quote_delivery, then either the order summary (details turn,
+// total = price + fee) or create_order on the customer's confirmation (with the variant_id it read
+// from the search result), or handoff_to_owner. Every reply ends with "(stub)".
 
 const ORDER_WORDS = /commande|je prends|je veux|je confirme|confirme/i;
 const HANDOFF_WORDS = /humain|human|propri[ée]taire|owner|responsable|vrai personne/i;
 const LABELS = /\b(41|42|43|38|40|L|M|XL|Unique)\b/i;
 const PHONE = /\b0[567]\d{8}\b/;
 const PHOTO_WORDS = /photo|image|tswira|sowar|صورة/i;
+const CONFIRM_WORDS = /\b(confirm\w*|oui|yes|iyeh|nakedh)\b/i;
+
+// "DZD 3,500.00" or "3500 DA" -> 3500. "not set" and missing values count as 0.
+const moneyOf = (s) => {
+  const m = typeof s === "string" ? s.replace(/,/g, "").match(/\d+(?:\.\d+)?/) : null;
+  return m ? Number(m[0]) : 0;
+};
 
 const norm = (s) => s.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase();
 
@@ -23,8 +31,8 @@ function parseIntent(msgs, fixture) {
   const all = norm(userTexts.join(" \n "));
   const latestN = norm(latest);
 
-  const field = (label) => {
-    const m = latest.match(new RegExp(`${label}\\s*:\\s*([^,\\n]+)`, "i"));
+  const field = (label, text = latest) => {
+    const m = text.match(new RegExp(`${label}\\s*:\\s*([^,\\n]+)`, "i"));
     return m ? m[1].trim() : null;
   };
 
@@ -42,14 +50,18 @@ function parseIntent(msgs, fixture) {
   }
 
   const label = all.match(LABELS);
-  const phone = latest.match(PHONE)?.[0] ?? null;
+  // Details can come in an earlier turn than the confirmation: take the last value from any customer turn.
+  const lastOf = (re) => userTexts.map((t) => t.match(re)?.[1] ?? t.match(re)?.[0] ?? null).filter(Boolean).at(-1) ?? null;
+  const phone = lastOf(PHONE);
+  const confirm = CONFIRM_WORDS.test(latestN);
   return {
     photo: PHOTO_WORDS.test(latestN),
     handoff: HANDOFF_WORDS.test(latest),
-    order: !!phone && ORDER_WORDS.test(latestN),
+    confirm,
+    order: !!phone && (ORDER_WORDS.test(latestN) || confirm),
     phone,
-    name: field("nom"),
-    address: field("adresse"),
+    name: userTexts.map((t) => field.call(null, "nom", t)).filter(Boolean).at(-1) ?? null,
+    address: userTexts.map((t) => field.call(null, "adresse", t)).filter(Boolean).at(-1) ?? null,
     wilaya,
     product,
     variantLabel: label ? label[1] : null,
@@ -120,7 +132,7 @@ export function stubCompletion(body, fixture) {
   if (last === "handoff_to_owner") return text("Le propriétaire va vous répondre personnellement.");
   if (last === "search_products" && intent.order) {
     if (!intent.wilaya) return text("Dans quelle wilaya êtes-vous ?");
-    return toolCall("quote_delivery", { wilaya: intent.wilaya });
+    return toolCall("quote_delivery", { wilaya: intent.wilaya, phone: intent.phone ?? "" });
   }
   if (last === "quote_delivery" && intent.order) {
     const searchMsg = inRun.find((m) => m.role === "tool" && names.get(m.tool_call_id) === "search_products");
@@ -128,6 +140,18 @@ export function stubCompletion(body, fixture) {
     const product = found.find((p) => p.name === intent.product?.name) ?? found[0];
     const variant = product?.variants.find((v) => v.option.toLowerCase() === (intent.variantLabel ?? "").toLowerCase());
     if (!variant) return text("Quelle taille ou variante voulez-vous ?");
+    // Like a model would: the details turn shows the summary (total = price + fee) and waits. The
+    // create_order guard needs the total in an earlier assistant message, so only the confirmation
+    // turn places the order.
+    if (!intent.confirm) {
+      const quoteMsg = inRun.find((m) => m.role === "tool" && names.get(m.tool_call_id) === "quote_delivery");
+      const fee = moneyOf(JSON.parse(quoteMsg.content).delivery_fee);
+      const price = moneyOf(variant.price ?? product.price);
+      const total = price + fee;
+      return text(
+        `• ${product.name} ${variant.option} × 1: ${price} DZD\n• Livraison ${intent.wilaya}: ${fee} DZD\n• Total: ${total} DZD\n\nConfirmez-vous la commande ?`,
+      );
+    }
     return toolCall("create_order", {
       customer_name: intent.name,
       phone: intent.phone,

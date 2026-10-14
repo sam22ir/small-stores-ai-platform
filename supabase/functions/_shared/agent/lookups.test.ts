@@ -25,9 +25,9 @@ const store = { name: "Demo Boutique", orders_enabled: true } as unknown as Stor
 test("order rules: collecting details is the assistant's job; handoff only in the listed cases", () => {
   const p = buildSystemPrompt(store);
   assert.match(p, /Collecting the order details is YOUR job, not the owner's/);
-  assert.match(p, /Never hand off just to collect details/);
+  assert.match(p, /Everything else in an order is handled by talking to the customer: missing or partial details, an invalid phone/);
   assert.match(p, /accept Algerian formats with spaces, dots or a \+213 prefix/);
-  assert.match(p, /Use handoff_to_owner for orders only when create_order fails twice, the wilaya isn't served, or the customer asks for a discount, an exchange or a custom order/);
+  assert.match(p, /Handing an order to the owner \(handoff_to_owner\): only when create_order fails twice for a real reason, the wilaya isn't served, or the customer asks for a discount, an exchange, a custom order or a refund/);
   assert.match(p, /call quote_delivery for the wilaya, then write the order summary as a short list/);
 });
 
@@ -50,14 +50,14 @@ test("a successful lookup is saved as compact text; errors and empty results are
       price: "4,500.00 DA",
       availability: "available",
       variants: [
-        { variant_id: "v-123", option: "M", availability: "in_stock" },
-        { variant_id: "v-456", option: "L", price: "4,800.00 DA", availability: "low_stock", units_left: 2 },
+        { variant_id: "v-123", option: "M", availability: "in stock" },
+        { variant_id: "v-456", option: "L", price: "4,800.00 DA", availability: "few left" },
       ],
     }],
   });
   assert.equal(
     lookupOutput("search_products", {}, content),
-    "Black Hoodie 4,500.00 DA: M variant_id v-123, in_stock; L variant_id v-456, price 4,800.00 DA, low_stock",
+    "Black Hoodie 4,500.00 DA: M variant_id v-123, in stock; L variant_id v-456, price 4,800.00 DA, few left",
   );
   assert.equal(lookupOutput("search_products", {}, JSON.stringify({ results: [] })), undefined);
   assert.equal(lookupOutput("create_order", {}, content), undefined);

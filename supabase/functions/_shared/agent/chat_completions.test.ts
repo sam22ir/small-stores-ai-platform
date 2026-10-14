@@ -262,3 +262,10 @@ test("a handoff without a summary field has a null summary (chat completions)", 
   assert.equal(r.handoffReason, "wants to order");
   assert.equal(r.handoffSummary, null);
 });
+
+test("a reply the model wrote twice in one message is sent once (chat completions)", async () => {
+  const once = "Le hoodie noir taille M est disponible à 3 500 DZD. Pour finaliser, donnez-moi votre nom complet et votre wilaya.";
+  const { fetchImpl } = fakeFetch([text(`${once}${once}`)]);
+  const r = await runAgentChatCompletions({ ...base, fetchImpl });
+  assert.equal(r.reply, once);
+});

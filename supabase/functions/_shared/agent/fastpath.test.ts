@@ -2,6 +2,16 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { fastPathReply } from "./fastpath.ts";
 
+test("G1 the conversation language wins over a thanks phrase; Arabic script still wins", () => {
+  // "merci" alone is French, but in a Darija chat the thanks is Darija.
+  assert.match(fastPathReply("merci", "Shop", "dz")!, /Bla mochkil/);
+  assert.match(fastPathReply("merci", "Shop")!, /Avec plaisir/);
+  assert.match(fastPathReply("merci", "Shop", "en")!, /You're welcome/);
+  assert.match(fastPathReply("شكرا", "Shop", "dz")!, /العفو/);
+  // "salam" alone with an English conversation gets the English greeting.
+  assert.match(fastPathReply("salam", "Shop", "en")!, /welcome to Shop/);
+});
+
 const S = "Demo Boutique";
 
 test("greetings get a localized welcome", () => {

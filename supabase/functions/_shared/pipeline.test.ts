@@ -842,7 +842,7 @@ test("the order rules are in the prompt when orders are on", async () => {
   await handleInbound(input("je veux commander", "customer", { orders_enabled: true }));
   const system = bodies[0].messages[0].content as string;
   assert.match(system, /Collecting the order details is YOUR job, not the owner's/);
-  assert.match(system, /Never hand off just to collect details/);
+  assert.match(system, /Everything else in an order is handled by talking to the customer: missing or partial details, an invalid phone/);
 });
 
 const dzMessages = () => [{ id: "m1", conversation_id: "c1", direction: "inbound", body: "wach kayen hoodie noir taille M?", _seq: 0 }];
@@ -860,19 +860,22 @@ test("a Darija reply with Arabic script gets one Latin rewrite request, which is
   assert.match(bodies[1].messages[0].content, /Latin letters/);
 });
 
-test("the Latin rewrite falls back to the original when it still has Arabic script", async () => {
+test("when the Latin rewrite still has Arabic script, the script check retries once and sends the clean retry", async () => {
   const { input } = setup({ messages: dzMessages() });
   const bodies = stubSequence([
-    { content: "Hoodie noir 3500 DA، تقدر تكمل" },
-    { content: "Hoodie noir 3500 DA، كاينة" },
+    { content: "Hoodie noir 3500 DA، تقدر تكمل" }, // model reply
+    { content: "Hoodie noir 3500 DA، كاينة" }, // Latin rewrite, still Arabic: the original is kept
+    { content: "Hoodie noir 3500 DA, kayna." }, // script-check retry
   ]);
   const r = await handleInbound(input("wach kayen hoodie noir taille M?"));
-  assert.ok(r.ok && r.reply === "Hoodie noir 3500 DA، تقدر تكمل");
-  assert.equal(bodies.length, 2);
+  assert.ok(r.ok && r.reply === "Hoodie noir 3500 DA, kayna.");
+  assert.equal(bodies.length, 3);
+  assert.match(bodies[2].messages.at(-1).content, /Arabic-script letters/);
 });
 
 test("a clean Darija reply needs no rewrite, and a non-Darija reply is never rewritten", async () => {
-  const { input } = setup();
+  // The stored history ends with the customer's Darija message, as it does in production.
+  const { input } = setup({ messages: dzMessages() });
   const clean = stubSequence([{ content: "Hoodie noir 3500 DA, kayna. Bghiti tcommandi?" }]);
   await handleInbound(input("wach kayen hoodie noir taille M?"));
   assert.equal(clean.length, 1); // no rewrite request: the clean reply is sent as it is

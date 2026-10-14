@@ -1,6 +1,7 @@
-import { conversationLang, holdingReply } from "./language.ts";
+import { conversationLang, conversationSignal, holdingReply } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import {
+  dedupeRepeatedText,
   MAX_REPLY_BYTES,
   mergeTurns,
   toLatinDarija,
@@ -8,10 +9,12 @@ import {
   type Turn,
 } from "./run.ts";
 import { capLookupOutputs, errorText, executeTool, lookupOutput, toolsForStore } from "./tools.ts";
+import { assistantBeforeCurrentTurn, currentCustomerText, type RunState } from "./tools/order-guard.ts";
 import type {
   AgentResult,
   Catalog,
   ChatMessage,
+  DeliveryFeesPort,
   FaqPort,
   OrderPort,
   PhotoPort,
@@ -48,6 +51,7 @@ export interface ChatCompletionsOptions {
   fetchImpl?: typeof fetch;
   retryDelayMs?: number;
   orders?: OrderPort;
+  fees?: DeliveryFeesPort;
   faq?: FaqPort;
   conversationId?: string;
   customerId?: string;
@@ -134,7 +138,7 @@ export async function runAgentChatCompletions(
     throw new Error("history must end with a customer message");
   }
   const messages: Message[] = [
-    { role: "system", content: buildSystemPrompt(store, conversationLang(opts.history), opts.lookups) },
+    { role: "system", content: buildSystemPrompt(store, conversationSignal(opts.history), opts.lookups) },
     ...turns.map((t): Message =>
       t.role === "user"
         ? { role: "user", content: userContent(t) }
@@ -147,6 +151,9 @@ export async function runAgentChatCompletions(
   const tools = openAITools(store);
   const toolCalls: ToolCallLog[] = [];
   const sentPhotos: ProductPhoto[] = []; // queued by send_product_photo, sent after the reply
+  const runState: RunState = { quoteRequested: false };
+  const lastAssistantText = assistantBeforeCurrentTurn(opts.history);
+  const customerText = currentCustomerText(opts.history);
   const usage = { input_tokens: 0, output_tokens: 0 };
   let handoffReason: string | null = null;
   let handoffSummary: string | null = null;
@@ -212,7 +219,7 @@ export async function runAgentChatCompletions(
         handoffReason = handoffReason ?? "Answer was too long";
         break;
       }
-      reply = stripThinking(msg.content ?? "");
+      reply = dedupeRepeatedText(stripThinking(msg.content ?? ""));
       break;
     }
 
@@ -222,6 +229,7 @@ export async function runAgentChatCompletions(
       tool_calls: calls,
     });
 
+    if (calls.some((c) => c.function.name === "quote_delivery")) runState.quoteRequested = true;
     for (const call of calls) {
       let result: { content: string; is_error: boolean };
       let input: unknown = {};
@@ -243,12 +251,17 @@ export async function runAgentChatCompletions(
           store,
           catalog,
           orders: opts.orders,
+          fees: opts.fees,
           faq: opts.faq,
           conversationId: opts.conversationId,
           customerId: opts.customerId,
           storageBase: opts.storageBase,
           photos: opts.photos,
           sentPhotos,
+          lastAssistantText,
+          customerText,
+          lookups: opts.lookups ?? [],
+          run: runState,
         });
         if (outcome.handoffReason) {
           handoffReason = outcome.handoffReason;
