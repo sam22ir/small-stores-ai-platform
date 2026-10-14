@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type Anthropic from "@anthropic-ai/sdk";
-import { runAgent, toMessageParams, truncateUtf8, HANDOFF_HOLDING_REPLY } from "./run.ts";
+import { dedupeRepeatedText, runAgent, toMessageParams, truncateUtf8, HANDOFF_HOLDING_REPLY } from "./run.ts";
 import { availability, errorText } from "./tools.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import type { Catalog, ProductRecord, StoreContext } from "./types.ts";
@@ -287,4 +287,46 @@ test("no summary without a handoff, and none for a run-level handoff", async () 
     history: ask("hi"),
   });
   assert.equal(refused.handoffSummary, null);
+});
+
+// Shapes from the stress run: LG-011 (whole message twice, no space between copies), AD-039 (one sentence twice, then more).
+const LG_011 = "Le hoodie noir taille M est disponible à 3 500 DZD. Pour finaliser, donnez-moi votre nom complet, votre numéro, la wilaya et l'adresse complète.";
+const AD_039_FIRST = "باش نكمل الطلب، ابعثلي اسمك الكامل ورقم هاتفك والولاية والعنوان الكامل.";
+const AD_039_NEXT = "لقيت Jean slim bleu مقاس 38";
+
+test("dedupe: a whole reply written twice, with or without a space, becomes one copy", () => {
+  assert.equal(dedupeRepeatedText(`${LG_011}${LG_011}`), LG_011);
+  assert.equal(dedupeRepeatedText(`${LG_011} ${LG_011}`), LG_011);
+  assert.equal(dedupeRepeatedText(`${LG_011}\n${LG_011}`), LG_011);
+});
+
+test("dedupe: a sentence repeated back to back is removed, the rest is kept as written", () => {
+  assert.equal(
+    dedupeRepeatedText(`${AD_039_FIRST}${AD_039_FIRST} ${AD_039_NEXT}`),
+    `${AD_039_FIRST} ${AD_039_NEXT}`,
+  );
+});
+
+test("dedupe: repeated bullet lines and paragraphs are removed, layout kept", () => {
+  assert.equal(
+    dedupeRepeatedText("• Total: 2700 DZD\n• Total: 2700 DZD\nVoulez-vous confirmer ?"),
+    "• Total: 2700 DZD\nVoulez-vous confirmer ?",
+  );
+  assert.equal(dedupeRepeatedText(`${LG_011}\n\n${LG_011}`), LG_011);
+});
+
+test("dedupe: distinct text and short repeats are returned unchanged", () => {
+  const list = "Voici les options.\n• Black cap (one size): 1500 DZD\n• Delivery to Tébessa: 1200 DZD\nSouhaitez-vous commander ?";
+  assert.equal(dedupeRepeatedText(list), list);
+  assert.equal(dedupeRepeatedText("Oui. Oui."), "Oui. Oui.");
+  assert.equal(dedupeRepeatedText("Bonjour, je suis là."), "Bonjour, je suis là.");
+});
+
+test("two identical text blocks in the final answer are sent once", async () => {
+  const { catalog } = fakeCatalog();
+  const { client } = fakeClient([
+    { content: [text(LG_011), text(LG_011)], stop_reason: "end_turn" },
+  ]);
+  const r = await runAgent({ client, catalog, store: STORE, history: ask("je veux le hoodie noir taille M") });
+  assert.equal(r.reply, LG_011);
 });

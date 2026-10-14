@@ -78,7 +78,7 @@ export const toolDefinitions: AgentTool[] = [
         summary: {
           type: "string",
           description:
-            "1-2 short sentences for the owner: what the customer wants and the key facts (product, size/variant, wilaya, quantity). Do NOT include phone numbers or street addresses.",
+            "1-2 short sentences for the owner: what the customer wants and the key facts (product, size/variant, wilaya, quantity), in the customer's own words for the request.",
         },
       },
       required: ["reason", "summary"],

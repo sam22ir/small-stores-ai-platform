@@ -482,3 +482,25 @@ test("handoff_to_owner schema requires reason and summary and allows no other fi
   assert.equal(schema.properties.summary.type, "string");
   assert.equal(schema.additionalProperties, false);
 });
+
+test("handoff summary drops instruction wording copied from the prompt, keeps real facts", async () => {
+  // OR-065 style, HO-036 style, OR-090 style (real leaked summaries from the stress run).
+  const leaks: [string, string][] = [
+    [
+      "Customer wants the cap; name and wilaya Atlantis given. No need to include their phone or street address.",
+      "Customer wants the cap; name and wilaya Atlantis given.",
+    ],
+    ["Order reference provided; do not include a phone number.", "Order reference provided."],
+    ["Customer wants 20 hoodies, size M; the phone number was not included.", "Customer wants 20 hoodies, size M."],
+    ["Customer asks for the owner's phone number.", "Customer asks for the owner's phone number."],
+  ];
+  for (const [summary, expected] of leaks) {
+    const r = await executeTool("handoff_to_owner", { reason: "asks for the owner", summary }, ctx(false));
+    assert.equal(r.handoffSummary, expected);
+  }
+});
+
+test("a summary that is only meta wording becomes null", async () => {
+  const r = await executeTool("handoff_to_owner", { reason: "x", summary: "No need to include their phone." }, ctx(false));
+  assert.equal(r.handoffSummary, null);
+});

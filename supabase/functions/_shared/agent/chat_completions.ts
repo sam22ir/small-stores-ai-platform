@@ -1,6 +1,7 @@
 import { conversationLang, conversationSignal, holdingReply } from "./language.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import {
+  dedupeRepeatedText,
   MAX_REPLY_BYTES,
   mergeTurns,
   toLatinDarija,
@@ -214,7 +215,7 @@ export async function runAgentChatCompletions(
         handoffReason = handoffReason ?? "Answer was too long";
         break;
       }
-      reply = stripThinking(msg.content ?? "");
+      reply = dedupeRepeatedText(stripThinking(msg.content ?? ""));
       break;
     }
 
