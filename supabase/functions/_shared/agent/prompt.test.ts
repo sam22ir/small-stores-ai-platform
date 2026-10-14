@@ -141,6 +141,18 @@ test("handoff summary rule says what to write and does not mention phone or addr
   assert.doesNotMatch(p, /do not include|no need to include/i);
 });
 
+test("prompt forbids invented care, cleaning, material and warranty details", () => {
+  const p = buildSystemPrompt(store);
+  assert.match(p, /care, cleaning, washing, material, composition or warranty details/);
+  assert.match(p, /Never invent a cleaning method or a material/);
+});
+
+test("prompt forbids claiming a physical shop, address or pickup the store info does not give", () => {
+  const p = buildSystemPrompt(store);
+  assert.match(p, /physical shop, an address or a pickup option unless the store info says so/);
+  assert.match(p, /Delivery is available only to the wilayas in the delivery fee list/);
+});
+
 test("lists: every item on its own bullet line, including two items and order summaries", () => {
   const p = buildSystemPrompt(store);
   assert.match(p, /two prices asked in one question/);

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { buildSystemPrompt } from "./prompt.ts";
 import { executeTool, toolsForStore } from "./tools.ts";
+import { NOT_CONFIRMED_PREFIX } from "./tools/order-guard.ts";
 import type {
   Catalog,
   OrderPort,
@@ -73,6 +74,8 @@ function ctx(orders_enabled: boolean, orders?: OrderPort, shown = "• Total: 69
     customerId: "u1",
     now: new Date("2026-10-04T10:00:00Z"),
     lastAssistantText: shown,
+    // The customer's current message is a yes, so the confirmation guard passes (see order-guard.ts).
+    customerText: "oui je confirme",
     // The Oran quote the customer got in an earlier turn (the guard needs it, see order.ts).
     lookups: ["Delivery to Oran: 600 DZD"],
   };
@@ -345,6 +348,23 @@ test("a product marked sold out until later is reported out of stock, then back 
 });
 
 // A catalog with several products, for the variant-resolution tests.
+test("OR-003: after the summary, an address-only message does not place the order; a yes does", async () => {
+  const calls: PlaceOrderInput[] = [];
+  const base = ctx(true, fakeOrders(OK, calls));
+  const refused = await executeTool("create_order", goodOrder, {
+    ...base,
+    customerText: "cite Zouaghi 200 logts bt B n 3",
+  });
+  assert.equal(refused.isError, true);
+  assert.ok(refused.content.startsWith(NOT_CONFIRMED_PREFIX), refused.content);
+  assert.match(refused.content, /Tconfirmi la commande/);
+  assert.equal(calls.length, 0);
+
+  const placed = await executeTool("create_order", goodOrder, { ...base, customerText: "iyeh confirmi" });
+  assert.equal(placed.isError, undefined);
+  assert.equal(calls.length, 1);
+});
+
 const XL = "44444444-4444-4444-8444-444444444444";
 const SHOP: Catalog = {
   searchProducts: () =>

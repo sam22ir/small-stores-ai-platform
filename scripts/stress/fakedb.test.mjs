@@ -202,6 +202,8 @@ test("create_order tool: invalid Algerian phone is refused before the database, 
   const basket = await t.orders.priceBasket(t.storeId, [{ variant_id: t.variant("Basket blanche", "41").id, quantity: 1 }]);
   const fee = (await t.orders.quoteDelivery(t.storeId, "Alger")).fee_cents ?? 0;
   ctx.lastAssistantText = `• Basket blanche taille 41: ${(basket + fee) / 100} DZD\n• Total: ${(basket + fee) / 100} DZD`;
+  // The customer's current message is the yes to that summary.
+  ctx.customerText = "oui je confirme";
   // The Alger quote from an earlier turn, as a lookup fact.
   ctx.lookups = [`Delivery to Alger: ${fee ? `${fee / 100} DZD` : "not set"}`];
   const ok = await executeTool("create_order", {

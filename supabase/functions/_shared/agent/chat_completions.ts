@@ -9,7 +9,7 @@ import {
   type Turn,
 } from "./run.ts";
 import { capLookupOutputs, errorText, executeTool, lookupOutput, toolsForStore } from "./tools.ts";
-import { assistantBeforeCurrentTurn, type RunState } from "./tools/order-guard.ts";
+import { assistantBeforeCurrentTurn, currentCustomerText, type RunState } from "./tools/order-guard.ts";
 import type {
   AgentResult,
   Catalog,
@@ -153,6 +153,7 @@ export async function runAgentChatCompletions(
   const sentPhotos: ProductPhoto[] = []; // queued by send_product_photo, sent after the reply
   const runState: RunState = { quoteRequested: false };
   const lastAssistantText = assistantBeforeCurrentTurn(opts.history);
+  const customerText = currentCustomerText(opts.history);
   const usage = { input_tokens: 0, output_tokens: 0 };
   let handoffReason: string | null = null;
   let handoffSummary: string | null = null;
@@ -258,6 +259,7 @@ export async function runAgentChatCompletions(
           photos: opts.photos,
           sentPhotos,
           lastAssistantText,
+          customerText,
           lookups: opts.lookups ?? [],
           run: runState,
         });

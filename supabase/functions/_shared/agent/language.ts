@@ -162,17 +162,26 @@ export function conversationLang(history: { role: string; text: string }[]): Lan
 
 // Script check of a model reply: what is wrong with it, or null. Latin-letter Darija replies have no
 // Arabic letters; Cyrillic letters are never right.
-export function scriptProblem(reply: string, lang: Lang | null): "arabic_letters" | "cyrillic_letters" | null {
+// Any other letter that is neither Latin nor Arabic script (CJK, Thai, Devanagari, Hangul, ...). Common and
+// Inherited characters are not letters of a script, so Latin-letter marks such as ʿ or ʼ pass.
+const FOREIGN_SCRIPT = /(?![\p{Script=Latin}\p{Script=Arabic}\p{Script=Common}\p{Script=Inherited}])\p{L}/u;
+
+export type ScriptProblem = "arabic_letters" | "cyrillic_letters" | "foreign_script";
+
+export function scriptProblem(reply: string, lang: Lang | null): ScriptProblem | null {
   if (lang === "dz" && hasArabicScript(reply)) return "arabic_letters";
   if (CYRILLIC.test(reply)) return "cyrillic_letters";
+  if (FOREIGN_SCRIPT.test(reply)) return "foreign_script";
   return null;
 }
 
 // The user-side note that asks the model for one corrected reply.
-export function scriptCorrection(problem: "arabic_letters" | "cyrillic_letters"): string {
+export function scriptCorrection(problem: ScriptProblem): string {
   const what = problem === "arabic_letters"
     ? "Your last reply used Arabic-script letters, but the customer writes Latin-letter Algerian Darija. Rewrite the reply using only Latin letters, with no Arabic script at all."
-    : "Your last reply contained Cyrillic letters, which are never allowed. Rewrite the reply in the customer's language and script, using no Cyrillic letters.";
+    : problem === "cyrillic_letters"
+    ? "Your last reply contained Cyrillic letters, which are never allowed. Rewrite the reply in the customer's language and script, using no Cyrillic letters."
+    : "Your last reply contained letters from a script the conversation does not use (for example Chinese, Thai or Devanagari characters). Rewrite the reply using only Latin letters, or Arabic script when the customer writes in Arabic script, and no other script.";
   return `${CORRECTION_MARK} ${what} Keep the same facts and the same tool results, and change nothing else.`;
 }
 

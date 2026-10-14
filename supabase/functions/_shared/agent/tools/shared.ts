@@ -36,6 +36,8 @@ export interface ToolContext {
   sentPhotos?: ProductPhoto[];
   // The assistant text the customer read before this turn (see order-guard.ts). create_order needs it.
   lastAssistantText?: string;
+  // The customer's words in the current turn (see currentCustomerText). create_order needs an explicit yes in them.
+  customerText?: string;
   // Facts from earlier turns (the full list, not the prompt's trimmed one). A delivery quote from an
   // earlier turn is "Delivery to <wilaya>: ..." (see lookup-output.ts).
   lookups?: string[];

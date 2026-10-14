@@ -11,6 +11,7 @@ import {
   scriptCorrection,
   scriptProblem,
 } from "../agent/language.ts";
+import { stripStrayLabels } from "../agent/reply-clean.ts";
 import { runAgentChatCompletions } from "../agent/chat_completions.ts";
 import {
   AllProvidersFailed,
@@ -60,8 +61,13 @@ const addUsage = (a: AgentResult["usage"], b: AgentResult["usage"]) => ({
 // after an order was created or a photo was queued, because the first run already changed the store.
 export async function replyWithScriptCheck(
   history: ChatMessage[],
-  call: (turns: ChatMessage[]) => Promise<AgentResult>,
+  rawCall: (turns: ChatMessage[]) => Promise<AgentResult>,
 ): Promise<AgentResult> {
+  // Stray "VOICE:"-style labels are removed from every reply before the script check and the send.
+  const call = async (turns: ChatMessage[]) => {
+    const r = await rawCall(turns);
+    return { ...r, reply: stripStrayLabels(r.reply) };
+  };
   const first = await call(history);
   const lang = conversationSignal(history);
   const problem = scriptProblem(first.reply, lang);

@@ -1,7 +1,7 @@
 import { normalizeDzPhone, orderIdempotencyKey } from "../orders.ts";
 import type { OrderLineInput } from "../types.ts";
 import { isSoldOut } from "./catalog.ts";
-import { amountShown, NOT_CONFIRMED_PREFIX } from "./order-guard.ts";
+import { amountShown, hasExplicitAffirmative, NOT_CONFIRMED_PREFIX } from "./order-guard.ts";
 import { asRecord, money, UUID } from "./shared.ts";
 import type { ToolContext, ToolOutcome } from "./shared.ts";
 
@@ -159,6 +159,15 @@ export async function createOrder(
       : "";
     return {
       content: `${NOT_CONFIRMED_PREFIX}${sameTurn} The total is ${money(total, store.currency)}. Do not call create_order again in this turn. Reply to the customer with the order summary (items, delivery fee, total) and wait for their explicit confirmation in their next message. This is not a failure and not a reason to hand off.`,
+      isError: true,
+    };
+  }
+
+  // Third condition: the customer's current message must say yes. Details alone (name, phone, address,
+  // wilaya) after a summary are not a confirmation, so the model asks again and waits.
+  if (!hasExplicitAffirmative(ctx.customerText ?? "")) {
+    return {
+      content: `${NOT_CONFIRMED_PREFIX} The customer has not said yes to the order summary in their latest message (details alone are not a confirmation). Reply with the order summary again (items, delivery fee, total) and ask one short confirmation question in the customer's language, for example "Tconfirmi la commande?". Do not call create_order again in this turn. Wait for their explicit yes in their next message. This is not a failure and not a reason to hand off.`,
       isError: true,
     };
   }

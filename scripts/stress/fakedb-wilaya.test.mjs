@@ -52,6 +52,7 @@ async function ctxFor(t, wilaya = "Tébessa") {
     customerId: CUST,
     now: new Date("2026-10-13T10:00:00Z"),
     lastAssistantText: `• Basket blanche taille 41: ${basket / 100} DZD\n• Total: ${(basket + fee) / 100} DZD`,
+    customerText: "oui je confirme",
     // The quote the customer got in an earlier turn, as a lookup fact.
     lookups: [`Delivery to ${quote.canonical}: ${fee / 100} DZD`],
   };

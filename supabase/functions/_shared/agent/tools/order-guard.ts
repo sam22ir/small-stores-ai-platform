@@ -42,18 +42,92 @@ interface HistoryTurn {
   text: string;
 }
 
-// The assistant text the customer read just before their current message: the consecutive assistant
-// messages right before the customer's current turn. The current turn is the last customer message that
-// is not a server retry note, together with any customer messages just before it.
-export function assistantBeforeCurrentTurn(history: HistoryTurn[]): string {
+// The current turn: the last customer message that is not a server retry note, and the first of the
+// consecutive customer messages right before it. cur is -1 when the customer has not written yet.
+function currentTurn(history: HistoryTurn[]): { cur: number; start: number } {
   let cur = history.length - 1;
   while (cur >= 0 && !(history[cur].role === "user" && !history[cur].text.startsWith(CORRECTION_MARK))) cur--;
+  if (cur < 0) return { cur, start: cur };
+  let start = cur;
+  while (start - 1 >= 0 && history[start - 1].role === "user") start--;
+  return { cur, start };
+}
+
+// The assistant text the customer read just before their current message: the consecutive assistant
+// messages right before the customer's current turn.
+export function assistantBeforeCurrentTurn(history: HistoryTurn[]): string {
+  const { cur, start } = currentTurn(history);
   if (cur < 0) return "";
-  let j = cur;
-  while (j - 1 >= 0 && history[j - 1].role === "user") j--;
   const parts: string[] = [];
-  for (let k = j - 1; k >= 0 && history[k].role === "assistant"; k--) parts.unshift(history[k].text);
+  for (let k = start - 1; k >= 0 && history[k].role === "assistant"; k--) parts.unshift(history[k].text);
   return parts.join("\n");
+}
+
+// The customer's words in the current turn: their consecutive messages joined, without server retry notes.
+export function currentCustomerText(history: HistoryTurn[]): string {
+  const { cur, start } = currentTurn(history);
+  if (cur < 0) return "";
+  const parts: string[] = [];
+  for (let k = start; k <= cur; k++) {
+    if (history[k].role === "user" && !history[k].text.startsWith(CORRECTION_MARK)) parts.push(history[k].text);
+  }
+  return parts.join(" \n ");
+}
+
+// Lowercased words without accents, diacritics or tatweel. Anything that is not a letter or a digit
+// separates words, so "d'accord" and "vas-y" split in two. NFKD folds Arabic hamza forms to one spelling.
+export function normalizeWords(text: string): string[] {
+  return text
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .replace(/ـ/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+}
+
+// Explicit yes, as the customer writes it. Each entry is one word or phrase, matched as whole words.
+const AFFIRMATIVE_PHRASES = [
+  // English
+  "yes", "yeah", "yep", "ok", "okay", "confirm", "confirmed", "sure", "go ahead", "place it", "validate", "proceed",
+  // French
+  "oui", "ouais", "d accord", "daccord", "ok", "confirme", "je confirme", "valide", "vas y", "c est bon", "parfait",
+  // Algerian Darija in Latin letters
+  "iyeh", "iyeh confirmi", "ey", "eyh", "ah", "wakha", "wah", "nakedh", "nakdh", "confirmi", "aywa", "ewa",
+  "normal", "tamam", "yalah", "yallah", "3am", "sah",
+  // Arabic script
+  "نعم", "اي", "ايه", "إيه", "أيوه", "اه", "آه", "أكيد", "اؤكد", "أؤكد", "تمام", "واخا", "موافق", "مؤكد",
+  "خلاص", "اوكي", "اوكيه",
+  // "no problem" forms, which are yeses
+  "pas de souci", "pas de probleme", "machi mochkil", "machi mouchkil", "لا مشكل", "لا باس",
+];
+
+// A refusal phrase in the same message cancels the yes ("je confirme pas", "machi daccord"). Phrases,
+// not single words: "no problem" or "pas de souci" are yeses.
+const NEGATIVE_PHRASES = [
+  "confirme pas", "valide pas", "pas d accord", "machi daccord", "mch daccord", "pas confirme",
+  "ma nconfirmich", "non merci", "nconfirmich pas", "ma validich",
+];
+
+const AFFIRMATIVES = AFFIRMATIVE_PHRASES.map(normalizeWords);
+const NEGATIVES = NEGATIVE_PHRASES.map(normalizeWords);
+
+// True when the phrase occurs as whole words in the list of words.
+function hasPhrase(words: string[], phrase: string[]): boolean {
+  return words.some((_, i) => phrase.every((w, k) => words[i + k] === w));
+}
+
+// True when the customer's own words hold an explicit yes. Bracketed notes such as "[image]" are not
+// the customer's words. Digits, names, phone numbers and addresses alone never count.
+export function hasExplicitAffirmative(text: string): boolean {
+  const own = text.replace(/\[[^\]]*\]/g, " ");
+  // A question is not a yes ("ok, which sizes?"); the customer is asking, so the model asks again.
+  if (/[?؟]/.test(own)) return false;
+  const words = normalizeWords(own);
+  if (NEGATIVES.some((phrase) => hasPhrase(words, phrase))) return false;
+  return AFFIRMATIVES.some((phrase) => hasPhrase(words, phrase));
 }
 
 // Per-run state shared by the tool calls of one agent run.
