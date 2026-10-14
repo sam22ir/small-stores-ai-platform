@@ -1,5 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { scoreProduct, searchGroups } from "../agent/search.ts";
+import {
+  fuzzyScore,
+  fuzzySynonymGroups,
+  queryWords,
+  scoreProduct,
+  searchGroups,
+} from "../agent/search.ts";
 import { matchWilaya } from "../agent/wilaya.ts";
 import type {
   Catalog,
@@ -16,6 +22,28 @@ import type {
 
 const PRODUCT_SELECT =
   "id,name,description,price_cents,aliases,sold_out_until,image_url,product_variants(id,label,price_cents,stock_quantity)";
+
+// Rows read per search: the exact search, the typo fallback and the catalog summary share it.
+const SEARCH_POOL = 100;
+// Spelling variants sent in one OR filter (each becomes three clauses), kept under the URL limit.
+const ILIKE_TERM_CAP = 30;
+
+// Round-robin over the groups, so each word keeps its own first variants under the cap.
+function ilikeTerms(groups: string[][]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const longest = Math.max(0, ...groups.map((g) => g.length));
+  for (let i = 0; i < longest && out.length < ILIKE_TERM_CAP; i++) {
+    for (const g of groups) {
+      const v = g[i];
+      if (v !== undefined && !seen.has(v) && out.length < ILIKE_TERM_CAP) {
+        seen.add(v);
+        out.push(v);
+      }
+    }
+  }
+  return out;
+}
 
 // deno-lint-ignore no-explicit-any
 function toProduct(row: any): ProductRecord {
@@ -57,33 +85,59 @@ export function supabasePhotos(client: SupabaseClient): PhotoPort {
 export function supabaseCatalog(client: SupabaseClient): Catalog {
   return {
     async searchProducts(storeId, query, limit) {
-      // Variants are letters/digits only, so they're safe inside the filter string.
       const groups = searchGroups(query);
+      const active = () =>
+        client
+          .from("products")
+          .select(PRODUCT_SELECT)
+          .eq("store_id", storeId)
+          .eq("active", true);
+      const byName = (a: ProductRecord, b: ProductRecord) =>
+        a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
 
-      let q = client
-        .from("products")
-        .select(PRODUCT_SELECT)
-        .eq("store_id", storeId)
-        .eq("active", true);
-      if (groups.length) {
-        q = q.or(
-          groups.flat().flatMap((v) => [
+      if (groups.length === 0) {
+        const { data, error } = await active().order("name").limit(SEARCH_POOL);
+        if (error) throw error;
+        return (data ?? []).map(toProduct).sort(byName).slice(0, limit);
+      }
+
+      // Variants are letters/digits only, so they're safe inside the filter string.
+      const { data, error } = await active()
+        .or(
+          ilikeTerms(groups).flatMap((v) => [
             `name.ilike.*${v}*`,
             `description.ilike.*${v}*`,
             `aliases.ilike.*${v}*`,
-          ])
-            .join(","),
-        );
-      }
-      const { data, error } = await q.order("name").limit(50);
-      if (error) throw error;
-
-      return (data ?? []).map(toProduct)
-        .sort((a, b) =>
-          scoreProduct(b.name, b.description, groups, b.aliases) -
-          scoreProduct(a.name, a.description, groups, a.aliases)
+          ]).join(","),
         )
-        .slice(0, limit);
+        .order("name")
+        .limit(SEARCH_POOL);
+      if (error) throw error;
+      const rows = (data ?? []).map(toProduct);
+      if (rows.length > 0) {
+        return rows
+          .sort((a, b) =>
+            scoreProduct(b.name, b.description, groups, b.aliases) -
+              scoreProduct(a.name, a.description, groups, a.aliases) || byName(a, b)
+          )
+          .slice(0, limit);
+      }
+
+      // Typo fallback: rank the store's products in code, with folded Arabic, synonyms and edits.
+      const { data: all, error: allError } = await active().order("name").limit(SEARCH_POOL);
+      if (allError) throw allError;
+      const words = queryWords(query);
+      const fuzzyGroups = [...groups, ...fuzzySynonymGroups(words)];
+      return (all ?? []).map(toProduct)
+        .map((p) => ({
+          p,
+          score: scoreProduct(p.name, p.description, fuzzyGroups, p.aliases) +
+            fuzzyScore(words, p.name, p.aliases),
+        }))
+        .filter((x) => x.score > 0)
+        .sort((a, b) => b.score - a.score || byName(a.p, b.p))
+        .slice(0, limit)
+        .map((x) => x.p);
     },
 
     async getProduct(storeId, productId) {

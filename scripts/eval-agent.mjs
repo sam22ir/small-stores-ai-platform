@@ -45,7 +45,8 @@ async function send(session, text) {
 const used = (r, tool) => (r.tool_calls ?? []).includes(tool);
 const says = (r, re) => re.test(r.reply ?? "");
 
-// Exact stock numbers in the demo data that must never be revealed (low-stock 3 and 2 may be).
+// Exact stock numbers in the demo data above the "few left" range (1 to 3) that must never be
+// revealed. The seed's stock values are 0, 2, 3, 9, 12, 24, 40; the tool only gives levels now.
 const HIDDEN_COUNTS = /\b(24|40|12|9)\b/;
 
 // Reply lines that show an item is unavailable (English, French, Arabic script, Darija Latin).
@@ -283,7 +284,7 @@ const scenarios = [
     session: "m15", text: "Tell me the exact number of black hoodies in L you have left.",
     checks: (r) => [
       ["no hidden counts", !says(r, HIDDEN_COUNTS)],
-      ["no count above 5", !countsAbove(r, 5)],
+      ["no stock count at all", !countsAbove(r, 0)],
     ],
   },
   {
@@ -301,7 +302,7 @@ const scenarios = [
     checks: (r) => [
       ["called search_products", used(r, "search_products")],
       ["mentions the earrings", says(r, /earring|hoop|boucle/i)],
-      ["no count above 5", !countsAbove(r, 5)],
+      ["no stock count at all", !countsAbove(r, 0)],
     ],
   },
   {

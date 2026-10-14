@@ -90,10 +90,13 @@ test("search tool results go back to the model, scoped to the store", async () =
   assert.equal(result.tool_use_id, "t1");
 });
 
-test("exact stock is hidden unless low", () => {
-  assert.equal(availability(0), "out_of_stock");
-  assert.equal(availability(3), "low_stock");
-  assert.equal(availability(120), "in_stock");
+test("exact stock is hidden: only out of stock, few left (1 to 3) or in stock", () => {
+  assert.equal(availability(0), "out of stock");
+  assert.equal(availability(1), "few left");
+  assert.equal(availability(3), "few left");
+  assert.equal(availability(4), "in stock");
+  assert.equal(availability(6), "in stock");
+  assert.equal(availability(120), "in stock");
 });
 
 test("tool output never exposes large exact quantities or sku", async () => {
@@ -105,7 +108,8 @@ test("tool output never exposes large exact quantities or sku", async () => {
   await runAgent({ client, catalog, store: STORE, history: ask("what do you have") });
   const out = requests[1].messages.at(-1).content[0].content as string;
   assert.ok(!out.includes("120"), "exact in-stock quantity leaked");
-  assert.ok(out.includes('"units_left":3'), "low stock count should be visible");
+  assert.ok(!/\d+\s*(left|in stock)/.test(out), "no stock count next to a stock word");
+  assert.ok(out.includes("few left"), "a low level is still said");
   assert.ok(out.includes("$45.00"));
 });
 

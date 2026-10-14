@@ -50,14 +50,14 @@ test("a successful lookup is saved as compact text; errors and empty results are
       price: "4,500.00 DA",
       availability: "available",
       variants: [
-        { variant_id: "v-123", option: "M", availability: "in_stock" },
-        { variant_id: "v-456", option: "L", price: "4,800.00 DA", availability: "low_stock", units_left: 2 },
+        { variant_id: "v-123", option: "M", availability: "in stock" },
+        { variant_id: "v-456", option: "L", price: "4,800.00 DA", availability: "few left" },
       ],
     }],
   });
   assert.equal(
     lookupOutput("search_products", {}, content),
-    "Black Hoodie 4,500.00 DA: M variant_id v-123, in_stock; L variant_id v-456, price 4,800.00 DA, low_stock",
+    "Black Hoodie 4,500.00 DA: M variant_id v-123, in stock; L variant_id v-456, price 4,800.00 DA, few left",
   );
   assert.equal(lookupOutput("search_products", {}, JSON.stringify({ results: [] })), undefined);
   assert.equal(lookupOutput("create_order", {}, content), undefined);
