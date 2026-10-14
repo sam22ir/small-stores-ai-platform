@@ -128,3 +128,87 @@ export const WILAYA_CODES = WILAYAS.map((w) => w.code);
 export function wilayaName(code: number): string | null {
   return WILAYAS.find((w) => w.code === String(code).padStart(2, "0"))?.names[0] ?? null;
 }
+
+// Optimal string alignment distance (Damerau-Levenshtein with adjacent transpositions), over code points
+// so Arabic-script names count one letter per character.
+export function editDistance(a: string, b: string): number {
+  const x = Array.from(a);
+  const y = Array.from(b);
+  const d: number[][] = [];
+  for (let i = 0; i <= x.length; i++) d.push([i, ...new Array<number>(y.length).fill(0)]);
+  for (let j = 0; j <= y.length; j++) d[0][j] = j;
+  for (let i = 1; i <= x.length; i++) {
+    for (let j = 1; j <= y.length; j++) {
+      const cost = x[i - 1] === y[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && x[i - 1] === y[j - 2] && x[i - 2] === y[j - 1]) {
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+      }
+    }
+  }
+  return d[x.length][y.length];
+}
+
+// Allowed edits for a typo: none under 4 letters, one for 4-7, two from 8. The shorter of the customer's
+// text and the candidate name sets the length, so a short input never matches loosely.
+function typoLimit(length: number): number {
+  if (length >= 8) return 2;
+  if (length >= 4) return 1;
+  return 0;
+}
+
+const VARIANTS = WILAYAS.flatMap((w) => w.names.map((n) => ({ code: w.code, folded: foldWilaya(n) })));
+
+// Codes of every wilaya with a spelling within the typo limit of the input, across all 58 wilayas
+// (Latin and Arabic variants alike), sorted.
+export function fuzzyWilayaCodes(input: string): string[] {
+  const folded = foldWilaya(input);
+  if (!folded) return [];
+  const codes = new Set<string>();
+  for (const v of VARIANTS) {
+    const limit = typoLimit(Math.min(folded.length, v.folded.length));
+    if (limit > 0 && editDistance(folded, v.folded) <= limit) codes.add(v.code);
+  }
+  return [...codes].sort();
+}
+
+export type WilayaResolution =
+  | { status: "exact"; code: string }
+  | { status: "corrected"; code: string; from: string }
+  | { status: "ambiguous"; codes: string[] }
+  | { status: "unknown" };
+
+// Exact and variant spellings first. Otherwise a typo is corrected only when exactly one wilaya is within
+// the typo limit; several candidates come back as a list so the bot can ask which one is meant.
+export function resolveWilaya(input: string): WilayaResolution {
+  const code = normalizeWilaya(input);
+  if (code) return { status: "exact", code };
+  const codes = fuzzyWilayaCodes(input);
+  if (codes.length === 1) return { status: "corrected", code: codes[0], from: input.trim() };
+  if (codes.length > 1) return { status: "ambiguous", codes };
+  return { status: "unknown" };
+}
+
+// Matches a customer's wilaya against the store's own spellings (delivery_fees.wilaya).
+export type StoreWilayaMatch =
+  | { kind: "match"; name: string; corrected: boolean; from?: string }
+  | { kind: "ambiguous"; names: string[] }
+  | { kind: "not_served"; code: string }
+  | { kind: "unknown" };
+
+export function resolveStoreWilaya(input: string, storeNames: string[]): StoreWilayaMatch {
+  const exact = storeNames.find((n) => n.trim().toLowerCase() === input.trim().toLowerCase());
+  if (exact !== undefined) return { kind: "match", name: exact, corrected: false };
+  const nameFor = (code: string) => storeNames.find((n) => normalizeWilaya(n) === code);
+  const r = resolveWilaya(input);
+  if (r.status === "unknown") return { kind: "unknown" };
+  if (r.status === "ambiguous") {
+    const names = r.codes.map(nameFor).filter((n): n is string => n !== undefined);
+    return names.length === 0 ? { kind: "unknown" } : { kind: "ambiguous", names };
+  }
+  const name = nameFor(r.code);
+  if (name === undefined) return { kind: "not_served", code: r.code };
+  return r.status === "corrected"
+    ? { kind: "match", name, corrected: true, from: r.from }
+    : { kind: "match", name, corrected: false };
+}

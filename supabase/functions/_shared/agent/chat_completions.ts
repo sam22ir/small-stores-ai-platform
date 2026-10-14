@@ -12,6 +12,7 @@ import type {
   AgentResult,
   Catalog,
   ChatMessage,
+  DeliveryFeesPort,
   FaqPort,
   OrderPort,
   PhotoPort,
@@ -48,6 +49,7 @@ export interface ChatCompletionsOptions {
   fetchImpl?: typeof fetch;
   retryDelayMs?: number;
   orders?: OrderPort;
+  fees?: DeliveryFeesPort;
   faq?: FaqPort;
   conversationId?: string;
   customerId?: string;
@@ -243,6 +245,7 @@ export async function runAgentChatCompletions(
           store,
           catalog,
           orders: opts.orders,
+          fees: opts.fees,
           faq: opts.faq,
           conversationId: opts.conversationId,
           customerId: opts.customerId,

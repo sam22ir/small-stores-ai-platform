@@ -1,8 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { scoreProduct, searchGroups } from "../agent/search.ts";
-import { matchWilaya } from "../agent/wilaya.ts";
+import { resolveStoreWilaya, resolveWilaya, wilayaName } from "../agent/wilaya.ts";
 import type {
   Catalog,
+  DeliveryFeesPort,
   DeliveryQuote,
   FaqPort,
   OrderPort,
@@ -120,7 +121,20 @@ export function supabaseFaq(client: SupabaseClient): FaqPort {
 
 // --- Orders ------------------------------------------------------------------
 
-const key = (wilaya: string) => wilaya.trim().toLowerCase();
+// The owner's delivery fees, whether or not ordering is on (get_store_info shows them to the model).
+export function supabaseDeliveryFees(client: SupabaseClient): DeliveryFeesPort {
+  return {
+    async list(storeId) {
+      const { data, error } = await client
+        .from("delivery_fees")
+        .select("wilaya,fee_cents")
+        .eq("store_id", storeId)
+        .order("wilaya");
+      if (error) throw error;
+      return data ?? [];
+    },
+  };
+}
 
 // dryRun: validates and prices an order but writes nothing (dashboard test chats).
 export function supabaseOrders(client: SupabaseClient, dryRun: boolean): OrderPort {
@@ -132,14 +146,44 @@ export function supabaseOrders(client: SupabaseClient, dryRun: boolean): OrderPo
         .eq("store_id", storeId)
         .order("wilaya");
       if (error) throw error;
-      if (!data || data.length === 0) return { served: true, fee_cents: null };
-      const names = data.map((r) => r.wilaya);
-      const exact = data.find((r) => key(r.wilaya) === key(wilaya));
-      const hit = exact ?? data.find((r) => r.wilaya === matchWilaya(wilaya, names));
-      if (!hit) {
-        return { served: false, fee_cents: null, options: names };
+      if (!data || data.length === 0) {
+        // No fee table yet: any real wilaya is served at an unset fee. Typos are still corrected.
+        const r = resolveWilaya(wilaya);
+        if (r.status === "exact" || r.status === "corrected") {
+          const name = wilayaName(Number(r.code));
+          return {
+            served: true,
+            fee_cents: null,
+            canonical: name ?? undefined,
+            ...(r.status === "corrected" ? { corrected_from: r.from } : {}),
+          };
+        }
+        if (r.status === "ambiguous") {
+          const suggestions = r.codes.map((c) => wilayaName(Number(c))).filter((n): n is string => !!n);
+          return { served: false, fee_cents: null, reason: "ambiguous", suggestions };
+        }
+        return { served: false, fee_cents: null, reason: "unknown", options: [] };
       }
-      return { served: true, fee_cents: hit.fee_cents, canonical: hit.wilaya };
+      const names = data.map((r) => r.wilaya);
+      const m = resolveStoreWilaya(wilaya, names);
+      if (m.kind === "match") {
+        const hit = data.find((r) => r.wilaya === m.name);
+        if (hit) {
+          return {
+            served: true,
+            fee_cents: hit.fee_cents,
+            canonical: hit.wilaya,
+            ...(m.corrected ? { corrected_from: m.from } : {}),
+          };
+        }
+      }
+      if (m.kind === "ambiguous") {
+        return { served: false, fee_cents: null, reason: "ambiguous", suggestions: m.names };
+      }
+      if (m.kind === "not_served") {
+        return { served: false, fee_cents: null, reason: "not_served", options: names };
+      }
+      return { served: false, fee_cents: null, reason: "unknown", options: names };
     },
 
     async placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult> {
@@ -148,7 +192,8 @@ export function supabaseOrders(client: SupabaseClient, dryRun: boolean): OrderPo
         .from("delivery_fees")
         .select("wilaya")
         .eq("store_id", input.storeId);
-      const wilaya = matchWilaya(input.wilaya, (fees ?? []).map((r) => r.wilaya)) ?? input.wilaya;
+      const m = resolveStoreWilaya(input.wilaya, (fees ?? []).map((r) => r.wilaya));
+      const wilaya = m.kind === "match" ? m.name : input.wilaya;
       const { data, error } = await client.rpc("place_order", {
         p_store_id: input.storeId,
         p_conversation_id: input.conversationId,

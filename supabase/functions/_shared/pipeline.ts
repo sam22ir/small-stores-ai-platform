@@ -6,6 +6,6 @@ export type {
   RunSource,
   StoreSettings,
 } from "./pipeline/types.ts";
-export { supabaseCatalog, supabaseFaq, supabaseOrders } from "./pipeline/ports.ts";
+export { supabaseCatalog, supabaseDeliveryFees, supabaseFaq, supabaseOrders } from "./pipeline/ports.ts";
 export { getUsage, loadLookups } from "./pipeline/usage.ts";
 export { handleInbound } from "./pipeline/inbound.ts";

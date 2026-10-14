@@ -54,7 +54,7 @@ export const toolDefinitions: AgentTool[] = [
   {
     name: "get_store_info",
     description:
-      "Get the owner's information about the store: hours, shipping, returns, payment, answers to questions they have already answered, and anything else they wrote down.",
+      "Get the owner's information about the store: hours, shipping, returns, payment, answers to questions they have already answered, the delivery fees (delivery_fees: fee per wilaya, with one line for all other wilayas), and anything else they wrote down. For a question about the delivery price to a wilaya, answer from delivery_fees here; you don't need quote_delivery for that.",
     strict: true,
     input_schema: {
       type: "object",
@@ -91,14 +91,15 @@ export const orderToolDefinitions: AgentTool[] = [
   {
     name: "quote_delivery",
     description:
-      "Get the delivery fee for a wilaya (Algerian province). Call it before summarizing an order so the customer sees the total.",
+      "Order flow only: get the delivery fee for the customer's wilaya, to show in the order summary. Call it after you have a valid mobile phone number (05, 06 or 07 + 8 digits); if the phone is missing or invalid the tool returns an error, so ask for a corrected number first. Spellings and small typos are matched. If the result says did_you_mean, ask the customer which wilaya they mean and don't hand off; if it says not served, tell the customer the store doesn't deliver there. For a price-only question, use delivery_fees from get_store_info instead.",
     strict: true,
     input_schema: {
       type: "object",
       properties: {
-        wilaya: { type: "string", description: "Wilaya name as the customer wrote it, or as listed in wilayas_served" },
+        wilaya: { type: "string", description: "Wilaya name as the customer wrote it (spelling and typos are matched)" },
+        phone: { type: "string", description: "The customer's mobile number as they wrote it (must be a valid 05/06/07 number)" },
       },
-      required: ["wilaya"],
+      required: ["wilaya", "phone"],
       additionalProperties: false,
     },
   },
@@ -112,7 +113,7 @@ export const orderToolDefinitions: AgentTool[] = [
       properties: {
         customer_name: { type: "string", description: "Customer's full name" },
         phone: { type: "string", description: "Customer's mobile number" },
-        wilaya: { type: "string", description: "Delivery wilaya, spelled as quote_delivery returned it" },
+        wilaya: { type: "string", description: "Delivery wilaya as the customer wrote it or as quote_delivery returned it; spelling is matched. If the customer's wilaya is unclear, ask first." },
         address: { type: "string", description: "Full delivery address (commune, street, details)" },
         items: {
           type: "array",

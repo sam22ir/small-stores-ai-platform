@@ -76,6 +76,18 @@ export interface DeliveryQuote {
   canonical?: string;
   // When not served: what the store does deliver to, so the model can map "Algiers" to "Alger".
   options?: string[];
+  // Why served is false: a typo with several candidates (ask "did you mean ...?"), a name that is
+  // no wilaya at all (ask the customer to check it), or a real wilaya the store doesn't serve.
+  reason?: "ambiguous" | "unknown" | "not_served";
+  // With reason "ambiguous": the store's spellings of the candidate wilayas.
+  suggestions?: string[];
+  // Set when the customer's spelling was corrected to canonical (a unique typo match).
+  corrected_from?: string;
+}
+
+// The owner's delivery fees, one row per wilaya the store delivers to (delivery_fees table).
+export interface DeliveryFeesPort {
+  list(storeId: string): Promise<{ wilaya: string; fee_cents: number }[]>;
 }
 
 // Orders are written by the server only; prices and stock are re-checked in the database.

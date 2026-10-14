@@ -14,7 +14,7 @@ import { errorKind } from "../agent/errors.ts";
 import type { AgentResult, ChatMessage, ProductPhoto } from "../agent/types.ts";
 import { fetchImageDataUrl } from "../meta/media.ts";
 import { MAX_IMAGES } from "../meta/webhook.ts";
-import { supabaseCatalog, supabaseFaq, supabaseOrders, supabasePhotos } from "./ports.ts";
+import { supabaseCatalog, supabaseDeliveryFees, supabaseFaq, supabaseOrders, supabasePhotos } from "./ports.ts";
 import { claimCapAlert, getUsage, loadLookups } from "./usage.ts";
 import { billingState, claimBillingAlert } from "../billing.ts";
 import { announceOrders } from "./alerts.ts";
@@ -300,6 +300,7 @@ export async function processLocked(input: HandleInboundInput, alerts: OwnerAler
       lookups,
       orders,
       faq: supabaseFaq(db),
+      fees: supabaseDeliveryFees(db),
       conversationId: conversation.id,
       customerId: input.customerId,
       storageBase: env("SUPABASE_URL"),

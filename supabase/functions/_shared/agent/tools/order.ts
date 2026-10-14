@@ -123,16 +123,35 @@ export async function createOrder(
     return { content: "At most 10 units of one item per order. Offer to ask the owner for more.", isError: true };
   }
 
+  // Same wilaya matching as quote_delivery: the store's own spelling, or refuse and ask.
+  const quote = await ctx.orders.quoteDelivery(store.id, wilaya);
+  if (!quote.served) {
+    if (quote.reason === "ambiguous") {
+      return {
+        content: `"${wilaya}" could be more than one wilaya (${(quote.suggestions ?? []).join(" or ")}). The order is not created. Ask the customer which one they mean, then show the summary again.`,
+        isError: true,
+      };
+    }
+    if (quote.reason === "unknown") {
+      return {
+        content: `"${wilaya}" is not a wilaya name the store recognises. The order is not created. Ask the customer for the wilaya again.`,
+        isError: true,
+      };
+    }
+    return { content: ORDER_ERRORS.wilaya_not_served, isError: true };
+  }
+  const storeWilaya = quote.canonical ?? wilaya;
+
   const result = await ctx.orders.placeOrder({
     storeId: store.id,
     conversationId: ctx.conversationId,
     customerId: ctx.customerId,
     customerName: name,
     phone,
-    wilaya,
+    wilaya: storeWilaya,
     address,
     items,
-    key: orderIdempotencyKey(ctx.conversationId, phone, wilaya, address, items, now),
+    key: orderIdempotencyKey(ctx.conversationId, phone, storeWilaya, address, items, now),
   });
 
   if (!result.ok) {
