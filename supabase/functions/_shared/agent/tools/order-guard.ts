@@ -16,7 +16,7 @@ function normalizeDigits(text: string): string {
 // A number as the model writes it: "7700", "7 700", "7,700", "7.700", "7,700.00", "4 700,00".
 // Groups of exactly three digits after a space, dot or comma are thousands separators; a final
 // separator followed by one or two digits is the decimal part. Anything else stays separate numbers.
-const AMOUNT = /\d{1,3}(?:[   .,]\d{3})+(?:[.,]\d{1,2})?(?!\d)|\d+(?:[.,]\d{1,2})?(?!\d)/g;
+const AMOUNT = /\d{1,3}(?:[ \u00a0\u202f.,]\d{3})+(?:[.,]\d{1,2})?(?!\d)|\d+(?:[.,]\d{1,2})?(?!\d)/g;
 
 // Every amount in the text, in whole currency units (DZD).
 export function amountsIn(text: string): number[] {
