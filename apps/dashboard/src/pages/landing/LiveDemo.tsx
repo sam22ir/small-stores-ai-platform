@@ -104,7 +104,7 @@ export default function LiveDemo({ copy }: { copy: LandingDict }) {
           selectedKey={String(q)}
           onSelectionChange={(k) => setQ(Number(k))}
         >
-          <Tabs.ListContainer>
+          <Tabs.ListContainer className="max-w-full overflow-x-auto">
             <Tabs.List aria-label={copy.demo.heading}>
               {copy.demo.tabs.map((label, i) => (
                 <Tabs.Tab key={i} id={String(i)}>
