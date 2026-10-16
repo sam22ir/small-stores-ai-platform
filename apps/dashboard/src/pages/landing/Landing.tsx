@@ -12,12 +12,26 @@ import { ZelligeBackground } from "../../components/wakil/ZelligeBackground";
 import { CountUp } from "../../components/wakil/CountUp";
 import { Logo } from "../../components/wakil/Logo";
 import { RouteButton, RouteLink } from "../../components/wakil/RouteLink";
+import { QUALITY_DATA } from "../../lib/qualityData.generated";
 import { LANDING_LOCALES, LOCALE_PATHS, QUALITY_PATHS, useLandingHead } from "./useLandingHead";
 
 // The live demo is the heaviest block on this page: it loads only when it nears the viewport.
 const LiveDemo = lazy(() => import("./LiveDemo"));
 
 const LANG_NAMES: Record<Lang, string> = { ar: "العربية", fr: "Français", en: "English" };
+
+const SECTION = "mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24";
+const H2 = "text-2xl font-extrabold leading-tight tracking-tight sm:text-4xl";
+const CTA = "bg-red text-slip shadow-ink transition-[transform,box-shadow] duration-150 hover:-translate-x-px hover:-translate-y-px hover:shadow-ink-lg active:translate-x-[2px] active:translate-y-[2px] active:shadow-none";
+
+function Eyebrow({ children, tone = "blue" }: { children: React.ReactNode; tone?: "blue" | "paper" }) {
+  return (
+    <p className={`mb-3 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest ${tone === "blue" ? "text-blue" : "text-paper/80"}`}>
+      <span aria-hidden="true" className="h-px w-6 bg-current" />
+      {children}
+    </p>
+  );
+}
 
 // Three dots that fade in, then out, before Wakil's reply lands.
 function TypingDots({ delay = 0.9 }: { delay?: number }) {
@@ -40,6 +54,14 @@ function TypingDots({ delay = 0.9 }: { delay?: number }) {
         />
       ))}
     </motion.div>
+  );
+}
+
+function Check() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16" className="size-3.5 shrink-0 text-blue" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 8.5l3.2 3L13 4.5" />
+    </svg>
   );
 }
 
@@ -87,6 +109,9 @@ function Nav({ locale, signedIn }: { locale: Lang; signedIn: boolean }) {
               );
             })}
           </ul>
+          <RouteLink to={QUALITY_PATHS[locale]} className="hidden text-sm font-semibold text-ink md:inline-flex">
+            {d.nav.quality}
+          </RouteLink>
           {signedIn ? (
             <RouteButton to="/inbox" variant="secondary" size="sm" className="hidden sm:inline-flex">
               {d.nav.goInbox}
@@ -120,7 +145,7 @@ function Hero({ locale, signedIn }: { locale: Lang; signedIn: boolean }) {
   return (
     <section className="relative overflow-hidden" aria-labelledby="hero-title">
       <ZelligeBackground className="[mask-image:linear-gradient(to_bottom,black,transparent)]" />
-      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 pt-12 pb-16 sm:px-6 sm:pt-20 lg:grid-cols-2 lg:gap-16">
+      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 pt-12 pb-16 sm:px-6 sm:pt-20 sm:pb-24 lg:grid-cols-2 lg:gap-16">
         <div>
           {d.hero.kicker && (
             <motion.p lang="ar" dir="rtl" className="mb-4 text-sm font-semibold text-blue" {...intro(0)}>
@@ -144,12 +169,24 @@ function Hero({ locale, signedIn }: { locale: Lang; signedIn: boolean }) {
               to={signedIn ? "/inbox" : "/signup"}
               variant="primary"
               size="lg"
-              className="bg-red text-slip shadow-ink active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-[transform,box-shadow] duration-150"
+              className={CTA}
             >
               {signedIn ? d.nav.goInbox : d.hero.cta}
             </RouteButton>
             <small className="text-sm text-soft">{d.hero.ctaNote}</small>
           </motion.div>
+          <motion.ul role="list" className="mt-8 flex flex-wrap gap-2" {...intro(0.5)}>
+            {d.hero.chips.map((c) => (
+              <li key={c} className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 bg-slip px-3 py-1.5 text-xs font-semibold text-ink">
+                <Check /> {c}
+              </li>
+            ))}
+          </motion.ul>
+          <motion.p className="mt-5 text-sm" {...intro(0.6)}>
+            <RouteLink to={QUALITY_PATHS[locale]} className="font-semibold text-blue underline underline-offset-4">
+              {d.hero.qualityLink} <span aria-hidden="true" className="inline-block rtl:rotate-180">→</span>
+            </RouteLink>
+          </motion.p>
         </div>
 
         <figure className="relative mx-auto w-full max-w-md">
@@ -186,9 +223,9 @@ function Hero({ locale, signedIn }: { locale: Lang; signedIn: boolean }) {
 function Chats() {
   const d = useLandingCopy();
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6" aria-labelledby="chats-title">
+    <section className={SECTION} aria-labelledby="chats-title">
       <Reveal>
-        <h2 id="chats-title" className="text-2xl font-extrabold sm:text-3xl">{d.chats.heading}</h2>
+        <h2 id="chats-title" className={H2}>{d.chats.heading}</h2>
         <p className="mt-2 max-w-2xl text-soft">{d.chats.intro}</p>
       </Reveal>
       <ul className="mt-10 grid gap-5 md:grid-cols-3" role="list">
@@ -215,9 +252,9 @@ function Steps() {
   const reduced = useMotionSafe();
   return (
     <section className="relative bg-ink text-slip" aria-labelledby="steps-title">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <div className={SECTION}>
         <Reveal>
-          <h2 id="steps-title" className="text-2xl font-extrabold sm:text-3xl">{d.steps.heading}</h2>
+          <h2 id="steps-title" className={H2}>{d.steps.heading}</h2>
         </Reveal>
         <ol className="mt-10 grid gap-5 md:grid-cols-3">
           {d.steps.items.map((s, i) => (
@@ -247,7 +284,7 @@ function Demo() {
   // Mount the demo (and its code) once the placeholder is within 320px of the viewport.
   const near = useInView(ref, { once: true, margin: "320px 0px 320px 0px" });
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6" aria-label={d.demo.heading}>
+    <section className={SECTION} aria-label={d.demo.heading}>
       <div ref={ref} className="min-h-[24rem]">
         {near ? (
           <Suspense fallback={<div className="h-96 rounded-2xl bg-slip/60" aria-hidden="true" />}>
@@ -261,20 +298,93 @@ function Demo() {
   );
 }
 
-function Features() {
+function Trust({ locale }: { locale: Lang }) {
+  const d = useLandingCopy();
+  const rounds = QUALITY_DATA.rounds as unknown as { kind: string; date: string; pass: number; critical: number; high: number }[];
+  const latest = rounds.filter((r) => r.kind === "full").at(-1)!;
+  const [y, m, day] = latest.date.split("-");
+  const fill = (t: string) => t.replace("{date}", `${day}/${m}/${y}`).replace("{total}", String(QUALITY_DATA.total));
+  const pct = (latest.pass / QUALITY_DATA.total) * 100;
+  return (
+    <section className={SECTION} aria-labelledby="trust-title">
+      <Reveal>
+        <Card className="relative overflow-hidden bg-slip p-6 shadow-paper sm:p-12">
+          <ZelligeBackground className="opacity-[0.05]" />
+          <div className="relative grid items-center gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
+            <div>
+              <Eyebrow>{d.trust.eyebrow}</Eyebrow>
+              <h2 id="trust-title" className={H2}>{d.trust.heading}</h2>
+              <p className="mt-4 max-w-xl leading-relaxed text-soft">{d.trust.text}</p>
+              <RouteButton to={QUALITY_PATHS[locale]} variant="secondary" size="lg" className="mt-7 border border-ink bg-slip text-ink shadow-ink-sm transition-[transform,box-shadow] duration-150 hover:-translate-x-px hover:-translate-y-px hover:shadow-ink active:translate-x-px active:translate-y-px active:shadow-none">
+                {d.trust.cta} <span aria-hidden="true" className="rtl:rotate-180">→</span>
+              </RouteButton>
+              <p className="mt-4 max-w-xl text-xs leading-relaxed text-soft">{d.trust.note}</p>
+            </div>
+            <div className="rounded-2xl border border-ink/15 bg-paper p-6 text-center sm:p-8">
+              <p className="text-xs font-bold uppercase tracking-widest text-blue">{fill(d.trust.date)}</p>
+              <p dir="ltr" className="mt-3 text-6xl font-extrabold leading-none text-ink sm:text-7xl">
+                <CountUp to={latest.pass} viewOnce duration={1.4} />
+                <span className="text-3xl text-soft sm:text-4xl"> / {QUALITY_DATA.total}</span>
+              </p>
+              <p className="mt-2 text-sm font-semibold text-soft">{fill(d.trust.score)}</p>
+              <div dir="ltr" className="mt-5 h-2.5 overflow-hidden rounded-full bg-ink/10" aria-hidden="true">
+                <motion.div
+                  dir="ltr"
+                  className="h-full origin-left rounded-full bg-blue"
+                  style={{ width: `${pct}%` }}
+                  initial={{ scaleX: 0 }}
+                  whileInView={{ scaleX: 1 }}
+                  viewport={{ once: true, amount: 0.8 }}
+                  transition={{ duration: 1.2, ease: ease.out, delay: 0.2 }}
+                />
+              </div>
+              <dl className="mt-6 grid grid-cols-2 gap-3 text-start">
+                <div className="rounded-xl bg-slip p-3">
+                  <dd dir="ltr" className="text-2xl font-extrabold text-ink text-start">{latest.critical}</dd>
+                  <dt className="text-xs text-soft">{d.trust.critical}</dt>
+                </div>
+                <div className="rounded-xl bg-slip p-3">
+                  <dd dir="ltr" className="text-2xl font-extrabold text-ink text-start">{latest.high}</dd>
+                  <dt className="text-xs text-soft">{d.trust.high}</dt>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </Card>
+      </Reveal>
+    </section>
+  );
+}
+
+const ICONS = [
+  "M4 6h16M4 12h16M4 18h10",
+  "M7 11l5-5 5 5M12 6v13",
+  "M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11zM12 12a2 2 0 100-4 2 2 0 000 4z",
+  "M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6",
+  "M21 4L3 11l6 2 2 6 3-4 5 4z",
+  "M4 5h9M8.5 3v2M6 12c2-1 4-3 5-7M6 5c0 4 3 7 7 8M14 21l4-9 4 9M15.5 18h5",
+];
+
+function Promises() {
   const d = useLandingCopy();
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6" aria-labelledby="features-title">
+    <section className={SECTION} aria-labelledby="promises-title">
       <Reveal>
-        <h2 id="features-title" className="text-2xl font-extrabold sm:text-3xl">{d.features.heading}</h2>
+        <Eyebrow>{d.promises.eyebrow}</Eyebrow>
+        <h2 id="promises-title" className={H2}>{d.promises.heading}</h2>
       </Reveal>
-      <ul className="mt-10 grid gap-3 sm:grid-cols-2" role="list">
-        {d.features.items.map((f, i) => (
-          <li key={i}>
-            <Reveal delay={(i % 2) * 0.08} className="h-full">
-              <div className="flex h-full gap-3 rounded-xl border border-ink/10 bg-slip p-4 text-sm leading-relaxed">
-                <span aria-hidden="true" className="mt-1.5 size-2 shrink-0 rounded-full bg-red" />
-                <span>{f}</span>
+      <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list">
+        {d.promises.items.map((f, i) => (
+          <li key={f.title}>
+            <Reveal delay={(i % 3) * 0.08} className="h-full">
+              <div className="group h-full rounded-2xl border border-ink/10 bg-slip p-6 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-paper">
+                <span className="grid size-10 place-items-center rounded-xl bg-blue/10 text-blue transition-colors group-hover:bg-blue group-hover:text-slip">
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={ICONS[i % ICONS.length]} />
+                  </svg>
+                </span>
+                <h3 className="mt-4 text-lg font-bold">{f.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-soft">{f.text}</p>
               </div>
             </Reveal>
           </li>
@@ -291,22 +401,28 @@ function Pricing({ locale }: { locale: Lang }) {
     return d.pricing.price.replace(/\d[\d.,\s  ]*\d|\d/, num);
   };
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6" aria-labelledby="pricing-title">
+    <section className={SECTION} aria-labelledby="pricing-title">
       <Reveal>
-        <Card className="relative overflow-hidden bg-slip p-8 shadow-paper sm:p-12">
+        <Card className="relative overflow-hidden bg-slip p-6 shadow-paper sm:p-12">
           <ZelligeBackground className="opacity-[0.04]" />
           <div className="relative">
-            <h2 id="pricing-title" className="text-2xl font-extrabold sm:text-3xl">{d.pricing.heading}</h2>
+            <h2 id="pricing-title" className={H2}>{d.pricing.heading}</h2>
             <p className="mt-4 text-4xl font-extrabold text-blue sm:text-5xl">
               <CountUp to={1000} viewOnce format={priceText} />
             </p>
             <p className="mt-1 text-sm font-semibold text-soft">{d.pricing.per}</p>
             <p className="mt-5 max-w-xl text-soft">{d.pricing.text}</p>
+            <ul role="list" className="mt-6 grid gap-2.5 text-sm sm:grid-cols-2">
+              {d.pricing.includes.map((x) => (
+                <li key={x} className="flex items-start gap-2"><span className="mt-0.5"><Check /></span>{x}</li>
+              ))}
+            </ul>
+            <p className="mt-6 text-sm font-semibold text-blue">{d.pricing.payNote}</p>
             <RouteButton
               to="/signup"
               variant="primary"
               size="lg"
-              className="mt-8 bg-red text-slip shadow-ink active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-[transform,box-shadow] duration-150"
+              className={`mt-6 ${CTA}`}
             >
               {d.pricing.cta}
             </RouteButton>
@@ -320,9 +436,9 @@ function Pricing({ locale }: { locale: Lang }) {
 function Faq() {
   const d = useLandingCopy();
   return (
-    <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6" aria-labelledby="faq-title">
+    <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6 sm:py-24" aria-labelledby="faq-title">
       <Reveal>
-        <h2 id="faq-title" className="text-2xl font-extrabold sm:text-3xl">{d.faq.heading}</h2>
+        <h2 id="faq-title" className={H2}>{d.faq.heading}</h2>
       </Reveal>
       <Accordion className="mt-8 w-full">
         {d.faq.items.map((item, i) => (
@@ -339,6 +455,23 @@ function Faq() {
           </Accordion.Item>
         ))}
       </Accordion>
+    </section>
+  );
+}
+
+function FinalCta({ signedIn }: { signedIn: boolean }) {
+  const d = useLandingCopy();
+  return (
+    <section className="bg-ink text-slip" aria-labelledby="final-title">
+      <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6 sm:py-24">
+        <Reveal>
+          <h2 id="final-title" className={H2}>{d.finalCta.heading}</h2>
+          <p className="mx-auto mt-4 max-w-xl text-paper/80">{d.finalCta.text}</p>
+          <RouteButton to={signedIn ? "/inbox" : "/signup"} variant="primary" size="lg" className={`mt-8 ${CTA} !shadow-[4px_4px_0_var(--color-paper)]`}>
+            {signedIn ? d.nav.goInbox : d.finalCta.cta}
+          </RouteButton>
+        </Reveal>
+      </div>
     </section>
   );
 }
@@ -379,12 +512,14 @@ export function Landing({ locale }: { locale: Lang }) {
       <Nav locale={locale} signedIn={signedIn} />
       <main>
         <Hero locale={locale} signedIn={signedIn} />
+        <Trust locale={locale} />
         <Chats />
+        <Promises />
         <Steps />
         <Demo />
-        <Features />
         <Pricing locale={locale} />
         <Faq />
+        <FinalCta signedIn={signedIn} />
       </main>
       <Footer locale={locale} />
     </motion.div>
