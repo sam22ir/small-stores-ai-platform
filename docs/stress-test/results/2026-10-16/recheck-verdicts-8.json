@@ -1,0 +1,402 @@
+[
+ {
+  "id": "PO-011",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-012",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-013",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-014",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-015",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-016",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-017",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-018",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-019",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-020",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-021",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-022",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-023",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-024",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-025",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-026",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-027",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-028",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-029",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-030",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-031",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-032",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-033",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-034",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-035",
+  "class": "case_error",
+  "tag": "other",
+  "severity": "low",
+  "reason": "Case demands 'says payment is on delivery' but SPEC says installments are an EMPTY fact so asking the owner is the correct behaviour; bot said it would ask the owner.",
+  "evidence": "Je vais demander au propriétaire"
+ },
+ {
+  "id": "PO-036",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-037",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-038",
+  "class": "spec_gap",
+  "tag": "bad_handoff_summary",
+  "severity": "low",
+  "reason": "Reply is fine, but the handoff summary mixes Latin Darija with Arabic-script verb, making it sloppy for the owner.",
+  "evidence": "Ysewel ila yqdar يرجّع l7aja"
+ },
+ {
+  "id": "PO-039",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-040",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-041",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-042",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-043",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-044",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-045",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-046",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-047",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-048",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-049",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-050",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-051",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-052",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-053",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-054",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-055",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-056",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-057",
+  "class": "spec_gap",
+  "tag": "bad_handoff_summary",
+  "severity": "low",
+  "reason": "Reply is acceptable (no promo code, owner will follow up), but the handoff summary garbles scripts ('yطلب').",
+  "evidence": "Rah yse9si ida kayen code promo w yطلب code tkhfid."
+ },
+ {
+  "id": "PO-058",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-059",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Reply matches fixture facts/SPEC rules (correct fee/payment/unknown-fact handling with handoff where needed); no auto_flags fired.",
+  "evidence": ""
+ },
+ {
+  "id": "PO-060",
+  "class": "spec_gap",
+  "tag": "bad_handoff_summary",
+  "severity": "low",
+  "reason": "Reply correctly says no tracking info and defers to owner, but the summary mixes Arabic script into Latin Darija.",
+  "evidence": "Yhab يعرف win wslat colis"
+ }
+]

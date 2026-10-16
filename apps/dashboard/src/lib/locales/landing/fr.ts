@@ -96,6 +96,7 @@ const landingFr: LandingDict = {
     ],
   },
   footer: {
+    quality: "Test qualité",
     privacy: "Confidentialité",
     terms: "Conditions",
     dataDeletion: "Suppression des données",

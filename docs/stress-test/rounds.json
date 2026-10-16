@@ -1,0 +1,75 @@
+{
+  "model": "gpt-6-luna",
+  "total": 500,
+  "rounds": [
+    {
+      "id": "original",
+      "date": "2026-10-13",
+      "kind": "full",
+      "verdicts": "results/2026-10-13-verdicts.json",
+      "judge": "model_reruns",
+      "fixes": []
+    },
+    {
+      "id": "round1",
+      "date": "2026-10-14",
+      "kind": "full",
+      "verdicts": "results/2026-10-14/round1-verdicts.json",
+      "judge": "model",
+      "fixes": [
+        "language",
+        "wilaya_fees_phone",
+        "catalog_search",
+        "prompt_rules"
+      ]
+    },
+    {
+      "id": "round2",
+      "date": "2026-10-14",
+      "kind": "full",
+      "verdicts": "results/2026-10-14/round2-verdicts.json",
+      "judge": "model",
+      "fixes": [
+        "order_guard",
+        "handoff_rules",
+        "haggling_rule",
+        "language_retry"
+      ]
+    },
+    {
+      "id": "round3",
+      "date": "2026-10-14",
+      "kind": "partial",
+      "fixes": [
+        "explicit_confirmation",
+        "script_retry",
+        "label_sanitiser",
+        "no_invented_facts",
+        "one_handoff_rule"
+      ]
+    },
+    {
+      "id": "round4",
+      "date": "2026-10-16",
+      "kind": "full",
+      "verdicts": "results/2026-10-16/baseline-verdicts.json",
+      "judge": "model_checked",
+      "fixes": [],
+      "reruns": [
+        "results/2026-10-16/rerun-verdicts-1.json",
+        "results/2026-10-16/rerun-verdicts-2.json"
+      ],
+      "recheck": [
+        "results/2026-10-16/recheck-verdicts-7.json",
+        "results/2026-10-16/recheck-verdicts-8.json"
+      ]
+    }
+  ],
+  "open": [
+    "order_guard_partial_address",
+    "first_turn_handoffs",
+    "language_slips",
+    "stock_wording_quantity",
+    "short_conversations"
+  ]
+}

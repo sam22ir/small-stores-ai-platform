@@ -96,6 +96,7 @@ const landingEn: LandingDict = {
     ],
   },
   footer: {
+    quality: "Quality test",
     privacy: "Privacy",
     terms: "Terms",
     dataDeletion: "Data deletion",

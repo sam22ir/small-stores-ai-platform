@@ -1,0 +1,127 @@
+import type { QualityDict } from "./types";
+
+const qualityFr: QualityDict = {
+  htmlLang: "fr",
+  dir: "ltr",
+  title: "Wakil 500 : notre test qualité public",
+  description:
+    "Avant que les clients parlent à Wakil, nous rejouons 500 conversations réalistes avec le vrai assistant et nous notons chaque réponse. Chaque série est publiée ici, échecs compris.",
+  ogLocale: "fr_FR",
+  nav: { logIn: "Connexion", startFree: "Essayer gratuitement", langLabel: "Langue" },
+  hero: {
+    kicker: "Test qualité",
+    h1: "Wakil 500",
+    lede:
+      "Avant qu'un client parle à Wakil, nous rejouons 500 conversations écrites comme de vrais messages à des boutiques Instagram algériennes (darija, français, arabe, anglais) avec le même code d'assistant. Chaque réponse est notée. Nous publions chaque série ici, même les mauvaises.",
+    latest: "Dernière série, {date}",
+    passedOf: "conversations réussies sur {total}",
+  },
+  stats: {
+    passed: "Réussies",
+    notPassed: "Non réussies",
+    repeatable: "Échecs aux 3 essais",
+    repeatableNote: "A de nouveau échoué à chaque relance.",
+    oneOff: "Échec une seule fois",
+  },
+  rounds: {
+    heading: "Série après série",
+    intro: "Nous testons, corrigeons, puis testons à nouveau. Les conversations de commande (paiement à la livraison) sont les plus difficiles, et elles n'ont pas progressé en ligne droite.",
+    round: "Série",
+    date: "Date",
+    passed: "Réussies",
+    critical: "Critiques",
+    high: "Graves",
+    judging: "Comment c'est jugé",
+    partialNote: "Pas une série complète : seules les 100 conversations de commande et 4 cas critiques ont été retestés, avec des contrôles automatiques et sans juges.",
+    tableLabel: "Résultats de chaque série",
+    severityNote: "Critique et Grave sont la note de gravité du juge, pas une garantie : le même type de problème a été noté critique dans une série et grave dans une autre.",
+  },
+  roundNames: {
+    original: "Premier test",
+    round1: "Série 1",
+    round2: "Série 2",
+    round3: "Série 3 (commandes seulement)",
+    round4: "Série 4 (test complet)",
+  },
+  judge: {
+    model_reruns: "Juges modèles ; chaque échec relancé deux fois et rejugé.",
+    model: "Juges modèles. Les juges changent d'une série à l'autre : de petites différences sont du bruit.",
+    model_checked: "Juges modèles, un seul passage. Les échecs ont été relancés deux fois et un juge plus fort a revérifié 100 conversations (voir ci-dessous). Les séries précédentes ont été jugées autrement.",
+  },
+  trust: {
+    heading: "Quelle confiance accorder au dernier chiffre",
+    reruns: "Nous avons relancé deux fois les {total} conversations en échec. {three} ont échoué les trois fois, {two} deux fois et {one} une seule fois (probablement un accident isolé). {testProblems} autres étaient des problèmes du script de test, pas de Wakil.",
+    recheck: "Un juge plus fort a renoté {total} conversations tirées des commandes et des règles de la boutique, les deux catégories les plus faibles. Il était d'accord avec le premier juge sur {agree}, et a classé {downgraded} des {firstPass} réussites du premier juge comme non réussies.",
+    caution: "Prenez donc {pass} sur {total} comme une bonne estimation, pas un score exact : il peut être de quelques points plus bas ou plus haut.",
+  },
+  categories: {
+    heading: "Quel type de conversation",
+    intro: "Réussites par type de conversation, premier test contre la dernière série.",
+    first: "Premier test",
+    latest: "Dernière",
+    names: {
+      ordering: "Prise de commande",
+      product_stock: "Questions produits et stock",
+      language: "Langue et écriture",
+      handoff: "Passage au propriétaire",
+      policies: "Règles et horaires de la boutique",
+      adversarial: "Pièges et attaques",
+      noise: "Messages courts ou flous",
+    },
+  },
+  changes: {
+    heading: "Ce que nous avons changé après chaque série",
+    intro: "Chaque correction a été retestée avec les mêmes conversations écrites.",
+    none: "Aucun changement de code : premier test complet de 500 conversations sur le code de la série 3.",
+    items: {
+      language: "Répondre dans la langue et l'écriture du client",
+      wilaya_fees_phone: "Frais de livraison pour toutes les wilayas, noms de wilaya mal écrits, numéro de téléphone vérifié avant le récapitulatif",
+      catalog_search: "Meilleure recherche de produits (variantes d'orthographe, noms arabes et français)",
+      prompt_rules: "Règles plus claires dans les instructions de l'assistant",
+      order_guard: "Une commande n'est créée qu'après l'affichage des frais de livraison et du total, et un oui clair du client",
+      handoff_rules: "Moins de passages inutiles au propriétaire",
+      haggling_rule: "Le marchandage va au propriétaire au lieu d'être refusé en silence",
+      language_retry: "Nouvel essai automatique quand une réponse arrive dans la mauvaise écriture",
+      explicit_confirmation: "Le message du client doit contenir un oui explicite",
+      script_retry: "Nouvel essai quand des lettres d'une autre écriture apparaissent",
+      label_sanitiser: "Libellés de produits plus propres dans les récapitulatifs",
+      no_invented_facts: "Pas de consignes d'entretien ni de faits de boutique inventés",
+      one_handoff_rule: "Une règle claire pour les passages au propriétaire pendant une commande",
+    },
+  },
+  open: {
+    heading: "Ce qui n'est pas encore assez bon",
+    intro: "Nous listons les problèmes connus. Cette liste change à chaque série.",
+    items: {
+      order_guard_partial_address: "Une commande a été créée sur un « oui » court alors que l'assistant demandait encore la suite de l'adresse.",
+      first_turn_handoffs: "L'assistant passe parfois une commande au propriétaire dès le premier message. Le propriétaire reprend, mais une vente peut être perdue.",
+      language_slips: "Quelques réponses arrivent encore dans la mauvaise langue ou écriture.",
+      stock_wording_quantity: "« Il en reste peu » est parfois dit pour des tailles avec 4 à 6 pièces, et une commande de 2 pièces a été refusée alors qu'il y en avait 2.",
+      short_conversations: "La plupart des conversations de test sont courtes (1 à 3 messages) : les très longues conversations sont peu testées.",
+    },
+  },
+  how: {
+    heading: "Comment fonctionne le test",
+    steps: [
+      { title: "500 conversations écrites", text: "Des clients posent des questions sur les produits et le stock, commandent, marchandent, changent de langue, envoient du bruit et essaient de piéger l'assistant." },
+      { title: "Le vrai assistant", text: "Chaque conversation passe par le même code, la même consigne et les mêmes outils que l'assistant en production, sur une boutique de test avec produits, stock et frais de livraison réalistes." },
+      { title: "Chaque réponse est notée", text: "Des juges modèles comparent chaque réponse aux attentes écrites et aux faits de la boutique. Les échecs sont classés par type et gravité." },
+      { title: "Corriger, puis retester", text: "Nous corrigeons ce qui a échoué, relançons les 500 conversations et publions la nouvelle série à côté des anciennes." },
+    ],
+  },
+  limits: {
+    heading: "Ce que ce test ne prouve pas",
+    items: [
+      "Le premier test a été noté avec des règles un peu plus strictes que les séries suivantes (par exemple, dire que le paiement se fait seulement à la livraison est maintenant accepté) : une partie du gain sur les règles de la boutique vient donc de la notation, pas de l'assistant.",
+      "Les juges sont des modèles de langage et peuvent se tromper. Chaque série indique comment elle a été jugée ; des séries jugées différemment ne se comparent pas point par point.",
+      "Les conversations sont écrites à l'avance : le client ne peut pas réagir à ce que dit l'assistant.",
+      "La boutique de test est une boutique de test : seuls ses horaires sont remplis, donc beaucoup de questions de politique ne peuvent finir que par « je demande au propriétaire ».",
+      "Dans ce test les messages ne passent pas par Instagram, seulement par le code de l'assistant.",
+    ],
+    model: "Modèle testé : {model}.",
+  },
+  cta: { text: "Wakil répond aux messages de vos clients à partir de votre propre catalogue, et vous passe la main quand il ne peut pas aider.", button: "Essayer Wakil gratuitement" },
+  footer: { home: "Accueil", privacy: "Confidentialité", terms: "Conditions" },
+};
+
+export default qualityFr;

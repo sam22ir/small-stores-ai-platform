@@ -66,3 +66,13 @@ Rules that matter:
 - The store info in the fixture is nearly empty (only opening hours), so policy answers are mostly "ask the owner". Re-run with a fully filled store to test answering from owner notes.
 - Photos are queued by the tool but never sent through Meta here.
 - The judges are language models: spot-check a sample of their verdicts before acting on a single case.
+
+## Publishing a round on the website ("Wakil 500")
+
+The public page `/quality` (and `/fr/quality`, `/en/quality`) is generated from the graded verdict files, not typed by hand.
+
+1. Run the 500 cases and grade them as above. Save the raw results and verdicts in `docs/stress-test/results/<date>/` (for example `baseline-full.jsonl`, `baseline-verdicts.json`).
+2. For a round you want to publish with confidence, also re-run the failing cases twice (`--ids`) and have them judged with `RERUN_GRADER.md`, and have a stronger judge re-grade a sample of the weakest categories. Save those as `rerun-verdicts-N.json` and `recheck-verdicts-N.json`.
+3. Add an entry to `docs/stress-test/rounds.json`: id, date, `kind` ("full" or "partial"), the verdict file, a `judge` code that exists in `apps/dashboard/src/lib/locales/quality/{ar,fr,en}.ts`, the list of fix codes (also in those files), and the optional `reruns` and `recheck` file lists. Add a line to `open` for any new known problem.
+4. Run `node scripts/stress/build-quality-data.mjs`. It rewrites `apps/dashboard/src/lib/qualityData.generated.ts`. The unit test `src/lib/quality.test.ts` fails if that file is edited by hand or out of date.
+5. Keep one judge protocol (judge model, GRADER.md version, re-runs) from round to round and say on the page how each round was judged. Rounds judged differently should not be compared point by point.
