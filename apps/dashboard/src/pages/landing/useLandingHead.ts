@@ -4,6 +4,8 @@ import type { Lang } from "../../lib/i18n";
 
 // Path for each landing locale. Arabic is the default at the root.
 export const LOCALE_PATHS: Record<Lang, string> = { ar: "/", fr: "/fr", en: "/en" };
+// Public quality-test page ("Wakil 500") for each locale.
+export const QUALITY_PATHS: Record<Lang, string> = { ar: "/quality", fr: "/fr/quality", en: "/en/quality" };
 export const LANDING_LOCALES: Lang[] = ["ar", "fr", "en"];
 
 function upsert(selector: string, create: () => HTMLElement): HTMLElement {
@@ -15,7 +17,7 @@ function upsert(selector: string, create: () => HTMLElement): HTMLElement {
   return el;
 }
 
-function setMeta(attr: "name" | "property", key: string, content: string) {
+export function setMeta(attr: "name" | "property", key: string, content: string) {
   const el = upsert(`meta[${attr}="${key}"]`, () => {
     const m = document.createElement("meta");
     m.setAttribute(attr, key);
@@ -24,7 +26,7 @@ function setMeta(attr: "name" | "property", key: string, content: string) {
   el.setAttribute("content", content);
 }
 
-function setLink(rel: string, href: string, hreflang?: string) {
+export function setLink(rel: string, href: string, hreflang?: string) {
   const sel = hreflang ? `link[rel="${rel}"][hreflang="${hreflang}"]` : `link[rel="${rel}"]`;
   const el = upsert(sel, () => {
     const l = document.createElement("link");

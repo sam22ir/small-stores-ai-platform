@@ -12,7 +12,7 @@ import { ZelligeBackground } from "../../components/wakil/ZelligeBackground";
 import { CountUp } from "../../components/wakil/CountUp";
 import { Logo } from "../../components/wakil/Logo";
 import { RouteButton, RouteLink } from "../../components/wakil/RouteLink";
-import { LANDING_LOCALES, LOCALE_PATHS, useLandingHead } from "./useLandingHead";
+import { LANDING_LOCALES, LOCALE_PATHS, QUALITY_PATHS, useLandingHead } from "./useLandingHead";
 
 // The live demo is the heaviest block on this page: it loads only when it nears the viewport.
 const LiveDemo = lazy(() => import("./LiveDemo"));
@@ -343,12 +343,13 @@ function Faq() {
   );
 }
 
-function Footer() {
+function Footer({ locale }: { locale: Lang }) {
   const d = useLandingCopy();
   return (
     <footer className="border-t border-ink/10 bg-paper">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-soft sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <nav aria-label={d.footer.legal} className="flex flex-wrap gap-x-5 gap-y-2">
+          <RouteLink to={QUALITY_PATHS[locale]}>{d.footer.quality}</RouteLink>
           <RouteLink to="/privacy">{d.footer.privacy}</RouteLink>
           <RouteLink to="/terms">{d.footer.terms}</RouteLink>
           <RouteLink to="/data-deletion">{d.footer.dataDeletion}</RouteLink>
@@ -385,7 +386,7 @@ export function Landing({ locale }: { locale: Lang }) {
         <Pricing locale={locale} />
         <Faq />
       </main>
-      <Footer />
+      <Footer locale={locale} />
     </motion.div>
   );
 }

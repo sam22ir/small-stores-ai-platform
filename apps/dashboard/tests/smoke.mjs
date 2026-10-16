@@ -100,6 +100,17 @@ try {
   await page.goto(`http://127.0.0.1:${PORT}/fr`);
   await page.waitForSelector("#hero-title");
   ok("/fr is French and left-to-right", (await page.getAttribute("html", "lang")) === "fr" && (await page.getAttribute("html", "dir")) === "ltr");
+  // Public quality-test page ("Wakil 500"): its own path per language, no sign-in, no app strings, no sideways scroll.
+  for (const [path, lang, dir, h1] of [["/quality", "ar", "rtl", "وكيل 500"], ["/fr/quality", "fr", "ltr", "Wakil 500"], ["/en/quality", "en", "ltr", "Wakil 500"]]) {
+    await page.goto(`http://127.0.0.1:${PORT}${path}`);
+    await page.waitForSelector("h1");
+    ok(`${path} shows the quality page in ${lang}`, (await page.textContent("h1")) === h1 && (await page.getAttribute("html", "lang")) === lang && (await page.getAttribute("html", "dir")) === dir);
+    ok(`${path} lists the rounds in a table and the open problems`, (await page.locator("table tbody tr").count()) >= 4 && (await page.locator("h2").count()) >= 6);
+    ok(`${path} has no horizontal scroll`, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  }
+  await page.goto(`http://127.0.0.1:${PORT}/en`);
+  await page.waitForSelector("#hero-title");
+  ok("the landing footer links to the quality test", (await page.locator("footer a[href='/en/quality']").count()) === 1);
   await page.goto(`http://127.0.0.1:${PORT}/nope`);
   await page.waitForSelector("text=Page not found");
   ok("unknown paths show the not-found page", await page.isVisible("a:has-text('Back to home')"));

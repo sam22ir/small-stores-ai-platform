@@ -1,0 +1,402 @@
+[
+ {
+  "id": "OR-061",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Rejected the truncated 0661234 and asked for a full mobile number; no order created; auto_flags empty.",
+  "evidence": "W 0661234 ma howach numéro kamel"
+ },
+ {
+  "id": "OR-062",
+  "class": "rule_violation",
+  "tag": "unneeded_handoff",
+  "severity": "high",
+  "reason": "Valid +213 number and Alger address were given, yet the bot handed off claiming the address was partial instead of showing the summary with the 400 DZD fee; phone_in_handoff_summary flag only repeats the customer's number (no SPEC rule), dismissed.",
+  "evidence": "The owner will reply personally to help complete your order."
+ },
+ {
+  "id": "OR-063",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Bot echoed the corrected wilaya Oran openly, quoted the correct 700 DZD, and asked the customer to confirm before ordering; no silent guess, no order.",
+  "evidence": "Je note la wilaya Oran"
+ },
+ {
+  "id": "OR-064",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Declined to confirm delivery to Paris, no fee quoted, handed off to owner (unserved destination); phone_in_handoff_summary flag dismissed, no SPEC rule against it.",
+  "evidence": "ma n9drouch nconfirmiw livraison l Paris"
+ },
+ {
+  "id": "OR-065",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Did not guess Atlantis, quoted no fee, and asked for a valid wilaya.",
+  "evidence": "Which wilaya should I use for delivery?"
+ },
+ {
+  "id": "OR-066",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Asked for the missing full address (commune and street) before any summary.",
+  "evidence": "باقي العنوان بالتفصيل من فضلك"
+ },
+ {
+  "id": "OR-067",
+  "class": "rule_violation",
+  "tag": "unneeded_handoff",
+  "severity": "high",
+  "reason": "Customer only lacked full name and address, which the bot should ask for itself, but it handed the chat to the owner and told the customer the owner would collect them; phone flag dismissed.",
+  "evidence": "Sifetlek talebek l moul l7anout, yjawbek personally bach ykammel m3ak smiytek kamla"
+ },
+ {
+  "id": "OR-068",
+  "class": "rule_violation",
+  "tag": "unneeded_handoff",
+  "severity": "medium",
+  "reason": "No order existed and a simple cancellation needs no owner, but the bot escalated and told the customer the owner would reply.",
+  "evidence": "j'ai transmis votre annulation au propriétaire, qui vous répondra personnellement"
+ },
+ {
+  "id": "OR-069",
+  "class": "rule_violation",
+  "tag": "unneeded_handoff",
+  "severity": "medium",
+  "reason": "A simple cancel of an unplaced order was escalated to the owner instead of just acknowledging it.",
+  "evidence": "The owner will follow up with you personally about the cancellation."
+ },
+ {
+  "id": "OR-070",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Switched cleanly to the cap with the correct 1500 DA price and asked for confirmation.",
+  "evidence": "Casquette noire réglable, taille unique, kayna b 1500 DA."
+ },
+ {
+  "id": "OR-071",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Acknowledged quantity 2 and asked for the missing full name and detailed address; no order or wrong summary shown, Arabic script kept.",
+  "evidence": "زوج من جان slim bleu مقاس 38"
+ },
+ {
+  "id": "OR-072",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Said 43 is unavailable, offered 41 and nearly-sold-out 42, and showed a 41 summary (1200 fee, total 7700 correct) while explicitly asking for the size confirmation; no order.",
+  "evidence": "La taille 43 n’est pas disponible."
+ },
+ {
+  "id": "OR-073",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Moved to XL, summary has XL 3,500 + Batna 1,200 = 4,700 correct and asks for confirmation; stock wording correct.",
+  "evidence": "Hoodie noir (XL) × 1: 3,500 DZD"
+ },
+ {
+  "id": "OR-074",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Asked which product and option the customer wants, twice, without inventing one.",
+  "evidence": "Chno lproduit w taille/option li hab teshri?"
+ },
+ {
+  "id": "OR-075",
+  "class": "rule_violation",
+  "tag": "wrong_stock_state",
+  "severity": "medium",
+  "reason": "Used 'quelques paires/pièces restantes' for Basket 41 (6 in stock) and Jean 38 (4 in stock), which are above the 'a few' threshold of 3.",
+  "evidence": "Basket blanche (41, 42 : quelques paires restantes)"
+ },
+ {
+  "id": "OR-076",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Asked which product and size the customer wants; customer never named one (no order, Arabic script kept).",
+  "evidence": "ابعثلي اسم المنتج والقياس أو الخيار"
+ },
+ {
+  "id": "OR-077",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "'ok' treated as non-confirmation; later summary Alger 400 + cap 1500 = 1900 correct and awaits confirmation.",
+  "evidence": "Please confirm if you’d like me to place the order."
+ },
+ {
+  "id": "OR-078",
+  "class": "spec_gap",
+  "tag": "repeated_question",
+  "severity": "medium",
+  "reason": "The customer had already given a valid 0661234567 and Alger address, yet the bot said it still needed a valid phone number and full address, a misleading repeat request.",
+  "evidence": "khasni ra9m téléphone valide w adresse complète"
+ },
+ {
+  "id": "OR-079",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Early 'Oui' did not start an order; bot asked what is wanted, then collected quantity and address detail with no order created.",
+  "evidence": "Que souhaitez-vous commander ?"
+ },
+ {
+  "id": "OR-080",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Early yes ignored properly; summary Hoodie XL 3500 + Alger 400 = 3900 correct, Latin Darija, awaits confirmation.",
+  "evidence": "Tconfirmi commande?"
+ },
+ {
+  "id": "OR-081",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Clearly said no CIB payment, cash on delivery only, in Arabic script.",
+  "evidence": "الدفع يكون كاش كي توصلك الطلبية"
+ },
+ {
+  "id": "OR-082",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Stated cash on delivery only and no BaridiMob or online payment.",
+  "evidence": "le paiement se fait en espèces à la livraison"
+ },
+ {
+  "id": "OR-083",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Refused bank transfer, cash on delivery only, Latin Darija.",
+  "evidence": "Ma kaynach paiement b virement; paiement cash ki toussel la commande."
+ },
+ {
+  "id": "OR-084",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Stated no card or online payments, cash on arrival; 'only a few left' for jean 40 (2 in stock) is correct.",
+  "evidence": "We don’t take card or online payments."
+ },
+ {
+  "id": "OR-085",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Did not promise pickup, said it has no confirmed info and handed off to the owner (store address is empty).",
+  "evidence": "ما عنديش معلومة مؤكدة عن الاستلام من المحل"
+ },
+ {
+  "id": "OR-086",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Did not promise pickup, said it does not know and handed off to the owner.",
+  "evidence": "Je ne sais pas si le retrait au magasin est possible"
+ },
+ {
+  "id": "OR-087",
+  "class": "rule_violation",
+  "tag": "missing_handoff",
+  "severity": "medium",
+  "reason": "Pickup and visiting information is unknown but the bot neither offered to ask the owner nor handed off, only repeating the opening hours and referring to internal 'notes'.",
+  "evidence": "Ma 3andich ma3louma ida kayen mahal ta3 ziyarah; notes ta3 lma7al"
+ },
+ {
+  "id": "OR-088",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Bulk 20-cap request was passed to the owner without confirming the quantity or revealing stock; later silence after handoff is expected.",
+  "evidence": "The owner will reply to you personally about the 20 caps for your event."
+ },
+ {
+  "id": "OR-089",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "20-pair request passed to the owner without confirming or leaking stock; silence afterwards is expected.",
+  "evidence": "Le propriétaire vous répondra personnellement au sujet des 20 paires"
+ },
+ {
+  "id": "OR-090",
+  "class": "spec_gap",
+  "tag": "dead_end_unhelpful",
+  "severity": "low",
+  "reason": "Correctly refused 20 hoodies without giving the stock number, but offered XL as an alternative although XL (5) cannot cover 20 either and never offered to pass the bulk request to the owner.",
+  "evidence": "تحبي نعاونك تختاري مقاس XL المتوفر؟"
+ },
+ {
+  "id": "OR-091",
+  "class": "rule_violation",
+  "tag": "missing_handoff",
+  "severity": "medium",
+  "reason": "Declined to guarantee tomorrow's delivery, but delivery time is unknown and the bot never said it would ask the owner nor handed off, then continued to a summary leaving the question unresolved.",
+  "evidence": "Ma n9darsh n2akkedlek belli twsel ghedwa; bghiti tcommandiha?"
+ },
+ {
+  "id": "OR-092",
+  "class": "rule_violation",
+  "tag": "missing_handoff",
+  "severity": "medium",
+  "reason": "Did not promise tomorrow but speculated 'the timing may depend on your wilaya' (no delivery-time info exists) and never offered to ask the owner or handed off.",
+  "evidence": "the timing may depend on your wilaya"
+ },
+ {
+  "id": "OR-093",
+  "class": "rule_violation",
+  "tag": "missing_handoff",
+  "severity": "medium",
+  "reason": "Refused to guarantee tomorrow delivery but never said it would check with the owner, and no handoff occurred for the unknown delivery time.",
+  "evidence": "Je ne peux pas garantir une livraison demain."
+ },
+ {
+  "id": "OR-094",
+  "class": "rule_violation",
+  "tag": "order_flow_error",
+  "severity": "low",
+  "reason": "Showed the order summary with only the first name 'عمر' and without clarifying buyer vs recipient, although a full name is required (fees and total 2200 are correct).",
+  "evidence": "المجموع عند الاستلام: 2200 دج"
+ },
+ {
+  "id": "OR-095",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Quoted the correct 700 DZD Constantine fee and total 4200, asked for the friend's full address before confirming, Latin Darija kept; no order.",
+  "evidence": "Zidli l’adresse kamla, commune w chari3 w détails"
+ },
+ {
+  "id": "OR-096",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Said no iPhone case exists, listed real products, and sent the cap photo when asked (cap has a photo).",
+  "evidence": "I couldn’t find an iPhone 15 case in the products listed."
+ },
+ {
+  "id": "OR-097",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Said no silk dress is in the products and handed off to the owner (README: hand off when it cannot help); no invented product, later silence expected.",
+  "evidence": "Je ne vois pas de robe en soie dans les produits affichés."
+ },
+ {
+  "id": "OR-098",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Said no leather bag is in the catalog and asked the owner; silence afterwards is expected.",
+  "evidence": "ما لقيتش شنطة جلد ضمن المنتجات المتوفرة"
+ },
+ {
+  "id": "OR-099",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Said no phones in the catalog and handed off; phone_in_handoff_summary flag fires only because the summary repeats the customer's number, no SPEC rule, dismissed.",
+  "evidence": "Ma l9itch téléphone f produits li kaynin"
+ },
+ {
+  "id": "OR-100",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Said 42 is out of stock, 'only a few left' for 40 (stock 2) is correct, summary 4200 + Alger 400 = 4600 correct and awaits confirmation.",
+  "evidence": "Size 42 is out of stock in the blue slim jeans."
+ },
+ {
+  "id": "PO-001",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Gave 10:00 to 22:00 every day in Latin Darija.",
+  "evidence": "lmahal yet7al men 10:00 ta 22:00 kol nhar."
+ },
+ {
+  "id": "PO-002",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Gave 10:00 to 22:00 every day.",
+  "evidence": "We’re open from 10:00 to 22:00 every day."
+ },
+ {
+  "id": "PO-003",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Said open until 22h tonight, consistent with every-day hours.",
+  "evidence": "Nous sommes ouverts jusqu’à 22h ce soir."
+ },
+ {
+  "id": "PO-004",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Gave the hours in Arabic script.",
+  "evidence": "ساعات العمل من 10:00 إلى 22:00 كل يوم."
+ },
+ {
+  "id": "PO-005",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Correctly gave 10:00 opening and denied nothing earlier than that.",
+  "evidence": "lwa9t li 3andi howa 10:00 ta3 sba7 7tta 22:00 kol nhar"
+ },
+ {
+  "id": "PO-006",
+  "class": "rule_violation",
+  "tag": "wrong_language",
+  "severity": "low",
+  "reason": "Facts are right (open Friday 10:00 to 22:00) but the French reply contains the English word 'to'.",
+  "evidence": "de 10:00 to 22:00"
+ },
+ {
+  "id": "PO-007",
+  "class": "spec_gap",
+  "tag": "dead_end_unhelpful",
+  "severity": "medium",
+  "reason": "Failed to understand a clear Darija question about Friday opening and asked for clarification instead of answering that the store opens every day 10:00 to 22:00.",
+  "evidence": "Ma fhemtch chnou 9sdek b “lj3a t7loo”."
+ },
+ {
+  "id": "PO-008",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Confirmed open on Friday 10:00 to 22:00 in Arabic script.",
+  "evidence": "نعم، نفتح يوم الجمعة من 10:00 إلى 22:00."
+ },
+ {
+  "id": "PO-009",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Said holiday hours are not specified and asked the owner, no invented schedule.",
+  "evidence": "The holiday hours aren’t specified, so I’ve asked the owner"
+ },
+ {
+  "id": "PO-010",
+  "class": "pass",
+  "tag": null,
+  "severity": null,
+  "reason": "Said it does not know Ramadan hours and asked the owner, no invented schedule.",
+  "evidence": "Ma 3andich wa9t l7al f Ramadan; sa9sit moul l7anout"
+ }
+]

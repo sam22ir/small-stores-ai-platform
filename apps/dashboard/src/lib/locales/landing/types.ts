@@ -34,6 +34,6 @@ export interface LandingDict {
   features: { heading: string; items: string[] };
   pricing: { heading: string; price: string; per: string; text: string; cta: string };
   faq: { heading: string; items: { q: string; a: string }[] };
-  footer: { privacy: string; terms: string; dataDeletion: string; copyright: string; legal: string };
+  footer: { quality: string; privacy: string; terms: string; dataDeletion: string; copyright: string; legal: string };
   notFound: { title: string; text: string; home: string; login: string };
 }

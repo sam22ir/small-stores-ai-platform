@@ -18,6 +18,7 @@ const Protected = lazy(() => authModule().then((m) => ({ default: m.Protected })
 const WithStore = lazy(() => authModule().then((m) => ({ default: m.WithStore })));
 
 const LandingRoute = lazy(() => import("./pages/landing/Landing").then((m) => ({ default: m.LandingRoute })));
+const QualityRoute = lazy(() => import("./pages/Quality").then((m) => ({ default: m.QualityRoute })));
 const Login = page(() => import("./pages/Login"), "Login");
 const SignUp = page(() => import("./pages/SignUp"), "SignUp");
 const ResetPassword = page(() => import("./pages/ResetPassword"), "ResetPassword");
@@ -46,6 +47,10 @@ export function App() {
             <Route path="/" element={<LandingRoute locale="ar" />} />
             <Route path="/fr" element={<LandingRoute locale="fr" />} />
             <Route path="/en" element={<LandingRoute locale="en" />} />
+            {/* Public quality test results ("Wakil 500"), one path per language like the landing. */}
+            <Route path="/quality" element={<QualityRoute locale="ar" />} />
+            <Route path="/fr/quality" element={<QualityRoute locale="fr" />} />
+            <Route path="/en/quality" element={<QualityRoute locale="en" />} />
             <Route path="/privacy" element={<Legal.Privacy />} />
             <Route path="/terms" element={<Legal.Terms />} />
             <Route path="/data-deletion" element={<Legal.DataDeletion />} />

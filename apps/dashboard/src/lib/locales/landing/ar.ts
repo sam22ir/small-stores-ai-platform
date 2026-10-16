@@ -96,6 +96,7 @@ const landingAr: LandingDict = {
     ],
   },
   footer: {
+    quality: "اختبار الجودة",
     privacy: "سياسة الخصوصية",
     terms: "شروط الاستخدام",
     dataDeletion: "حذف البيانات",

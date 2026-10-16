@@ -1,0 +1,127 @@
+import type { QualityDict } from "./types";
+
+const qualityEn: QualityDict = {
+  htmlLang: "en",
+  dir: "ltr",
+  title: "Wakil 500: our public quality test",
+  description:
+    "Before customers talk to Wakil, we replay 500 realistic conversations through the real assistant and grade every reply. Every round is published here, including the failures.",
+  ogLocale: "en_US",
+  nav: { logIn: "Log in", startFree: "Start free", langLabel: "Language" },
+  hero: {
+    kicker: "Quality Test",
+    h1: "Wakil 500",
+    lede:
+      "Before a customer ever talks to Wakil, we replay 500 scripted conversations, written like real messages to Algerian Instagram shops (Darija, French, Arabic, English), through the same assistant code. Every reply is graded. We publish every round here, including the bad ones.",
+    latest: "Latest round, {date}",
+    passedOf: "of {total} conversations passed",
+  },
+  stats: {
+    passed: "Passed",
+    notPassed: "Not passed",
+    repeatable: "Failed in all 3 runs",
+    repeatableNote: "Failed again each time it was re-run.",
+    oneOff: "Failed only once",
+  },
+  rounds: {
+    heading: "Round by round",
+    intro: "We test, fix, and test again. The ordering conversations (taking a cash-on-delivery order) are the hardest, and they did not improve in a straight line.",
+    round: "Round",
+    date: "Date",
+    passed: "Passed",
+    critical: "Critical",
+    high: "High",
+    judging: "How it was judged",
+    partialNote: "Not a full run: only the 100 ordering conversations and 4 critical cases were re-tested, with automatic checks and no judges.",
+    tableLabel: "Results of each round",
+    severityNote: "Critical and High are the judge's severity rating, not a guarantee: the same kind of problem was rated critical in one round and high in another.",
+  },
+  roundNames: {
+    original: "First run",
+    round1: "Round 1",
+    round2: "Round 2",
+    round3: "Round 3 (ordering only)",
+    round4: "Round 4 (full run)",
+  },
+  judge: {
+    model_reruns: "Model judges; every failure re-run twice and re-judged.",
+    model: "Model judges. The judges differ from round to round, so small differences are noise.",
+    model_checked: "Model judges, one pass. Failures were re-run twice, and a stronger judge re-checked 100 conversations (see below). Earlier rounds were judged differently.",
+  },
+  trust: {
+    heading: "How much to trust the latest number",
+    reruns: "We re-ran the {total} conversations that failed, twice. {three} failed all three times, {two} failed twice, and {one} failed only once (probably a one-off slip). {testProblems} more were problems in the test script itself, not in Wakil.",
+    recheck: "A stronger judge re-graded {total} conversations drawn from ordering and store policies, the two weakest categories. It agreed with the first judge on {agree}, and marked {downgraded} of the first judge's {firstPass} passes as not passing.",
+    caution: "So treat {pass} of {total} as a good estimate, not an exact score: it may be a few points lower or higher.",
+  },
+  categories: {
+    heading: "What kind of conversation",
+    intro: "Passes per type of conversation, first run against the latest round.",
+    first: "First run",
+    latest: "Latest",
+    names: {
+      ordering: "Taking an order",
+      product_stock: "Product and stock questions",
+      language: "Language and script",
+      handoff: "Handing over to the owner",
+      policies: "Store policies and hours",
+      adversarial: "Tricks and attacks",
+      noise: "Short or unclear messages",
+    },
+  },
+  changes: {
+    heading: "What we changed after each round",
+    intro: "Every fix was re-tested with the same scripted conversations.",
+    none: "No code change: first full 500-conversation run on the round 3 code.",
+    items: {
+      language: "Answer in the customer's own language and script",
+      wilaya_fees_phone: "Delivery fees for all wilayas, misspelled wilaya names, phone number checked before the order summary",
+      catalog_search: "Better product search (spelling variants, Arabic and French names)",
+      prompt_rules: "Clearer rules in the assistant's instructions",
+      order_guard: "An order is created only after the delivery fee and the total were shown and the customer clearly said yes",
+      handoff_rules: "Fewer needless hand-overs to the owner",
+      haggling_rule: "Price haggling goes to the owner instead of being refused silently",
+      language_retry: "Automatic retry when a reply comes back in the wrong script",
+      explicit_confirmation: "The customer's own message must contain an explicit yes",
+      script_retry: "Retry when stray letters from another script appear",
+      label_sanitiser: "Cleaner product labels in order summaries",
+      no_invented_facts: "No invented care instructions or shop facts",
+      one_handoff_rule: "One clear rule for hand-overs while taking an order",
+    },
+  },
+  open: {
+    heading: "What is still not good enough",
+    intro: "We list problems we know about. This list changes every round.",
+    items: {
+      order_guard_partial_address: "An order was created on a short \"yes\" while the assistant was still asking for the rest of the address.",
+      first_turn_handoffs: "Sometimes the assistant hands an order to the owner on the very first message. The owner follows up, but a sale can be lost.",
+      language_slips: "A few replies still come back in the wrong language or script.",
+      stock_wording_quantity: "\"A few left\" is sometimes said for sizes with 4 to 6 in stock, and an order for 2 pieces was refused although 2 were in stock.",
+      short_conversations: "Most test conversations are short (1 to 3 messages), so very long conversations are under-tested.",
+    },
+  },
+  how: {
+    heading: "How the test works",
+    steps: [
+      { title: "500 scripted conversations", text: "Customers ask about products and stock, order, haggle, switch language, send noise, and try to trick the assistant." },
+      { title: "The real assistant", text: "Each conversation runs through the same code, prompt and tools as the live assistant, against a test store with real-looking products, stock and delivery fees." },
+      { title: "Every reply is graded", text: "Model judges compare each reply with written expectations and the store facts. Failures are tagged by type and severity." },
+      { title: "Fix, then test again", text: "We fix what failed, run all 500 again, and publish the new round next to the old ones." },
+    ],
+  },
+  limits: {
+    heading: "What this test does not prove",
+    items: [
+      "The first run was graded under slightly stricter rules than later rounds (for example, answers that say payment is cash on delivery only are accepted now), so part of the gain in the store-policy category comes from judging, not from the assistant.",
+      "Judges are language models and can be wrong. Each round says how it was judged, and rounds judged differently should not be compared point by point.",
+      "The conversations are scripted, so the customer cannot react to what the assistant says.",
+      "The test store is a test store: only its opening hours are filled in, so many policy questions can only end in \"I will ask the owner\".",
+      "Messages do not go through Instagram in this test, only through the assistant code.",
+    ],
+    model: "Model tested: {model}.",
+  },
+  cta: { text: "Wakil answers your customers' messages from your own catalog, and hands over to you when it cannot help.", button: "Try Wakil free" },
+  footer: { home: "Home", privacy: "Privacy", terms: "Terms" },
+};
+
+export default qualityEn;

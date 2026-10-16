@@ -52,8 +52,9 @@ export function useLandingCopy(): LandingDict {
 type I18n = { lang: Lang; setLang: (l: Lang) => void; t: (key: TKey, vars?: Record<string, string | number>) => string };
 const Ctx = createContext<I18n | null>(null);
 
-// Matches the landing paths: /, /fr, /en (with or without a trailing slash).
-export const LANDING_PATH = /^\/(fr|en)?\/?$/;
+// Matches the public pages that bring their own copy and load no app strings: the landing paths /, /fr, /en
+// and the quality-test paths /quality, /fr/quality, /en/quality (with or without a trailing slash).
+export const LANDING_PATH = /^\/(fr|en)?\/?$|^\/((fr|en)\/)?quality\/?$/;
 
 export function applyDocumentLang(lang: Lang) {
   document.documentElement.lang = lang;
