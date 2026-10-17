@@ -16,9 +16,24 @@ export const dur = {
   slow: 0.9,
 };
 
+// Per-browser override: open any page with ?motion=on to play full motion even when the browser
+// asks for reduced motion (some browsers report it regardless of the OS setting), ?motion=off to
+// go back. Stored in localStorage, so it sticks for that browser only.
+const MOTION_KEY = "wakil-motion";
+const forceMotion: boolean = (() => {
+  try {
+    const p = new URLSearchParams(window.location.search).get("motion");
+    if (p === "on") localStorage.setItem(MOTION_KEY, "on");
+    if (p === "off") localStorage.removeItem(MOTION_KEY);
+    return localStorage.getItem(MOTION_KEY) === "on";
+  } catch {
+    return false;
+  }
+})();
+
 // True when motion should be skipped. Defaults to false while the media query is unknown.
 export function useMotionSafe(): boolean {
-  return useReducedMotion() === true;
+  return useReducedMotion() === true && !forceMotion;
 }
 
 // Picks the animated value unless reduced motion is on.
