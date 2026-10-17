@@ -1,51 +1,34 @@
 import { lazy, Suspense, use, useRef, useState } from "react";
-import { Accordion, Card, Chip } from "@heroui/react";
-import { motion, useInView, useMotionValueEvent, useScroll } from "motion/react";
+import { Accordion, Card } from "@heroui/react";
+import { motion, useInView, useMotionValueEvent, useScroll, useSpring } from "motion/react";
 import { LandingCopy, loadLanding, useI18n, useLandingCopy } from "../../lib/i18n";
 import type { Lang } from "../../lib/i18n";
 import { useSignedIn } from "./useSignedIn";
 import { dur, ease, useMotionSafe } from "../../lib/motion";
 import { DmBubble } from "../../components/wakil/DmBubble";
-import { OrderSlip } from "../../components/wakil/OrderSlip";
+import { Magnetic } from "../../components/wakil/Interact";
 import { Reveal } from "../../components/wakil/Reveal";
 import { ZelligeBackground } from "../../components/wakil/ZelligeBackground";
 import { CountUp } from "../../components/wakil/CountUp";
 import { Logo } from "../../components/wakil/Logo";
 import { RouteButton, RouteLink } from "../../components/wakil/RouteLink";
 import { LANDING_LOCALES, LOCALE_PATHS, useLandingHead } from "./useLandingHead";
+import { HeroDemo } from "./sections/HeroDemo";
+import { ChatCards } from "./sections/ChatCards";
+import { StepsPlay } from "./sections/StepsPlay";
+import { FeatureTiles } from "./sections/FeatureTiles";
+import { TimeBack } from "./sections/TimeBack";
 
 // The live demo is the heaviest block on this page: it loads only when it nears the viewport.
 const LiveDemo = lazy(() => import("./LiveDemo"));
 
 const LANG_NAMES: Record<Lang, string> = { ar: "العربية", fr: "Français", en: "English" };
 
-// Three dots that fade in, then out, before Wakil's reply lands.
-function TypingDots({ delay = 0.9 }: { delay?: number }) {
-  const reduced = useMotionSafe();
-  if (reduced) return null;
-  return (
-    <motion.div
-      aria-hidden="true"
-      className="flex w-fit items-center gap-1.5 rounded-2xl rounded-ee-sm bg-blue/10 px-3.5 py-3 ms-auto"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: [0, 1, 1, 0] }}
-      transition={{ duration: 1, delay, times: [0, 0.1, 0.9, 1] }}
-    >
-      {[0, 1, 2].map((i) => (
-        <motion.span
-          key={i}
-          className="size-1.5 rounded-full bg-blue"
-          animate={{ y: [0, -4, 0] }}
-          transition={{ duration: 0.6, repeat: Infinity, delay: delay + i * 0.12, ease: ease.inOut }}
-        />
-      ))}
-    </motion.div>
-  );
-}
-
 function Nav({ locale, signedIn }: { locale: Lang; signedIn: boolean }) {
   const d = useLandingCopy();
-  const { scrollY } = useScroll();
+  const reduced = useMotionSafe();
+  const { scrollY, scrollYProgress } = useScroll();
+  const progress = useSpring(scrollYProgress, { stiffness: 200, damping: 30, restDelta: 0.001 });
   const [compact, setCompact] = useState(false);
   useMotionValueEvent(scrollY, "change", (v) => setCompact(v > 24));
 
@@ -96,16 +79,24 @@ function Nav({ locale, signedIn }: { locale: Lang; signedIn: boolean }) {
               {d.nav.logIn}
             </RouteLink>
           )}
-          <RouteButton
-            to={signedIn ? "/inbox" : "/signup"}
-            variant="primary"
-            size="sm"
-            className="hidden whitespace-nowrap bg-red text-slip shadow-ink-sm sm:inline-flex active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-[transform,box-shadow] duration-150"
-          >
-            {signedIn ? d.nav.goInbox : d.nav.startFree}
-          </RouteButton>
+          <Magnetic className="hidden sm:inline-flex" strength={0.2}>
+            <RouteButton
+              to={signedIn ? "/inbox" : "/signup"}
+              variant="primary"
+              size="sm"
+              className="whitespace-nowrap bg-red text-slip shadow-ink-sm active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-[transform,box-shadow] duration-150"
+            >
+              {signedIn ? d.nav.goInbox : d.nav.startFree}
+            </RouteButton>
+          </Magnetic>
         </div>
       </nav>
+      {/* Reading progress: a thin red bar along the bottom of the header. */}
+      <motion.div
+        aria-hidden="true"
+        className="absolute inset-x-0 -bottom-px h-0.5 bg-red origin-left rtl:origin-right"
+        style={{ scaleX: reduced ? scrollYProgress : progress }}
+      />
     </header>
   );
 }
@@ -115,7 +106,6 @@ function Hero({ locale, signedIn }: { locale: Lang; signedIn: boolean }) {
   const reduced = useMotionSafe();
   const intro = (delay: number) =>
     reduced ? { initial: false as const } : { initial: { opacity: 0, y: 18 }, animate: { opacity: 1, y: 0 }, transition: { duration: dur.base, ease: ease.out, delay } };
-  const sample = d.chats.items[0];
 
   return (
     <section className="relative overflow-hidden" aria-labelledby="hero-title">
@@ -140,44 +130,21 @@ function Hero({ locale, signedIn }: { locale: Lang; signedIn: boolean }) {
             {d.hero.lede}
           </motion.p>
           <motion.div className="mt-8 flex flex-wrap items-center gap-4" {...intro(0.4)}>
-            <RouteButton
-              to={signedIn ? "/inbox" : "/signup"}
-              variant="primary"
-              size="lg"
-              className="bg-red text-slip shadow-ink active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-[transform,box-shadow] duration-150"
-            >
-              {signedIn ? d.nav.goInbox : d.hero.cta}
-            </RouteButton>
+            <Magnetic>
+              <RouteButton
+                to={signedIn ? "/inbox" : "/signup"}
+                variant="primary"
+                size="lg"
+                className="bg-red text-slip shadow-ink active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-[transform,box-shadow] duration-150"
+              >
+                {signedIn ? d.nav.goInbox : d.hero.cta}
+              </RouteButton>
+            </Magnetic>
             <small className="text-sm text-soft">{d.hero.ctaNote}</small>
           </motion.div>
         </div>
 
-        <figure className="relative mx-auto w-full max-w-md">
-          <div className="space-y-3">
-            <DmBubble variant="in" animate delay={0.2}>{sample.customer}</DmBubble>
-            <TypingDots delay={0.9} />
-            <DmBubble variant="out" animate delay={1.9}>{sample.reply}</DmBubble>
-          </div>
-          <div className="mt-8">
-            <OrderSlip
-              intro
-              delay={2.4}
-              title={d.slip.title}
-              sub={d.slip.sub}
-              rows={[
-                { label: d.slip.client, value: "Amina B." },
-                { label: d.slip.phone, value: "0555 •• •• 21", ltr: true },
-                { label: d.slip.wilaya, value: d.slip.wilayaValue },
-                { label: d.slip.item, value: d.slip.itemValue },
-                { label: d.slip.delivery, value: "400 DA" },
-              ]}
-              total={{ label: d.slip.total, value: "3,600 DA" }}
-              stamp={d.slip.stamp}
-              trail={d.slip.trail}
-            />
-          </div>
-          <figcaption className="mt-10 text-center text-xs text-soft">{d.hero.slipCaption}</figcaption>
-        </figure>
+        <HeroDemo />
       </div>
     </section>
   );
@@ -191,51 +158,20 @@ function Chats() {
         <h2 id="chats-title" className="text-2xl font-extrabold sm:text-3xl">{d.chats.heading}</h2>
         <p className="mt-2 max-w-2xl text-soft">{d.chats.intro}</p>
       </Reveal>
-      <ul className="mt-10 grid gap-5 md:grid-cols-3" role="list">
-        {d.chats.items.map((c, i) => (
-          <li key={i}>
-            <Reveal delay={i * 0.1} className="h-full">
-              <Card className="h-full bg-slip p-4 shadow-paper">
-                <div className="space-y-2.5">
-                  <DmBubble variant="in" lang={c.customerLang}>{c.customer}</DmBubble>
-                  <DmBubble variant="out" lang={c.replyLang}>{c.reply}</DmBubble>
-                </div>
-                {c.tag && <Chip className="mt-4 bg-red/10 text-red" size="sm">{c.tag}</Chip>}
-              </Card>
-            </Reveal>
-          </li>
-        ))}
-      </ul>
+      <ChatCards />
     </section>
   );
 }
 
 function Steps() {
   const d = useLandingCopy();
-  const reduced = useMotionSafe();
   return (
     <section className="relative bg-ink text-slip" aria-labelledby="steps-title">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6">
         <Reveal>
           <h2 id="steps-title" className="text-2xl font-extrabold sm:text-3xl">{d.steps.heading}</h2>
         </Reveal>
-        <ol className="mt-10 grid gap-5 md:grid-cols-3">
-          {d.steps.items.map((s, i) => (
-            <motion.li
-              key={s.title}
-              className="rounded-2xl border border-slip/15 bg-slip/5 p-6"
-              initial={reduced ? false : { opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: dur.base, ease: ease.out, delay: i * 0.12 }}
-              whileHover={reduced ? undefined : { y: -4 }}
-            >
-              <em className="not-italic text-xs font-bold uppercase tracking-widest text-paper/70">{s.k}</em>
-              <h3 className="mt-2 text-lg font-bold">{s.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-paper/80">{s.text}</p>
-            </motion.li>
-          ))}
-        </ol>
+        <StepsPlay />
       </div>
     </section>
   );
@@ -268,18 +204,7 @@ function Features() {
       <Reveal>
         <h2 id="features-title" className="text-2xl font-extrabold sm:text-3xl">{d.features.heading}</h2>
       </Reveal>
-      <ul className="mt-10 grid gap-3 sm:grid-cols-2" role="list">
-        {d.features.items.map((f, i) => (
-          <li key={i}>
-            <Reveal delay={(i % 2) * 0.08} className="h-full">
-              <div className="flex h-full gap-3 rounded-xl border border-ink/10 bg-slip p-4 text-sm leading-relaxed">
-                <span aria-hidden="true" className="mt-1.5 size-2 shrink-0 rounded-full bg-red" />
-                <span>{f}</span>
-              </div>
-            </Reveal>
-          </li>
-        ))}
-      </ul>
+      <FeatureTiles />
     </section>
   );
 }
@@ -295,21 +220,26 @@ function Pricing({ locale }: { locale: Lang }) {
       <Reveal>
         <Card className="relative overflow-hidden bg-slip p-8 shadow-paper sm:p-12">
           <ZelligeBackground className="opacity-[0.04]" />
-          <div className="relative">
-            <h2 id="pricing-title" className="text-2xl font-extrabold sm:text-3xl">{d.pricing.heading}</h2>
-            <p className="mt-4 text-4xl font-extrabold text-blue sm:text-5xl">
-              <CountUp to={1000} viewOnce format={priceText} />
-            </p>
-            <p className="mt-1 text-sm font-semibold text-soft">{d.pricing.per}</p>
-            <p className="mt-5 max-w-xl text-soft">{d.pricing.text}</p>
-            <RouteButton
-              to="/signup"
-              variant="primary"
-              size="lg"
-              className="mt-8 bg-red text-slip shadow-ink active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-[transform,box-shadow] duration-150"
-            >
-              {d.pricing.cta}
-            </RouteButton>
+          <div className="relative grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
+            <div>
+              <h2 id="pricing-title" className="text-2xl font-extrabold sm:text-3xl">{d.pricing.heading}</h2>
+              <p className="mt-4 text-4xl font-extrabold text-blue sm:text-5xl">
+                <CountUp to={1000} viewOnce format={priceText} />
+              </p>
+              <p className="mt-1 text-sm font-semibold text-soft">{d.pricing.per}</p>
+              <p className="mt-5 max-w-xl text-soft">{d.pricing.text}</p>
+              <Magnetic className="mt-8 inline-flex">
+                <RouteButton
+                  to="/signup"
+                  variant="primary"
+                  size="lg"
+                  className="bg-red text-slip shadow-ink active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-[transform,box-shadow] duration-150"
+                >
+                  {d.pricing.cta}
+                </RouteButton>
+              </Magnetic>
+            </div>
+            <TimeBack locale={locale} />
           </div>
         </Card>
       </Reveal>
@@ -334,7 +264,9 @@ function Faq() {
               </Accordion.Trigger>
             </Accordion.Heading>
             <Accordion.Panel>
-              <Accordion.Body>{item.a}</Accordion.Body>
+              <Accordion.Body>
+                <DmBubble variant="out" animate className="max-w-[92%]">{item.a}</DmBubble>
+              </Accordion.Body>
             </Accordion.Panel>
           </Accordion.Item>
         ))}

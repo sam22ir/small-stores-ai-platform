@@ -36,4 +36,32 @@ export interface LandingDict {
   faq: { heading: string; items: { q: string; a: string }[] };
   footer: { privacy: string; terms: string; dataDeletion: string; copyright: string; legal: string };
   notFound: { title: string; text: string; home: string; login: string };
+  // Labels for the interactive bits in each section (hero trace, stepper, feature tiles, calculator).
+  play: {
+    replay: string;
+    traceHint: string;
+    traceShow: string;
+    chatsHint: string;
+    stepsHint: string;
+    paste: string;
+    pasted: string;
+    inStock: string;
+    soldOut: string;
+    connect: string;
+    connected: string;
+    messengerSoon: string;
+    answered: string;
+    alertTitle: string;
+    alertText: string;
+    stockToggle: string;
+    langsTap: string;
+    handoffBtn: string;
+    handoffDone: string;
+    learnBtn: string;
+    learnDone: string;
+    ordersToggle: string;
+    ordersOff: string;
+    ordersOn: string;
+    calc: { heading: string; perDay: string; perMonth: string; hours: string; note: string };
+  };
 }

@@ -8,14 +8,7 @@ import { CountUp } from "../../components/wakil/CountUp";
 import { ZelligeBackground } from "../../components/wakil/ZelligeBackground";
 import { ease, useMotionSafe } from "../../lib/motion";
 import type { LandingDict } from "../../lib/locales/landing/types";
-
-const WILAYAS = [
-  { name: "Alger", fee: 350 },
-  { name: "Oran", fee: 400 },
-  { name: "Sétif", fee: 450 },
-  { name: "Constantine", fee: 450 },
-  { name: "Annaba", fee: 500 },
-];
+import { WILAYAS } from "./sections/bits";
 
 // {wilaya} and {fee} are filled from the picker. The handoff question has no fee.
 const QUESTIONS: {
