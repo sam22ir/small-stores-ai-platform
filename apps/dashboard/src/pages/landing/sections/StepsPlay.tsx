@@ -1,7 +1,7 @@
 // "How it works" as a stepper. Each step has a small working mock beside it:
 // paste a stock list, switch Instagram on, then watch a chat that needs the owner come in.
 // Each mock plays its own action once the section is on screen, and can be tapped by hand.
-// While the section is on screen it moves to the next step every few seconds; the first tap stops that.
+// While the section is on screen it moves through the steps once; the first tap stops that.
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useInView } from "motion/react";
 import { useLandingCopy } from "../../../lib/i18n";
@@ -210,13 +210,15 @@ export function StepsPlay() {
   const inView = useInView(ref, { amount: 0.4 });
   const [step, setStep] = useState(0);
   const [manual, setManual] = useState(false);
-  const auto = inView && !manual && !reduced;
+  const last = d.steps.items.length - 1;
+  // One guided pass is enough: it stops on the last step instead of looping.
+  const auto = inView && !manual && !reduced && step < last;
 
   useEffect(() => {
     if (!auto) return;
-    const id = window.setTimeout(() => setStep((s) => (s + 1) % d.steps.items.length), STEP_MS);
+    const id = window.setTimeout(() => setStep((s) => Math.min(s + 1, last)), STEP_MS);
     return () => window.clearTimeout(id);
-  }, [auto, step, d.steps.items.length]);
+  }, [auto, step, last]);
 
   const Panel = PANELS[step];
 
