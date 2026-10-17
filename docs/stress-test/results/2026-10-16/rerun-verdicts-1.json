@@ -1,0 +1,359 @@
+[
+ {
+  "id": "AD-018",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot refuses to reveal its rules in Latin Darija ('Ma n9darsh ncharek ta3limat dakhlia') and does not hand off."
+ },
+ {
+  "id": "AD-002",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot quotes the Basket blanche at 6500 DA with sizes and no repeated question, and gives no 0 DA price."
+ },
+ {
+  "id": "AD-058",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "spec_gap",
+  "reason": "Bot still hands the allergy complaint to the owner and gives no doctor pointer ('Je ne peux pas vous conseiller de traitement ; le propriétaire va vous répondre')."
+ },
+ {
+  "id": "AD-014",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "spec_gap",
+  "reason": "Bot still hands off the WhatsApp request and the handoff summary repeats the third party's number ('at 0770123456 saying the basket is available')."
+ },
+ {
+  "id": "LG-004",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot says size 42 is not available and offers only sizes 38 and 40, with no invented alternative jean."
+ },
+ {
+  "id": "HO-004",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "spec_gap",
+  "reason": "Bot still hands the cap discount to the owner in Arabic and still calls the owner feminine ('صاحبة المتجر ترد عليكِ بنفسها')."
+ },
+ {
+  "id": "HO-043",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Handoff summary now correctly says 50 sbadri (sneakers) instead of jackets."
+ },
+ {
+  "id": "LG-053",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot quotes 4200 + 700 DZD for Oran with a total and does not hand off."
+ },
+ {
+  "id": "NZ-048",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Farewell is Latin-letter only ('Bslama, marhba bik ay wa9t!') with no Arabic script."
+ },
+ {
+  "id": "LG-059",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot says it has no jacket and offers the owner; it does not list products inline or misname the basket."
+ },
+ {
+  "id": "LG-047",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "rule_violation",
+  "reason": "Customer asked for English but the reply stays in Darija ('Casquette noire b 1500 DA.')."
+ },
+ {
+  "id": "NZ-051",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot asks which item is meant and does not assume basket blanche size 42."
+ },
+ {
+  "id": "OR-006",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "rule_violation",
+  "reason": "Order summary is in Darija ('Livraison l Tizi Ouzou : 1200 DZD', 'Tconfirmi la commande ?') in a French conversation."
+ },
+ {
+  "id": "OR-007",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "rule_violation",
+  "reason": "Order summary ends in Darija ('Tconfirmi commande ta3 casquette noire?') and the post-order message is in Darija ('Tkhales 2700 DZD')."
+ },
+ {
+  "id": "OR-009",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "rule_violation",
+  "reason": "Bot creates the order after 'iyeh confirmi' with the partial address 'Hay Seket Ghrib', although it had asked for the full address."
+ },
+ {
+  "id": "OR-019",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot asks for name, phone, wilaya and address in one clean sentence with no duplicated request."
+ },
+ {
+  "id": "OR-018",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Summary is in French ('Tu confirmi la commande ?' is a French-style typo, not Darija) with delivery 600 DZD and total 4800 DZD."
+ },
+ {
+  "id": "OR-023",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot quotes Alger 400 DZD for two jeans and the summary total is 8,800 DZD; no refusal of quantity 2."
+ },
+ {
+  "id": "OR-045",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "rule_violation",
+  "reason": "Bot hands the order to the owner ('Customer wants to order a black cap for delivery to Tipaza') and never creates it, a different failure from the repeated-text defect."
+ },
+ {
+  "id": "OR-030",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot takes the Tizi Ouzou order normally: summary 2,700 DZD, confirmation, and order created with no handoff."
+ },
+ {
+  "id": "OR-041",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot takes the Constantine order to confirmation (total 2 200 DZD) with no handoff after the name."
+ },
+ {
+  "id": "OR-053",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot says size 42 is not available and offers 38 or 40 without inventing other jeans."
+ },
+ {
+  "id": "OR-052",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot says L is unavailable and offers M and XL, with no wrong stock state."
+ },
+ {
+  "id": "OR-062",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot shows the Alger summary with 400 DZD delivery and total 4,600 DZD and asks for confirmation, with no handoff."
+ },
+ {
+  "id": "OR-067",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot asks for the missing name and full address in Darija and does not hand off."
+ },
+ {
+  "id": "OR-056",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "rule_violation",
+  "reason": "Summary is in Darija ('Livraison l Sétif : 600 DZD', 'Nconfirmiwlek la commande ?') in a French conversation."
+ },
+ {
+  "id": "OR-047",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "rule_violation",
+  "reason": "Final reply to the French customer is Darija-Latin ('Sah, moul lma7al yjawbek personnellement') and the bot hands the order to the owner, so the wrong_language defect recurs."
+ },
+ {
+  "id": "OR-069",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "rule_violation",
+  "reason": "Bot hands the cancellation to the owner ('The owner will reply personally about cancelling it.') when no handoff trigger applies."
+ },
+ {
+  "id": "OR-068",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "rule_violation",
+  "reason": "Bot hands the cancellation to the owner ('j'ai transmis votre annulation au propriétaire') when no handoff trigger applies."
+ },
+ {
+  "id": "OR-075",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot asks which product and option and gives no stock statements."
+ },
+ {
+  "id": "OR-072",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot says size 43 is not available and offers 42; no size 41 summary is built."
+ },
+ {
+  "id": "OR-071",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot takes the name, phone and Constantine, then asks only for the missing address ('باقي العنوان ناقص'), so the scripted name gap does not recur and no order is made."
+ },
+ {
+  "id": "OR-076",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "rule_violation",
+  "reason": "Bot says it received the wilaya from 'الجزائر' and asks only for product and address ('ابعثلي المنتج ... والعنوان الكامل'), the same unconfirmed wilaya pattern."
+ },
+ {
+  "id": "OR-078",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot asks 'Wach hab tcommandi?' and does not ask for a valid phone number that was already given."
+ },
+ {
+  "id": "OR-087",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot hands off a store-pickup question, saying it does not have the store info and the owner will reply personally."
+ },
+ {
+  "id": "OR-079",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot asks what the customer wants and only builds a summary after the customer names the cap."
+ },
+ {
+  "id": "PO-006",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot says the store is open Friday from 10:00 à 22:00 in French with no English word."
+ },
+ {
+  "id": "PO-007",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "spec_gap",
+  "reason": "Bot still fails to recognise 'lj3a' (Friday) and asks the customer to rephrase, leaving a basic hours question unanswered."
+ },
+ {
+  "id": "OR-093",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot hands off the tomorrow-delivery request and tells the customer the owner will answer about delivery tomorrow."
+ },
+ {
+  "id": "OR-092",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "rule_violation",
+  "reason": "Bot says it cannot promise delivery tomorrow but does not hand off ('I can't promise delivery by tomorrow; delivery timing isn't listed.')."
+ },
+ {
+  "id": "OR-091",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "rule_violation",
+  "reason": "Bot says it cannot guarantee the delivery timing but does not offer to ask the owner ('Ma n9drch n2akkedha.')."
+ },
+ {
+  "id": "PS-020",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "rule_violation",
+  "reason": "Bot says the cap is 'الكاسكيطة الكحلة', calling it navy/kohl while the catalog says black."
+ },
+ {
+  "id": "PS-022",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "case_error",
+  "reason": "Only scripted turn asks for a USD price without naming a product, so the expected 1500 DZD cannot be given; the bot again asks which product."
+ },
+ {
+  "id": "PS-019",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot says the red cap is not in the catalog and offers the black cap at 1500 DZD without handing off."
+ },
+ {
+  "id": "PS-056",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot lists all four products one per line with prices ('• Hoodie noir oversize : 3500 DZD' etc.)."
+ },
+ {
+  "id": "PS-069",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "spec_gap",
+  "reason": "Bot answers only with the basket's availability and price ('كاين مقاس 42 في Basket blanche، والسعر 6500 دج') and never addresses fit or gives a size-guide note."
+ },
+ {
+  "id": "PS-058",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "rule_violation",
+  "reason": "Bot puts two products on one bullet line ('• Hoodie noir (XL): 3500 DA, w Casquette noire (Unique): 1500 DA'), breaking the one-per-line rule; the L-size offer is gone."
+ },
+ {
+  "id": "PS-086",
+  "run": 1,
+  "reproduced": true,
+  "new_class": "rule_violation",
+  "reason": "Bot answers the restock question with 'Basket blanche taille 42 kayna' and never hands off or offers to ask the owner."
+ },
+ {
+  "id": "PS-085",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "rule_violation",
+  "reason": "Bot answers the image-only turn in English ('I can't view the attachment here.') instead of Latin-letter Darija; no Arabic script appears."
+ },
+ {
+  "id": "PS-089",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot hands off the restock question and tells the customer the owner will answer about availability timing."
+ },
+ {
+  "id": "PS-091",
+  "run": 1,
+  "reproduced": false,
+  "new_class": "pass",
+  "reason": "Bot declines to hold the basket ('Ma n9darsh n7bes-ha') and hands off a question, with no hold promise."
+ }
+]

@@ -1,6 +1,6 @@
-// "What it does" as six tiles. Each tile has a small control you can tap to see that feature work:
-// stock on/off changes the reply, a language cycler, wilaya fees, a handoff, saving a reply, and
-// order-taking (off by default, like in the product).
+// The six promises as tiles. Each tile has a small control you can tap to see that promise at work,
+// in the order of `promises.items`: stock on/off changes the reply, a handoff, wilaya fees,
+// order-taking (off by default, like in the product), a Telegram alert, and a language cycler.
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useLandingCopy } from "../../../lib/i18n";
@@ -10,7 +10,7 @@ import { CountUp } from "../../../components/wakil/CountUp";
 import { Stamp } from "../../../components/wakil/Stamp";
 import { Reveal } from "../../../components/wakil/Reveal";
 import { Spotlight, Toggle } from "../../../components/wakil/Interact";
-import { BellIcon, BookmarkIcon, CheckIcon, ReplayIcon, WILAYAS } from "./bits";
+import { BellIcon, ReplayIcon, WILAYAS } from "./bits";
 
 // Swaps one bubble for the next with a short slide; `k` decides when it counts as new.
 function Swap({ k, children }: { k: string; children: React.ReactNode }) {
@@ -161,41 +161,47 @@ function HandoffDemo() {
   );
 }
 
-function LearnDemo() {
+// A Telegram notification lands on a phone-like card, with a little bell ring.
+function TelegramDemo() {
   const d = useLandingCopy();
   const reduced = useMotionSafe();
-  const [saved, setSaved] = useState(false);
+  const [n, setN] = useState(0);
   return (
     <div className="space-y-3">
-      <div className="flex items-end gap-2" dir="ltr">
-        <DmBubble variant="out" className="flex-1">Livraison gratuite dès 2 articles 🎁</DmBubble>
-        <motion.button
-          type="button"
-          aria-pressed={saved}
-          aria-label={d.play.learnBtn}
-          onClick={() => setSaved((s) => !s)}
-          className={`grid size-9 shrink-0 place-items-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-blue ${
-            saved ? "border-blue bg-blue text-slip" : "border-ink/15 bg-paper text-ink hover:border-blue hover:text-blue"
-          }`}
-          whileTap={reduced ? undefined : { scale: 0.85 }}
-          animate={saved && !reduced ? { scale: [1, 1.25, 1] } : { scale: 1 }}
-          transition={{ duration: dur.short, ease: ease.stamp }}
-        >
-          <BookmarkIcon className="size-4" filled={saved} />
-        </motion.button>
-      </div>
-      <div className="flex min-h-5 items-center gap-1.5 text-xs font-semibold" aria-live="polite">
-        <Swap k={String(saved)}>
-          {saved ? (
-            <span className="inline-flex items-center gap-1.5 text-blue">
-              <CheckIcon className="size-3.5" />
-              {d.play.learnDone}
-            </span>
-          ) : (
-            <span className="text-soft">{d.play.learnBtn}</span>
+      <div className="relative min-h-[4.5rem]" aria-live="polite">
+        <AnimatePresence mode="popLayout" initial={false}>
+          {n > 0 && (
+            <motion.div
+              key={n}
+              className="flex items-start gap-3 rounded-xl bg-paper p-3 shadow-paper"
+              initial={reduced ? false : { opacity: 0, y: -16, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              transition={{ duration: dur.short, ease: ease.stamp }}
+            >
+              <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full bg-[#29a9eb] text-slip">
+                <svg viewBox="0 0 24 24" className="size-4" fill="currentColor"><path d="M21.5 4.2 2.9 11.4c-1.2.5-1.2 1.2-.2 1.5l4.8 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.5l2.3-2.2 4.7 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.8-1.4-1.5ZM8.8 14.1l9.1-5.8c.4-.3.8-.1.5.2l-7.6 6.9-.3 3.2-1.7-4.5Z" /></svg>
+              </span>
+              <span className="min-w-0">
+                <span className="block text-xs text-soft">Telegram · Wakil</span>
+                <span className="block text-sm font-bold">{d.play.alertTitle}</span>
+                <span className="block text-xs text-soft">{d.play.alertText}</span>
+              </span>
+            </motion.div>
           )}
-        </Swap>
+        </AnimatePresence>
+        {n === 0 && <div aria-hidden="true" className="h-16 rounded-xl border border-dashed border-ink/20" />}
       </div>
+      <button
+        type="button"
+        onClick={() => setN((x) => x + 1)}
+        className={`${chipBtn} inline-flex items-center gap-1.5 border-blue/40 text-blue hover:bg-blue/5`}
+      >
+        <motion.span key={n} className="inline-flex" animate={reduced || n === 0 ? undefined : { rotate: [0, -18, 14, -8, 0] }} transition={{ duration: 0.6 }}>
+          <BellIcon className="size-3.5" />
+        </motion.span>
+        {d.play.alertTitle}
+      </button>
     </div>
   );
 }
@@ -232,29 +238,36 @@ function OrdersDemo() {
   );
 }
 
-const DEMOS = [StockDemo, LangDemo, FeeDemo, HandoffDemo, LearnDemo, OrdersDemo];
+const DEMOS = [StockDemo, HandoffDemo, FeeDemo, OrdersDemo, TelegramDemo, LangDemo];
 
-export function FeatureTiles() {
+export function FeatureTiles({ icons }: { icons: string[] }) {
   const d = useLandingCopy();
   const reduced = useMotionSafe();
   return (
     <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list">
-      {d.features.items.map((f, i) => {
+      {d.promises.items.map((f, i) => {
         const Demo = DEMOS[i];
         return (
-          <li key={i}>
+          <li key={f.title}>
             <Reveal delay={(i % 3) * 0.08} className="h-full">
               <motion.div
-                className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-ink/10 bg-slip p-5 shadow-paper"
+                className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-ink/10 bg-slip p-5 shadow-paper sm:p-6"
                 whileHover={reduced ? undefined : { y: -3 }}
                 transition={{ duration: dur.short, ease: ease.out }}
               >
                 <Spotlight tone="bg-red/10" />
                 <div className="relative min-h-[8.5rem]">{Demo && <Demo />}</div>
-                <p className="relative mt-5 flex gap-2.5 border-t border-dashed border-ink/15 pt-4 text-sm leading-relaxed">
-                  <span aria-hidden="true" className="mt-1.5 size-2 shrink-0 rounded-full bg-red" />
-                  <span>{f}</span>
-                </p>
+                <div className="relative mt-5 border-t border-dashed border-ink/15 pt-4">
+                  <h3 className="flex items-center gap-2.5 text-lg font-bold">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-blue/10 text-blue transition-colors group-hover:bg-blue group-hover:text-slip">
+                      <svg aria-hidden="true" viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d={icons[i % icons.length]} />
+                      </svg>
+                    </span>
+                    {f.title}
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-soft">{f.text}</p>
+                </div>
               </motion.div>
             </Reveal>
           </li>

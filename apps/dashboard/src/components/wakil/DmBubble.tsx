@@ -30,7 +30,7 @@ export function DmBubble({
   return (
     <motion.div
       lang={lang}
-      dir={lang === "ar" ? "rtl" : undefined}
+      dir={lang === "ar" ? "rtl" : "auto"}
       className={`max-w-[85%] px-3.5 py-2.5 text-[0.95rem] leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] ${variantClass} ${className}`}
       initial={animate && !reduced ? { opacity: 0, y: 8, x } : false}
       animate={{ opacity: 1, y: 0, x: 0 }}

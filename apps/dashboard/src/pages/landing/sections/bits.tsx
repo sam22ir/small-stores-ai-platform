@@ -48,11 +48,6 @@ export const CheckIcon = ({ className }: { className?: string }) => <Svg classNa
 export const BellIcon = ({ className }: { className?: string }) => (
   <Svg className={className}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></Svg>
 );
-export const BookmarkIcon = ({ className, filled = false }: { className?: string; filled?: boolean }) => (
-  <svg className={className ?? "size-4"} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
-    <path d="M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z" />
-  </svg>
-);
 export const PasteIcon = ({ className }: { className?: string }) => (
   <Svg className={className}><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></Svg>
 );
